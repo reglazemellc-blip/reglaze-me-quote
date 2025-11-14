@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [activeSlide, setActiveSlide] = useState(0)
   const quotesCardRef = useRef<HTMLDivElement>(null)
 
-  // track which clients are selected for bulk delete
+  // track selected clients for bulk delete
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -70,9 +70,8 @@ export default function Dashboard() {
       const matchesDate = (() => {
         const t = item.createdAt
         const after = fromDate ? t >= new Date(fromDate).getTime() : true
-        const before = toDate
-          ? t <= new Date(toDate).getTime() + 24 * 60 * 60 * 1000 - 1
-          : true
+        const before =
+          toDate ? t <= new Date(toDate).getTime() + 24 * 60 * 60 * 1000 - 1 : true
         return after && before
       })()
       return matchesSearch && matchesStatus && matchesDate
@@ -94,17 +93,11 @@ export default function Dashboard() {
 
   const reminders = useMemo(() => {
     const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000
-    return quotes
-      .filter(q => q.status === 'pending' && q.createdAt < cutoff)
-      .slice(0, 3)
+    return quotes.filter(q => q.status === 'pending' && q.createdAt < cutoff).slice(0, 3)
   }, [quotes])
 
-  // only show 3 newest clients on dashboard
   const clientsPreview = useMemo(
-    () =>
-      [...filteredClients]
-        .sort((a, b) => b.createdAt - a.createdAt)
-        .slice(0, 3),
+    () => [...filteredClients].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3),
     [filteredClients],
   )
 
@@ -211,25 +204,22 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+
           <div className="flex justify-center gap-2">
             {visibleSections.map((_, idx) => (
               <span
                 key={idx}
                 className={`w-2 h-2 rounded-full ${
-                  activeSlide === idx
-                    ? 'bg-[var(--color-accent1)]'
-                    : 'bg-white/20'
+                  activeSlide === idx ? 'bg-[var(--color-accent1)]' : 'bg-white/20'
                 }`}
               />
             ))}
           </div>
+
           {!showMobileExtras &&
             !layout.section('dashboard', 'reminders', 'Reminders').hidden && (
               <div className="text-center">
-                <button
-                  className="btn btn-outline"
-                  onClick={() => setShowMobileExtras(true)}
-                >
+                <button className="btn btn-outline" onClick={() => setShowMobileExtras(true)}>
                   Show More
                 </button>
               </div>
@@ -246,16 +236,10 @@ export default function Dashboard() {
       {isMobile && (
         <div className="fixed bottom-3 left-0 right-0 px-4 sm:hidden z-30">
           <div className="card flex gap-3">
-            <button
-              className="btn btn-gold flex-1"
-              onClick={() => navigate('/quotes/new')}
-            >
+            <button className="btn btn-gold flex-1" onClick={() => navigate('/quotes/new')}>
               Add Quote
             </button>
-            <button
-              className="btn btn-outline flex-1"
-              onClick={() => setShowAddClient(true)}
-            >
+            <button className="btn btn-outline flex-1" onClick={() => setShowAddClient(true)}>
               Add Client
             </button>
           </div>
@@ -265,26 +249,21 @@ export default function Dashboard() {
   )
 }
 
-function wrapSection(section: {
-  key: string
-  cfg: { title: string }
-  node: JSX.Element
-}) {
+function wrapSection(section: { key: string; cfg: { title: string }; node: JSX.Element }) {
   return (
     <div className="card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="gold-heading text-lg">{section.cfg.title}</h2>
-        <SectionEditMenu
-          page="dashboard"
-          sectionKey={section.key}
-          defaultTitle={section.cfg.title}
-        />
+        <SectionEditMenu page="dashboard" sectionKey={section.key} defaultTitle={section.cfg.title} />
       </div>
       {section.node}
     </div>
   )
 }
 
+// ===========================
+// CLIENT CARD
+// ===========================
 function ClientsCard({
   clientsPreview,
   showAddClient,
@@ -312,12 +291,7 @@ function ClientsCard({
 
   const deleteSelected = async () => {
     if (!selectedClientIds.length) return
-    if (
-      !confirm(
-        `Delete ${selectedClientIds.length} selected client(s) and their quotes?`,
-      )
-    )
-      return
+    if (!confirm(`Delete ${selectedClientIds.length} selected client(s) and their quotes?`)) return
 
     const store = useClientsStore.getState()
     for (const id of selectedClientIds) {
@@ -334,43 +308,37 @@ function ClientsCard({
             className="input"
             placeholder="Name"
             value={newClient.name}
-            onChange={e =>
-              setNewClient({ ...newClient, name: e.target.value })
-            }
+            onChange={e => setNewClient({ ...newClient, name: e.target.value })}
           />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <input
               className="input"
               placeholder="Phone"
               value={newClient.phone}
-              onChange={e =>
-                setNewClient({ ...newClient, phone: e.target.value })
-              }
+              onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
             />
+
             <input
               className="input"
               placeholder="Email"
               value={newClient.email}
-              onChange={e =>
-                setNewClient({ ...newClient, email: e.target.value })
-              }
+              onChange={e => setNewClient({ ...newClient, email: e.target.value })}
             />
           </div>
+
           <input
             className="input"
             placeholder="Address"
             value={newClient.address}
-            onChange={e =>
-              setNewClient({ ...newClient, address: e.target.value })
-            }
+            onChange={e => setNewClient({ ...newClient, address: e.target.value })}
           />
+
           <textarea
             className="input"
             placeholder="Notes"
             value={newClient.notes}
-            onChange={e =>
-              setNewClient({ ...newClient, notes: e.target.value })
-            }
+            onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
           />
         </div>
       )}
@@ -378,6 +346,7 @@ function ClientsCard({
       <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
         {clientsPreview.map(c => {
           const checked = selectedClientIds.includes(c.id)
+
           return (
             <div key={c.id} className="flex items-center gap-3">
               <input
@@ -386,22 +355,18 @@ function ClientsCard({
                 checked={checked}
                 onChange={() => toggleSelected(c.id)}
               />
+
               <Link to={`/clients/${c.id}`} className="flex-1">
                 <div className="font-semibold">{c.name}</div>
-                <div
-                  className="text-xs"
-                  style={{ color: 'var(--color-text-muted)' }}
-                >
+                <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   {[c.phone, c.email].filter(Boolean).join(' · ')}
                 </div>
               </Link>
+
               <button
                 className="btn btn-outline btn-sm"
                 onClick={async () => {
-                  const count = await db.quotes
-                    .where('clientId')
-                    .equals(c.id)
-                    .count()
+                  const count = await db.quotes.where('clientId').equals(c.id).count()
                   if (
                     confirm(
                       count > 0
@@ -410,10 +375,7 @@ function ClientsCard({
                     )
                   ) {
                     await useClientsStore.getState().remove(c.id)
-                    // also remove from selection if it was checked
-                    setSelectedClientIds(
-                      selectedClientIds.filter(id => id !== c.id),
-                    )
+                    setSelectedClientIds(selectedClientIds.filter(id => id !== c.id))
                   }
                 }}
               >
@@ -422,6 +384,7 @@ function ClientsCard({
             </div>
           )
         })}
+
         {!clientsPreview.length && (
           <div className="text-center text-gray-500 py-6">No clients yet.</div>
         )}
@@ -429,10 +392,7 @@ function ClientsCard({
 
       <div className="flex items-center justify-between mt-3">
         {selectedClientIds.length > 0 ? (
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={deleteSelected}
-          >
+          <button className="btn btn-outline btn-sm" onClick={deleteSelected}>
             Delete Selected ({selectedClientIds.length})
           </button>
         ) : (
@@ -449,6 +409,9 @@ function ClientsCard({
   )
 }
 
+// ===========================
+// RECENT
+// ===========================
 function RecentCard({ recent }: { recent: any[] }) {
   return (
     <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
@@ -461,30 +424,27 @@ function RecentCard({ recent }: { recent: any[] }) {
           <div className="flex items-center justify-between">
             <div>
               <div className="font-semibold">{item.id}</div>
-              <div
-                className="text-xs"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
+              <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                 {new Date(item.createdAt).toLocaleDateString()}
               </div>
             </div>
             <StatusBadge status={item.status} />
           </div>
-          <div
-            className="text-xs mt-2"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
+
+          <div className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
             {item.notes || 'No notes'}
           </div>
         </Link>
       ))}
-      {!recent.length && (
-        <div className="text-center text-gray-500 py-6">No activity yet.</div>
-      )}
+
+      {!recent.length && <div className="text-center text-gray-500 py-6">No activity yet.</div>}
     </div>
   )
 }
 
+// ===========================
+// REMINDERS
+// ===========================
 function RemindersCard({ reminders }: { reminders: any[] }) {
   return (
     <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
@@ -496,37 +456,29 @@ function RemindersCard({ reminders }: { reminders: any[] }) {
         >
           <div>
             <div className="font-semibold">{q.id}</div>
-            <div className="text-xs text-amber-300">
-              Pending over 14 days
-            </div>
+            <div className="text-xs text-amber-300">Pending over 14 days</div>
           </div>
           <StatusBadge status={q.status} />
         </Link>
       ))}
-      {!reminders.length && (
-        <div className="text-center text-gray-500 py-6">No reminders.</div>
-      )}
+
+      {!reminders.length && <div className="text-center text-gray-500 py-6">No reminders.</div>}
     </div>
   )
 }
 
-function QuotesCard({
-  quotes,
-  selectedStatus,
-}: {
-  quotes: any[]
-  selectedStatus: string
-}) {
+// ===========================
+// QUOTES CARD
+// ===========================
+function QuotesCard({ quotes, selectedStatus }: { quotes: any[]; selectedStatus: string }) {
   return (
     <>
       {selectedStatus && (
-        <div
-          className="text-xs"
-          style={{ color: 'var(--color-text-muted)' }}
-        >
+        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
           Filtering quotes by status: {selectedStatus.replace('_', ' ')}
         </div>
       )}
+
       <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
         {quotes.map(q => (
           <Link
@@ -536,26 +488,26 @@ function QuotesCard({
           >
             <div>
               <div className="font-semibold">{q.id}</div>
-              <div
-                className="text-xs"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
+              <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                 {q.notes || 'No notes'}
               </div>
             </div>
+
             <StatusBadge status={q.status} />
           </Link>
         ))}
+
         {!quotes.length && (
-          <div className="text-center text-gray-500 py-6">
-            No quotes found.
-          </div>
+          <div className="text-center text-gray-500 py-6">No quotes found.</div>
         )}
       </div>
     </>
   )
 }
 
+// ===========================
+// QUICK STATS
+// ===========================
 function QuickStats({
   byStatus,
   clients,
@@ -589,45 +541,26 @@ function QuickStats({
           className={`card p-4 text-center transition ${
             activeStatus === key ? 'ring-2 ring-[var(--color-accent1)]' : ''
           }`}
-          style={{
-            transform: activeStatus === key ? 'scale(1.03)' : undefined,
-          }}
+          style={{ transform: activeStatus === key ? 'scale(1.03)' : undefined }}
         >
-          <div
-            className="text-xs"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
+          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {key.replace('_', ' ')}
           </div>
           <div className="text-2xl font-semibold">{byStatus[key] || 0}</div>
         </button>
       ))}
 
-      {/* Clients tile – now clickable to open Clients page */}
-      <button
-        type="button"
-        className="card p-4 text-center hover:bg白/5 transition"
-        onClick={onOpenClients}
-      >
-        <div
-          className="text-xs"
-          style={{ color: 'var(--color-text-muted)' }}
-        >
+      {/* Clients tile */}
+      <button type="button" className="card p-4 text-center" onClick={onOpenClients}>
+        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
           Clients
         </div>
         <div className="text-2xl font-semibold">{clients}</div>
       </button>
 
-      {/* Quotes tile – now clickable to open Quotes page */}
-      <button
-        type="button"
-        className="card p-4 text-center hover:bg白/5 transition"
-        onClick={onOpenQuotes}
-      >
-        <div
-          className="text-xs"
-          style={{ color: 'var(--color-text-muted)' }}
-        >
+      {/* Quotes tile */}
+      <button type="button" className="card p-4 text-center" onClick={onOpenQuotes}>
+        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
           Quotes
         </div>
         <div className="text-2xl font-semibold">{quotes}</div>
@@ -636,6 +569,9 @@ function QuickStats({
   )
 }
 
+// ===========================
+// STICKY BAR (SEARCH FIXED)
+// ===========================
 function StickyBar({
   term,
   setTerm,
@@ -661,22 +597,32 @@ function StickyBar({
     <div className="sticky top-2 z-10">
       <div className="card p-3 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
         <div className="flex-1 flex items-center gap-2">
+          {/* FIXED SEARCH INPUT */}
           <div className="relative w-full">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-70 pointer-events-none">
-              {SearchIcon()}
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-muted)]">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.3-4.3" />
+              </svg>
             </span>
+
             <input
-              className="input w-full pl-10"
+              className="input w-full pl-10 leading-tight"
               placeholder="Search..."
               value={term}
               onChange={e => setTerm(e.target.value)}
             />
           </div>
-          <select
-            className="input w-44"
-            value={status}
-            onChange={e => setStatus(e.target.value)}
-          >
+
+          {/* STATUS FILTER */}
+          <select className="input w-44" value={status} onChange={e => setStatus(e.target.value)}>
             <option value="">All Statuses</option>
             {STATUS_ORDER.map(s => (
               <option key={s} value={s}>
@@ -684,12 +630,15 @@ function StickyBar({
               </option>
             ))}
           </select>
+
+          {/* DATE FILTERS */}
           <input
             type="date"
             className="input w-40"
             value={fromDate}
             onChange={e => setFromDate(e.target.value)}
           />
+
           <input
             type="date"
             className="input w-40"
@@ -697,29 +646,12 @@ function StickyBar({
             onChange={e => setToDate(e.target.value)}
           />
         </div>
-        <button
-          className="btn btn-gold btn-lg whitespace-nowrap pulse"
-          onClick={onAddQuote}
-        >
+
+        {/* ADD QUOTE BUTTON */}
+        <button className="btn btn-gold btn-lg whitespace-nowrap pulse" onClick={onAddQuote}>
           Add Quote
         </button>
       </div>
     </div>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="M21 21l-4.3-4.3" />
-    </svg>
   )
 }
