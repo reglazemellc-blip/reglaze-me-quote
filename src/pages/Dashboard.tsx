@@ -1,5 +1,4 @@
 // TEST CHANGE JOE
-
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useClientsStore } from '@store/useClientsStore'
