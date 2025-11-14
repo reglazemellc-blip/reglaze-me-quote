@@ -38,6 +38,9 @@ export default function Dashboard() {
   // track selected clients for bulk delete
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([])
 
+  // which dashboard section is open (accordion)
+  const [openSection, setOpenSection] = useState<'clients' | 'recent' | 'reminders' | 'quotes'>('clients')
+
   useEffect(() => {
     initClients()
     initQuotes()
@@ -127,7 +130,7 @@ export default function Dashboard() {
 
   const sections = [
     {
-      key: 'clients',
+      key: 'clients' as const,
       cfg: layout.section('dashboard', 'clients', 'Clients'),
       hidden: layout.section('dashboard', 'clients', 'Clients').hidden,
       node: (
@@ -143,13 +146,13 @@ export default function Dashboard() {
       ),
     },
     {
-      key: 'recent',
+      key: 'recent' as const,
       cfg: layout.section('dashboard', 'recent', 'Recent Activity'),
       hidden: layout.section('dashboard', 'recent', 'Recent Activity').hidden,
       node: <RecentCard recent={recent} />,
     },
     {
-      key: 'reminders',
+      key: 'reminders' as const,
       cfg: layout.section('dashboard', 'reminders', 'Reminders'),
       hidden:
         layout.section('dashboard', 'reminders', 'Reminders').hidden ||
@@ -157,7 +160,7 @@ export default function Dashboard() {
       node: <RemindersCard reminders={reminders} />,
     },
     {
-      key: 'quotes',
+      key: 'quotes' as const,
       cfg: layout.section('dashboard', 'quotes', 'Quotes'),
       hidden: layout.section('dashboard', 'quotes', 'Quotes').hidden,
       node: <QuotesCard quotes={quotesPreview} selectedStatus={selectedStatus} />,
@@ -165,6 +168,10 @@ export default function Dashboard() {
   ]
 
   const visibleSections = sections.filter(s => !s.hidden)
+
+  const handleToggleSection = (key: 'clients' | 'recent' | 'reminders' | 'quotes') => {
+    setOpenSection(prev => (prev === key ? key : key)) // keep exactly one open; you can change to '' to allow closing all
+  }
 
   return (
     <div className={`space-y-6 ${isMobile ? 'pb-28' : ''}`}>
@@ -200,7 +207,11 @@ export default function Dashboard() {
           <div ref={sliderRef} className="section-slider">
             {visibleSections.map(section => (
               <div key={section.key} className="section-slide">
-                {wrapSection(section)}
+                {wrapSection(
+                  section,
+                  openSection === section.key,
+                  () => handleToggleSection(section.key),
+                )}
               </div>
             ))}
           </div>
@@ -228,7 +239,13 @@ export default function Dashboard() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           {visibleSections.map(section => (
-            <div key={section.key}>{wrapSection(section)}</div>
+            <div key={section.key}>
+              {wrapSection(
+                section,
+                openSection === section.key,
+                () => handleToggleSection(section.key),
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -249,14 +266,41 @@ export default function Dashboard() {
   )
 }
 
-function wrapSection(section: { key: string; cfg: { title: string }; node: JSX.Element }) {
+// Wrap each section in a collapsible "lift" card
+function wrapSection(
+  section: {
+    key: 'clients' | 'recent' | 'reminders' | 'quotes'
+    cfg: { title: string }
+    node: JSX.Element
+  },
+  isOpen: boolean,
+  onToggle: () => void,
+) {
   return (
-    <div className="card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="gold-heading text-lg">{section.cfg.title}</h2>
-        <SectionEditMenu page="dashboard" sectionKey={section.key} defaultTitle={section.cfg.title} />
+    <div
+      className={`card transition-all duration-200 ${
+        isOpen ? 'shadow-xl shadow-black/60 translate-y-0' : 'shadow-md opacity-95'
+      }`}
+    >
+      <div className="flex items-center justify-between cursor-pointer select-none" onClick={onToggle}>
+        <div className="flex items-center gap-2 py-2">
+          <ChevronIcon open={isOpen} />
+          <h2 className="gold-heading text-lg">{section.cfg.title}</h2>
+        </div>
+        <SectionEditMenu
+          page="dashboard"
+          sectionKey={section.key}
+          defaultTitle={section.cfg.title}
+        />
       </div>
-      {section.node}
+
+      <div
+        className={`transition-all duration-200 overflow-hidden ${
+          isOpen ? 'max-h-[420px] opacity-100 mt-2' : 'max-h-0 opacity-0'
+        }`}
+      >
+        {section.node}
+      </div>
     </div>
   )
 }
@@ -303,7 +347,7 @@ function ClientsCard({
   return (
     <>
       {showAddClient && (
-        <div className="space-y-2">
+        <div className="space-y-2 mb-3">
           <input
             className="input"
             placeholder="Name"
@@ -570,7 +614,7 @@ function QuickStats({
 }
 
 // ===========================
-// STICKY BAR (SEARCH FIXED)
+// STICKY BAR (SEARCH + FILTERS)
 // ===========================
 function StickyBar({
   term,
@@ -597,7 +641,7 @@ function StickyBar({
     <div className="sticky top-2 z-10">
       <div className="card p-3 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
         <div className="flex-1 flex items-center gap-2">
-          {/* FIXED SEARCH INPUT */}
+          {/* SEARCH INPUT */}
           <div className="relative w-full">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-muted)]">
               <svg
@@ -614,7 +658,8 @@ function StickyBar({
             </span>
 
             <input
-              className="input w-full pl-10 leading-tight"
+              className="input w-full"
+              style={{ paddingLeft: '42px' }}
               placeholder="Search..."
               value={term}
               onChange={e => setTerm(e.target.value)}
@@ -653,5 +698,17 @@ function StickyBar({
         </button>
       </div>
     </div>
+  )
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <span
+      className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] transition-transform ${
+        open ? 'rotate-90' : ''
+      }`}
+    >
+      ❯
+    </span>
   )
 }
