@@ -1,6 +1,17 @@
 import { create } from 'zustand'
-import { db, type Quote, type LineItem, getOrInitSettings } from '@db/index'
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  orderBy,
+  setDoc,
+  deleteDoc
+} from 'firebase/firestore'
+import { db } from '../firebase'
 import { formatQuoteId, sumItems } from '@utils/quote'
+import { getOrInitSettings } from '@db/index'
+import type { Quote } from '@db/index'
 
 type QuotesState = {
   quotes: Quote[]
@@ -12,38 +23,86 @@ type QuotesState = {
   remove: (id: string) => Promise<void>
 }
 
+const quotesCol = collection(db, 'quotes')
+
 export const useQuotesStore = create<QuotesState>((set, get) => ({
   quotes: [],
   loading: true,
+
+  // Load all quotes
   init: async () => {
-    const quotes = await db.quotes.orderBy('createdAt').toArray()
+    const qSnap = await getDocs(query(quotesCol, orderBy('createdAt')))
+    const quotes = qSnap.docs.map(d => ({
+      ...(d.data() as Quote),
+id: d.id,
+
+    }))
     set({ quotes, loading: false })
   },
+
+  // Create/update quote
   upsert: async (q) => {
     const now = Date.now()
+
     if (!q.id) {
       const settings = await getOrInitSettings()
-      const seq = (settings.nextSequence ?? 1)
-      const id = formatQuoteId(new Date(), seq)
-      q.id = id
-      await db.settings.put({ ...settings, nextSequence: seq + 1 })
+      const seq = settings.nextSequence ?? 1
+      const newId = formatQuoteId(new Date(), seq)
+
+      q.id = newId
       q.createdAt = now
+
+      await setDoc(doc(db, 'settings', 'settings'), {
+        ...settings,
+        nextSequence: seq + 1
+      })
     }
+
     const totals = sumItems(q.items, q.taxRate, q.discount)
-    const toSave: Quote = { ...q, ...totals, updatedAt: now }
-    await db.quotes.put(toSave)
-    const quotes = await db.quotes.orderBy('createdAt').toArray()
+    const toSave: Quote = {
+      ...q,
+      ...totals,
+      updatedAt: now
+    }
+
+    await setDoc(doc(quotesCol, toSave.id), toSave)
+
+    const qSnap = await getDocs(query(quotesCol, orderBy('createdAt')))
+    const quotes = qSnap.docs.map(d => ({
+      ...(d.data() as Quote),
+id: d.id,
+
+    }))
+
     set({ quotes })
     return toSave
   },
-  byClient: (clientId) => get().quotes.filter(q => q.clientId === clientId),
-  search: (term) => {
-    const q = term.toLowerCase()
-    return get().quotes.filter(x => x.id.toLowerCase().includes(q) || (x.notes ?? '').toLowerCase().includes(q))
+
+  // Filter quotes by clientId
+  byClient: (clientId) => {
+    return get().quotes.filter(q => q.clientId === clientId)
   },
+
+  // Search
+  search: (term) => {
+    const t = term.toLowerCase()
+    return get().quotes.filter(q =>
+      q.id.toLowerCase().includes(t) ||
+      (q.notes ?? '').toLowerCase().includes(t)
+    )
+  },
+
+  // Delete quote
   remove: async (id) => {
-    await db.quotes.delete(id)
-    const quotes = await db.quotes.orderBy('createdAt').toArray()
+    await deleteDoc(doc(quotesCol, id))
+
+    const qSnap = await getDocs(query(quotesCol, orderBy('createdAt')))
+    const quotes = qSnap.docs.map(d => ({
+      ...(d.data() as Quote),
+id: d.id,
+
+    }))
+
     set({ quotes })
   }
 }))

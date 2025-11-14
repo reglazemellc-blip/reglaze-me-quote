@@ -1,5 +1,15 @@
 import { create } from 'zustand'
-import { db, type Client } from '@db/index'
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  query,
+  where,
+} from 'firebase/firestore'
+import { db } from '../firebase'
+import type { Client } from '@db/index'
 
 type ClientsState = {
   clients: Client[]
@@ -11,52 +21,107 @@ type ClientsState = {
   search: (term: string) => Client[]
 }
 
+const clientsCol = collection(db, 'clients')
+const quotesCol = collection(db, 'quotes')
+
 export const useClientsStore = create<ClientsState>((set, get) => ({
   clients: [],
   loading: true,
+
+  // -------------------------------------------------
+  // LOAD ALL CLIENTS
+  // -------------------------------------------------
   init: async () => {
-    const clients = await db.clients.orderBy('createdAt').toArray()
+    const snap = await getDocs(clientsCol)
+    const clients = snap.docs.map((d) => {
+      const data = d.data() as Client
+      return { ...data, id: d.id }
+    })
     set({ clients, loading: false })
   },
+
+  // -------------------------------------------------
+  // UPSERT CLIENT (FIXED: No undefined fields)
+  // -------------------------------------------------
   upsert: async (c) => {
-    c.updatedAt = Date.now()
-    if (!c.createdAt) c.createdAt = Date.now()
-    await db.clients.put(c)
-    const clients = await db.clients.orderBy('createdAt').toArray()
+    const now = Date.now()
+    const updated: Client = {
+      ...c,
+      phone: c.phone || '',
+      email: c.email || '',
+      address: c.address || '',
+      notes: c.notes || '',
+      updatedAt: now,
+      createdAt: c.createdAt ?? now,
+    }
+
+    await setDoc(doc(clientsCol, updated.id), updated)
+
+    const snap = await getDocs(clientsCol)
+    const clients = snap.docs.map((d) => ({
+      ...(d.data() as Client),
+      id: d.id,
+    }))
     set({ clients })
   },
+
+  // -------------------------------------------------
+  // CREATE CLIENT (FIXED: No undefined fields)
+  // -------------------------------------------------
   create: async (partial) => {
     const now = Date.now()
-    const c: Client = {
+
+    const newClient: Client = {
       id: crypto.randomUUID(),
       name: partial?.name || 'New Client',
-      phone: partial?.phone,
-      email: partial?.email,
-      address: partial?.address,
-      notes: partial?.notes,
+      phone: partial?.phone || '',
+      email: partial?.email || '',
+      address: partial?.address || '',
+      notes: partial?.notes || '',
       photos: [],
       createdAt: now,
       updatedAt: now,
     }
-    await db.clients.add(c)
-    const clients = await db.clients.orderBy('createdAt').toArray()
+
+    await setDoc(doc(clientsCol, newClient.id), newClient)
+
+    const snap = await getDocs(clientsCol)
+    const clients = snap.docs.map((d) => ({
+      ...(d.data() as Client),
+      id: d.id,
+    }))
     set({ clients })
-    return c
+
+    return newClient
   },
+
+  // -------------------------------------------------
+  // REMOVE CLIENT + THEIR QUOTES
+  // -------------------------------------------------
   remove: async (id) => {
-    // also delete quotes for this client
-    await db.transaction('rw', db.clients, db.quotes, async () => {
-      await db.clients.delete(id)
-      const toDelete = await db.quotes.where('clientId').equals(id).primaryKeys()
-      if (toDelete.length) await db.quotes.bulkDelete(toDelete as string[])
-    })
-    const clients = await db.clients.orderBy('createdAt').toArray()
+    await deleteDoc(doc(clientsCol, id))
+
+    const qSnap = await getDocs(query(quotesCol, where('clientId', '==', id)))
+    const deletes = qSnap.docs.map((d) => deleteDoc(doc(quotesCol, d.id)))
+    await Promise.all(deletes)
+
+    const snap = await getDocs(clientsCol)
+    const clients = snap.docs.map((d) => ({
+      ...(d.data() as Client),
+      id: d.id,
+    }))
     set({ clients })
   },
+
+  // -------------------------------------------------
+  // SEARCH
+  // -------------------------------------------------
   search: (term) => {
     const q = term.toLowerCase()
-    return get().clients.filter(c =>
-      [c.name, c.phone, c.email, c.address].filter(Boolean).some(v => v!.toLowerCase().includes(q))
+    return get().clients.filter((c) =>
+      [c.name, c.phone, c.email, c.address]
+        .filter(Boolean)
+        .some((v) => v!.toLowerCase().includes(q))
     )
-  }
+  },
 }))

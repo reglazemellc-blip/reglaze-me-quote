@@ -14,22 +14,30 @@ type SettingsState = {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: null,
   loading: true,
+
+  // Load settings from Dexie (local DB)
   init: async () => {
     const s = await getOrInitSettings()
     applyTheme(s)
     set({ settings: s, loading: false })
   },
+
+  // Update settings in Dexie
   update: async (patch) => {
     const current = get().settings!
-    const next = { ...current, ...patch }
+    const next: Settings = { ...current, ...patch }
     await db.settings.put(next)
     applyTheme(next)
     set({ settings: next })
   },
+
+  // Wipe local DB and reload page
   reset: async () => {
     await db.delete()
     window.location.reload()
   },
+
+  // Export all data as JSON
   exportJSON: async () => {
     const [clients, quotes, settings, catalog] = await Promise.all([
       db.clients.toArray(),
@@ -37,21 +45,45 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       db.settings.toArray(),
       db.catalog.toArray(),
     ])
-    const payload = { clients, quotes, settings, catalog, exportedAt: Date.now() }
-    return new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-  },
-  importJSON: async (data: any) => {
-    await db.transaction('rw', db.clients, db.quotes, db.settings, db.catalog, async () => {
-      await db.clients.clear(); await db.quotes.clear(); await db.settings.clear(); await db.catalog.clear()
-      if (data.clients) await db.clients.bulkAdd(data.clients)
-      if (data.quotes) await db.quotes.bulkAdd(data.quotes)
-      if (data.settings) await db.settings.bulkAdd(data.settings)
-      if (data.catalog) await db.catalog.bulkAdd(data.catalog)
+
+    const payload = {
+      clients,
+      quotes,
+      settings,
+      catalog,
+      exportedAt: Date.now(),
+    }
+
+    return new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
     })
+  },
+
+  // Import JSON backup into Dexie
+  importJSON: async (data: any) => {
+    await db.transaction(
+      'rw',
+      db.clients,
+      db.quotes,
+      db.settings,
+      db.catalog,
+      async () => {
+        await db.clients.clear()
+        await db.quotes.clear()
+        await db.settings.clear()
+        await db.catalog.clear()
+
+        if (data.clients) await db.clients.bulkAdd(data.clients)
+        if (data.quotes) await db.quotes.bulkAdd(data.quotes)
+        if (data.settings) await db.settings.bulkAdd(data.settings)
+        if (data.catalog) await db.catalog.bulkAdd(data.catalog)
+      },
+    )
+
     const s = await getOrInitSettings()
     applyTheme(s)
     set({ settings: s })
-  }
+  },
 }))
 
 function applyTheme(s: Settings) {
@@ -62,4 +94,3 @@ function applyTheme(s: Settings) {
   r.style.setProperty('--color-accent2', s.theme.accent2)
   r.style.setProperty('--color-background', s.theme.background)
 }
-

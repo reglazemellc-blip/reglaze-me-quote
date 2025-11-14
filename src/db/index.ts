@@ -1,4 +1,8 @@
-import Dexie, { Table } from 'dexie'
+import Dexie, { Table } from 'dexie';
+import { db as firestoreDb } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+
+// ------------------ Types ------------------
 
 export type Client = {
   id: string
@@ -50,7 +54,13 @@ export type Settings = {
   id: string
   companyLeftLines: string[]
   companyRightLines: string[]
-  theme: { primary: string; secondary: string; accent1: string; accent2: string; background: string }
+  theme: {
+    primary: string
+    secondary: string
+    accent1: string
+    accent2: string
+    background: string
+  }
   defaultTaxRate: number
   nextSequence: number
   watermark?: string
@@ -64,6 +74,8 @@ export type ServiceCatalog = {
     subservices: Array<{ id: string; name: string; warning?: string }>
   }>
 }
+
+// ------------------ Local Dexie DB ------------------
 
 export class AppDB extends Dexie {
   clients!: Table<Client, string>
@@ -84,17 +96,34 @@ export class AppDB extends Dexie {
 
 export const db = new AppDB()
 
+// ------------------ Settings Loader ------------------
+
 export async function getOrInitSettings(): Promise<Settings> {
-  const existing = await db.settings.get('settings')
-  if (existing) return existing
+  const ref = doc(firestoreDb, 'settings', 'settings')
+  const snap = await getDoc(ref)
+
+  // If exists in Firestore → return it
+  if (snap.exists()) {
+    return snap.data() as Settings
+  }
+
+  // Otherwise create defaults
   const defaults: Settings = {
     id: 'settings',
     companyLeftLines: ['ReGlaze Me LLC', '217 3rd Ave', 'Frankfort, NY 13340'],
     companyRightLines: ['reglazemellc@gmail.com', '315-525-9142'],
-    theme: { primary: '#e8d487', secondary: '#151515', accent1: '#ffd700', accent2: '#b8860b', background: '#0b0b0b' },
+    theme: {
+      primary: '#e8d487',
+      secondary: '#151515',
+      accent1: '#ffd700',
+      accent2: '#b8860b',
+      background: '#0b0b0b',
+    },
+    watermark: '',
     defaultTaxRate: 0.0,
     nextSequence: 1,
   }
-  await db.settings.put(defaults)
+
+  await setDoc(ref, defaults)
   return defaults
 }
