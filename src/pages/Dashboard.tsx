@@ -1,714 +1,440 @@
-// TEST CHANGE JOE
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useClientsStore } from '@store/useClientsStore'
-import { useQuotesStore } from '@store/useQuotesStore'
-import { db } from '@db/index'
-import SectionEditMenu from '@components/SectionEditMenu'
-import StatusBadge from '@components/StatusBadge'
-import { useLayoutStore } from '@store/useLayoutStore'
+// src/pages/dashboard.tsx
+import React, { useEffect, useMemo, useState, ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+  limit,
+  DocumentData
+} from 'firebase/firestore'
+import { db } from '../firebase'
 
-const STATUS_ORDER = ['pending', 'approved', 'scheduled', 'in_progress', 'completed', 'canceled']
+/* ---------------------- Types ---------------------- */
+type QuoteStatus =
+  | 'pending'
+  | 'approved'
+  | 'scheduled'
+  | 'in_progress'
+  | 'completed'
+  | 'canceled'
 
-export default function Dashboard() {
+type Quote = {
+  id: string
+  status: QuoteStatus | string
+  clientName?: string
+  total?: number
+  createdAt?: Date
+}
+
+type Client = {
+  id: string
+  name?: string
+  email?: string
+  phone?: string
+  createdAt?: Date
+}
+
+type ActivityItem = {
+  id: string
+  type: 'quote' | 'client'
+  label: string
+  createdAt?: Date
+}
+
+/* ---------------------- Utilities ---------------------- */
+const toDateValue = (value: any): Date | undefined => {
+  if (!value) return undefined
+  if (value.seconds != null) return new Date(value.seconds * 1000)
+  if (value instanceof Date) return value
+  return undefined
+}
+
+/* ---------------------- Card Component ---------------------- */
+const Card = ({
+  title,
+  rightSlot,
+  className = '',
+  children
+}: {
+  title?: string
+  rightSlot?: ReactNode
+  className?: string
+  children: ReactNode
+}) => (
+  <div
+    className={`rounded-2xl bg-[#111111] border border-[#2e2e2e] shadow-[0_0_35px_rgba(0,0,0,0.7)] px-5 py-4 ${className}`}
+  >
+    {(title || rightSlot) && (
+      <div className="mb-3 flex items-center justify-between">
+        {title && (
+          <h2 className="text-sm font-semibold tracking-wide text-[#f4d58d] uppercase">
+            {title}
+          </h2>
+        )}
+        {rightSlot && <div>{rightSlot}</div>}
+      </div>
+    )}
+    {children}
+  </div>
+)
+
+/* ---------------------- Dashboard ---------------------- */
+const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
-  const { clients, init: initClients } = useClientsStore()
-  const { quotes, init: initQuotes } = useQuotesStore()
-  const layout = useLayoutStore()
 
-  const [term, setTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
-  const [showAddClient, setShowAddClient] = useState(false)
-  const [newClient, setNewClient] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    notes: '',
-  })
-  const [selectedStatus, setSelectedStatus] = useState('')
-  const [showMobileExtras, setShowMobileExtras] = useState(false)
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
-  const sliderRef = useRef<HTMLDivElement>(null)
-  const [activeSlide, setActiveSlide] = useState(0)
-  const quotesCardRef = useRef<HTMLDivElement>(null)
+  const [quotes, setQuotes] = useState<Quote[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // track selected clients for bulk delete
-  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | QuoteStatus>('all')
+  const [fromDateFilter, setFromDateFilter] = useState('')
+  const [toDateFilter, setToDateFilter] = useState('')
 
-  // which dashboard section is open (accordion)
-  const [openSection, setOpenSection] = useState<'clients' | 'recent' | 'reminders' | 'quotes'>('clients')
-
+  /* ---------------------- Load Firestore Data ---------------------- */
   useEffect(() => {
-    initClients()
-    initQuotes()
-  }, [initClients, initQuotes])
+    const load = async () => {
+      setLoading(true)
+      try {
+        /* Quotes */
+        const quotesRef = collection(db, 'quotes')
+        const quotesQuery = query(
+          quotesRef,
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        )
+        const quotesSnap = await getDocs(quotesQuery)
 
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
+        const loadedQuotes: Quote[] = quotesSnap.docs.map((doc) => {
+          const data = doc.data() as DocumentData
+          return {
+            id: doc.id,
+            status: data.status ?? 'pending',
+            clientName: data.clientName ?? data.client_name ?? 'Unknown client',
+            total: typeof data.total === 'number' ? data.total : undefined,
+            createdAt: toDateValue(data.createdAt)
+          }
+        })
+
+        /* Clients */
+        const clientsRef = collection(db, 'clients')
+        const clientsQuery = query(
+          clientsRef,
+          orderBy('createdAt', 'desc'),
+          limit(50)
+        )
+        const clientsSnap = await getDocs(clientsQuery)
+
+        const loadedClients: Client[] = clientsSnap.docs.map((doc) => {
+          const data = doc.data() as DocumentData
+          return {
+            id: doc.id,
+            name:
+              data.name ?? data.fullName ?? data.clientName ?? 'Unnamed client',
+            email: data.email,
+            phone: data.phone,
+            createdAt: toDateValue(data.createdAt)
+          }
+        })
+
+        setQuotes(loadedQuotes)
+        setClients(loadedClients)
+      } catch (err) {
+        console.error('Dashboard load error:', err)
+      }
+      setLoading(false)
+    }
+
+    void load()
   }, [])
 
-  const filteredClients = useMemo(() => {
-    if (!term) return clients
-    const q = term.toLowerCase()
-    return clients.filter(c =>
-      [c.name, c.phone, c.email, c.address]
-        .filter(Boolean)
-        .some(v => v!.toLowerCase().includes(q)),
-    )
-  }, [term, clients])
+  /* ---------------------- Status Counts ---------------------- */
+  const statusCounts = useMemo(() => {
+    const base = {
+      pending: 0,
+      approved: 0,
+      scheduled: 0,
+      in_progress: 0,
+      completed: 0,
+      canceled: 0
+    }
 
-  const filteredQuotes = useMemo(() => {
-    const q = term.toLowerCase()
-    return quotes.filter(item => {
-      const matchesSearch =
-        !term ||
-        item.id.toLowerCase().includes(q) ||
-        (item.notes ?? '').toLowerCase().includes(q)
-      const matchesStatus = !statusFilter || item.status === statusFilter
-      const matchesDate = (() => {
-        const t = item.createdAt
-        const after = fromDate ? t >= new Date(fromDate).getTime() : true
-        const before =
-          toDate ? t <= new Date(toDate).getTime() + 24 * 60 * 60 * 1000 - 1 : true
-        return after && before
-      })()
-      return matchesSearch && matchesStatus && matchesDate
+    quotes.forEach((q) => {
+      const key = String(q.status).toLowerCase().replace(/\s+/g, '_')
+      if (key in base) {
+        // @ts-ignore dynamic index
+        base[key]++
+      }
     })
-  }, [term, quotes, statusFilter, fromDate, toDate])
 
-  const kpis = useMemo(() => {
-    const byStatus: Record<string, number> = {}
-    STATUS_ORDER.forEach(s => {
-      byStatus[s] = 0
-    })
-    quotes.forEach(q => {
-      byStatus[q.status] = (byStatus[q.status] || 0) + 1
-    })
-    return byStatus
+    return base
   }, [quotes])
 
-  const recent = useMemo(() => quotes.slice(-3).reverse(), [quotes])
-
-  const reminders = useMemo(() => {
-    const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000
-    return quotes.filter(q => q.status === 'pending' && q.createdAt < cutoff).slice(0, 3)
-  }, [quotes])
-
-  const clientsPreview = useMemo(
-    () => [...filteredClients].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3),
-    [filteredClients],
-  )
-
-  const quotesPreview = useMemo(() => filteredQuotes.slice(0, 3), [filteredQuotes])
-
-  useEffect(() => {
-    if (selectedStatus && quotesCardRef.current) {
-      quotesCardRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-    }
-  }, [selectedStatus])
-
-  useEffect(() => {
-    if (!isMobile) return
-    const el = sliderRef.current
-    if (!el) return
-    const handler = () => {
-      const count = el.children.length || 1
-      const idx = Math.round((el.scrollLeft / el.scrollWidth) * count)
-      setActiveSlide(Math.min(count - 1, Math.max(0, idx)))
-    }
-    el.addEventListener('scroll', handler, { passive: true })
-    return () => el.removeEventListener('scroll', handler)
-  }, [isMobile])
-
-  const sections = [
-    {
-      key: 'clients' as const,
-      cfg: layout.section('dashboard', 'clients', 'Clients'),
-      hidden: layout.section('dashboard', 'clients', 'Clients').hidden,
-      node: (
-        <ClientsCard
-          clientsPreview={clientsPreview}
-          showAddClient={showAddClient}
-          setShowAddClient={setShowAddClient}
-          newClient={newClient}
-          setNewClient={setNewClient}
-          selectedClientIds={selectedClientIds}
-          setSelectedClientIds={setSelectedClientIds}
-        />
-      ),
-    },
-    {
-      key: 'recent' as const,
-      cfg: layout.section('dashboard', 'recent', 'Recent Activity'),
-      hidden: layout.section('dashboard', 'recent', 'Recent Activity').hidden,
-      node: <RecentCard recent={recent} />,
-    },
-    {
-      key: 'reminders' as const,
-      cfg: layout.section('dashboard', 'reminders', 'Reminders'),
-      hidden:
-        layout.section('dashboard', 'reminders', 'Reminders').hidden ||
-        (isMobile && !showMobileExtras),
-      node: <RemindersCard reminders={reminders} />,
-    },
-    {
-      key: 'quotes' as const,
-      cfg: layout.section('dashboard', 'quotes', 'Quotes'),
-      hidden: layout.section('dashboard', 'quotes', 'Quotes').hidden,
-      node: <QuotesCard quotes={quotesPreview} selectedStatus={selectedStatus} />,
-    },
+  const statusCards = [
+    { key: 'pending', label: 'Pending', count: statusCounts.pending },
+    { key: 'approved', label: 'Approved', count: statusCounts.approved },
+    { key: 'scheduled', label: 'Scheduled', count: statusCounts.scheduled },
+    { key: 'in_progress', label: 'In Progress', count: statusCounts.in_progress },
+    { key: 'completed', label: 'Completed', count: statusCounts.completed },
+    { key: 'canceled', label: 'Canceled', count: statusCounts.canceled },
+    { key: 'clients', label: 'Clients', count: clients.length },
+    { key: 'quotes', label: 'Quotes', count: quotes.length }
   ]
 
-  const visibleSections = sections.filter(s => !s.hidden)
+  /* ---------------------- Recent Activity ---------------------- */
+  const recentActivity: ActivityItem[] = useMemo(() => {
+    const items: ActivityItem[] = []
 
-  const handleToggleSection = (key: 'clients' | 'recent' | 'reminders' | 'quotes') => {
-    setOpenSection(prev => (prev === key ? key : key)) // keep exactly one open; you can change to '' to allow closing all
+    quotes.forEach((q) =>
+      items.push({
+        id: 'quote-' + q.id,
+        type: 'quote',
+        label: `${q.clientName} – ${String(q.status).replace(/_/g, ' ')}`,
+        createdAt: q.createdAt
+      })
+    )
+
+    clients.forEach((c) =>
+      items.push({
+        id: 'client-' + c.id,
+        type: 'client',
+        label: c.name ?? 'Client created',
+        createdAt: c.createdAt
+      })
+    )
+
+    return items
+      .sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0))
+      .slice(0, 10)
+  }, [quotes, clients])
+
+  /* ---------------------- Handlers ---------------------- */
+  const handleStatusClick = (key: string) => {
+    if (key === 'clients') return navigate('/clients')
+    if (key === 'quotes') return navigate('/quotes')
+    return navigate(`/quotes?status=${key}`)
   }
 
+  const addQuote = () => navigate('/quotes/new')
+
+  /* ---------------------- Render ---------------------- */
   return (
-    <div className={`space-y-6 ${isMobile ? 'pb-28' : ''}`}>
-      <StickyBar
-        term={term}
-        setTerm={setTerm}
-        status={statusFilter}
-        setStatus={setStatusFilter}
-        fromDate={fromDate}
-        toDate={toDate}
-        setFromDate={setFromDate}
-        setToDate={setToDate}
-        onAddQuote={() => navigate('/quotes/new')}
-      />
-
-      <QuickStats
-        byStatus={kpis}
-        clients={clients.length}
-        quotes={quotes.length}
-        activeStatus={selectedStatus}
-        isMobile={isMobile}
-        onSelectStatus={key => {
-          const next = selectedStatus === key ? '' : key
-          setSelectedStatus(next)
-          setStatusFilter(next)
-        }}
-        onOpenClients={() => navigate('/clients')}
-        onOpenQuotes={() => navigate('/quotes')}
-      />
-
-      {isMobile ? (
-        <>
-          <div ref={sliderRef} className="section-slider">
-            {visibleSections.map(section => (
-              <div key={section.key} className="section-slide">
-                {wrapSection(
-                  section,
-                  openSection === section.key,
-                  () => handleToggleSection(section.key),
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex justify-center gap-2">
-            {visibleSections.map((_, idx) => (
-              <span
-                key={idx}
-                className={`w-2 h-2 rounded-full ${
-                  activeSlide === idx ? 'bg-[var(--color-accent1)]' : 'bg-white/20'
-                }`}
-              />
-            ))}
-          </div>
-
-          {!showMobileExtras &&
-            !layout.section('dashboard', 'reminders', 'Reminders').hidden && (
-              <div className="text-center">
-                <button className="btn btn-outline" onClick={() => setShowMobileExtras(true)}>
-                  Show More
-                </button>
-              </div>
-            )}
-        </>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-3">
-          {visibleSections.map(section => (
-            <div key={section.key}>
-              {wrapSection(
-                section,
-                openSection === section.key,
-                () => handleToggleSection(section.key),
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {isMobile && (
-        <div className="fixed bottom-3 left-0 right-0 px-4 sm:hidden z-30">
-          <div className="card flex gap-3">
-            <button className="btn btn-gold flex-1" onClick={() => navigate('/quotes/new')}>
-              Add Quote
-            </button>
-            <button className="btn btn-outline flex-1" onClick={() => setShowAddClient(true)}>
-              Add Client
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Wrap each section in a collapsible "lift" card
-function wrapSection(
-  section: {
-    key: 'clients' | 'recent' | 'reminders' | 'quotes'
-    cfg: { title: string }
-    node: JSX.Element
-  },
-  isOpen: boolean,
-  onToggle: () => void,
-) {
-  return (
-    <div
-      className={`card transition-all duration-200 ${
-        isOpen ? 'shadow-xl shadow-black/60 translate-y-0' : 'shadow-md opacity-95'
-      }`}
-    >
-      <div className="flex items-center justify-between cursor-pointer select-none" onClick={onToggle}>
-        <div className="flex items-center gap-2 py-2">
-          <ChevronIcon open={isOpen} />
-          <h2 className="gold-heading text-lg">{section.cfg.title}</h2>
-        </div>
-        <SectionEditMenu
-          page="dashboard"
-          sectionKey={section.key}
-          defaultTitle={section.cfg.title}
-        />
-      </div>
-
-      <div
-        className={`transition-all duration-200 overflow-hidden ${
-          isOpen ? 'max-h-[420px] opacity-100 mt-2' : 'max-h-0 opacity-0'
-        }`}
-      >
-        {section.node}
-      </div>
-    </div>
-  )
-}
-
-// ===========================
-// CLIENT CARD
-// ===========================
-function ClientsCard({
-  clientsPreview,
-  showAddClient,
-  setShowAddClient,
-  newClient,
-  setNewClient,
-  selectedClientIds,
-  setSelectedClientIds,
-}: {
-  clientsPreview: any[]
-  showAddClient: boolean
-  setShowAddClient: (v: boolean) => void
-  newClient: any
-  setNewClient: (v: any) => void
-  selectedClientIds: string[]
-  setSelectedClientIds: (v: string[]) => void
-}) {
-  const toggleSelected = (id: string) => {
-    const exists = selectedClientIds.includes(id)
-    const next = exists
-      ? selectedClientIds.filter(x => x !== id)
-      : [...selectedClientIds, id]
-    setSelectedClientIds(next)
-  }
-
-  const deleteSelected = async () => {
-    if (!selectedClientIds.length) return
-    if (!confirm(`Delete ${selectedClientIds.length} selected client(s) and their quotes?`)) return
-
-    const store = useClientsStore.getState()
-    for (const id of selectedClientIds) {
-      await store.remove(id)
-    }
-    setSelectedClientIds([])
-  }
-
-  return (
-    <>
-      {showAddClient && (
-        <div className="space-y-2 mb-3">
-          <input
-            className="input"
-            placeholder="Name"
-            value={newClient.name}
-            onChange={e => setNewClient({ ...newClient, name: e.target.value })}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <input
-              className="input"
-              placeholder="Phone"
-              value={newClient.phone}
-              onChange={e => setNewClient({ ...newClient, phone: e.target.value })}
-            />
-
-            <input
-              className="input"
-              placeholder="Email"
-              value={newClient.email}
-              onChange={e => setNewClient({ ...newClient, email: e.target.value })}
-            />
-          </div>
-
-          <input
-            className="input"
-            placeholder="Address"
-            value={newClient.address}
-            onChange={e => setNewClient({ ...newClient, address: e.target.value })}
-          />
-
-          <textarea
-            className="input"
-            placeholder="Notes"
-            value={newClient.notes}
-            onChange={e => setNewClient({ ...newClient, notes: e.target.value })}
-          />
-        </div>
-      )}
-
-      <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
-        {clientsPreview.map(c => {
-          const checked = selectedClientIds.includes(c.id)
-
-          return (
-            <div key={c.id} className="flex items-center gap-3">
+    <div className="min-h-screen bg-[#050505] text-[#f5f5f5]">
+      <div className="mx-auto max-w-7xl px-6 pb-10 pt-6">
+        {/* Filters */}
+        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
+          {/* Search */}
+          <div className="flex-1">
+            <div className="relative">
               <input
-                type="checkbox"
-                className="h-4 w-4 accent-[var(--color-accent1)]"
-                checked={checked}
-                onChange={() => toggleSelected(c.id)}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search..."
+                className="w-full rounded-full bg-[#111111] px-4 py-2 text-sm text-gray-100 placeholder:text-gray-500 outline-none ring-1 ring-[#2e2e2e] focus:ring-[#f4d58d]"
               />
-
-              <Link to={`/clients/${c.id}`} className="flex-1">
-                <div className="font-semibold">{c.name}</div>
-                <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                  {[c.phone, c.email].filter(Boolean).join(' · ')}
-                </div>
-              </Link>
-
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={async () => {
-                  const count = await db.quotes.where('clientId').equals(c.id).count()
-                  if (
-                    confirm(
-                      count > 0
-                        ? `Delete client and ${count} quote(s)?`
-                        : 'Delete client?',
-                    )
-                  ) {
-                    await useClientsStore.getState().remove(c.id)
-                    setSelectedClientIds(selectedClientIds.filter(id => id !== c.id))
-                  }
-                }}
-              >
-                Delete
-              </button>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                ⌕
+              </span>
             </div>
-          )
-        })}
-
-        {!clientsPreview.length && (
-          <div className="text-center text-gray-500 py-6">No clients yet.</div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between mt-3">
-        {selectedClientIds.length > 0 ? (
-          <button className="btn btn-outline btn-sm" onClick={deleteSelected}>
-            Delete Selected ({selectedClientIds.length})
-          </button>
-        ) : (
-          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Showing latest clients
-          </span>
-        )}
-
-        <Link to="/clients" className="btn btn-outline btn-sm">
-          View All
-        </Link>
-      </div>
-    </>
-  )
-}
-
-// ===========================
-// RECENT
-// ===========================
-function RecentCard({ recent }: { recent: any[] }) {
-  return (
-    <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
-      {recent.map(item => (
-        <Link
-          key={item.id}
-          to={`/quotes/${item.id}`}
-          className="block p-3 rounded-lg bg-white/5 hover:bg-white/10 transition"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-semibold">{item.id}</div>
-              <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {new Date(item.createdAt).toLocaleDateString()}
-              </div>
-            </div>
-            <StatusBadge status={item.status} />
           </div>
 
-          <div className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
-            {item.notes || 'No notes'}
-          </div>
-        </Link>
-      ))}
-
-      {!recent.length && <div className="text-center text-gray-500 py-6">No activity yet.</div>}
-    </div>
-  )
-}
-
-// ===========================
-// REMINDERS
-// ===========================
-function RemindersCard({ reminders }: { reminders: any[] }) {
-  return (
-    <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
-      {reminders.map(q => (
-        <Link
-          key={q.id}
-          to={`/quotes/${q.id}`}
-          className="flex items-center justify-between p-3 rounded-lg bg-amber-500/10"
-        >
-          <div>
-            <div className="font-semibold">{q.id}</div>
-            <div className="text-xs text-amber-300">Pending over 14 days</div>
-          </div>
-          <StatusBadge status={q.status} />
-        </Link>
-      ))}
-
-      {!reminders.length && <div className="text-center text-gray-500 py-6">No reminders.</div>}
-    </div>
-  )
-}
-
-// ===========================
-// QUOTES CARD
-// ===========================
-function QuotesCard({ quotes, selectedStatus }: { quotes: any[]; selectedStatus: string }) {
-  return (
-    <>
-      {selectedStatus && (
-        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Filtering quotes by status: {selectedStatus.replace('_', ' ')}
-        </div>
-      )}
-
-      <div className="section-scroll space-y-3 border-t border-border/40 pt-3">
-        {quotes.map(q => (
-          <Link
-            key={q.id}
-            to={`/quotes/${q.id}`}
-            className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition"
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as 'all' | QuoteStatus)
+            }
+            className="h-10 rounded-full bg-[#111111] px-4 text-sm text-gray-100 ring-1 ring-[#2e2e2e] focus:ring-[#f4d58d]"
           >
-            <div>
-              <div className="font-semibold">{q.id}</div>
-              <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                {q.notes || 'No notes'}
-              </div>
-            </div>
-
-            <StatusBadge status={q.status} />
-          </Link>
-        ))}
-
-        {!quotes.length && (
-          <div className="text-center text-gray-500 py-6">No quotes found.</div>
-        )}
-      </div>
-    </>
-  )
-}
-
-// ===========================
-// QUICK STATS
-// ===========================
-function QuickStats({
-  byStatus,
-  clients,
-  quotes,
-  activeStatus,
-  onSelectStatus,
-  isMobile,
-  onOpenClients,
-  onOpenQuotes,
-}: {
-  byStatus: Record<string, number>
-  clients: number
-  quotes: number
-  activeStatus: string
-  onSelectStatus: (key: string) => void
-  isMobile: boolean
-  onOpenClients: () => void
-  onOpenQuotes: () => void
-}) {
-  return (
-    <div
-      className={`grid gap-3 ${
-        isMobile ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4 lg:grid-cols-8'
-      }`}
-    >
-      {STATUS_ORDER.map(key => (
-        <button
-          type="button"
-          key={key}
-          onClick={() => onSelectStatus(key)}
-          className={`card p-4 text-center transition ${
-            activeStatus === key ? 'ring-2 ring-[var(--color-accent1)]' : ''
-          }`}
-          style={{ transform: activeStatus === key ? 'scale(1.03)' : undefined }}
-        >
-          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {key.replace('_', ' ')}
-          </div>
-          <div className="text-2xl font-semibold">{byStatus[key] || 0}</div>
-        </button>
-      ))}
-
-      {/* Clients tile */}
-      <button type="button" className="card p-4 text-center" onClick={onOpenClients}>
-        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Clients
-        </div>
-        <div className="text-2xl font-semibold">{clients}</div>
-      </button>
-
-      {/* Quotes tile */}
-      <button type="button" className="card p-4 text-center" onClick={onOpenQuotes}>
-        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Quotes
-        </div>
-        <div className="text-2xl font-semibold">{quotes}</div>
-      </button>
-    </div>
-  )
-}
-
-// ===========================
-// STICKY BAR (SEARCH + FILTERS)
-// ===========================
-function StickyBar({
-  term,
-  setTerm,
-  status,
-  setStatus,
-  fromDate,
-  toDate,
-  setFromDate,
-  setToDate,
-  onAddQuote,
-}: {
-  term: string
-  setTerm: (v: string) => void
-  status: string
-  setStatus: (v: string) => void
-  fromDate: string
-  toDate: string
-  setFromDate: (v: string) => void
-  setToDate: (v: string) => void
-  onAddQuote: () => void
-}) {
-  return (
-    <div className="sticky top-2 z-10">
-      <div className="card p-3 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-        <div className="flex-1 flex items-center gap-2">
-          {/* SEARCH INPUT */}
-          <div className="relative w-full">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-muted)]">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.3-4.3" />
-              </svg>
-            </span>
-
-            <input
-              className="input w-full"
-              style={{ paddingLeft: '42px' }}
-              placeholder="Search..."
-              value={term}
-              onChange={e => setTerm(e.target.value)}
-            />
-          </div>
-
-          {/* STATUS FILTER */}
-          <select className="input w-44" value={status} onChange={e => setStatus(e.target.value)}>
-            <option value="">All Statuses</option>
-            {STATUS_ORDER.map(s => (
-              <option key={s} value={s}>
-                {s.replace('_', ' ')}
-              </option>
-            ))}
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="canceled">Canceled</option>
           </select>
 
-          {/* DATE FILTERS */}
+          {/* Dates */}
           <input
             type="date"
-            className="input w-40"
-            value={fromDate}
-            onChange={e => setFromDate(e.target.value)}
+            value={fromDateFilter}
+            onChange={(e) => setFromDateFilter(e.target.value)}
+            className="h-10 rounded-full bg-[#111111] px-4 text-sm text-gray-100 ring-1 ring-[#2e2e2e] focus:ring-[#f4d58d]"
           />
 
           <input
             type="date"
-            className="input w-40"
-            value={toDate}
-            onChange={e => setToDate(e.target.value)}
+            value={toDateFilter}
+            onChange={(e) => setToDateFilter(e.target.value)}
+            className="h-10 rounded-full bg-[#111111] px-4 text-sm text-gray-100 ring-1 ring-[#2e2e2e] focus:ring-[#f4d58d]"
           />
+
+          {/* Add Quote */}
+          <button
+            onClick={addQuote}
+            className="h-10 rounded-full bg-gradient-to-r from-[#f4d58d] to-[#d6a84f] px-6 text-sm font-semibold text-black shadow-[0_0_25px_rgba(244,213,141,0.45)] hover:brightness-110"
+          >
+            Add Quote
+          </button>
         </div>
 
-        {/* ADD QUOTE BUTTON */}
-        <button className="btn btn-gold btn-lg whitespace-nowrap pulse" onClick={onAddQuote}>
-          Add Quote
-        </button>
+        {/* Two Column Layout */}
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          {/* LEFT COLUMN */}
+          <div className="space-y-6">
+            {/* Recent Activity */}
+            <Card title="Recent Activity">
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-gray-500">No activity yet.</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {recentActivity.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex justify-between rounded-xl bg-black/40 px-3 py-2"
+                    >
+                      <div>
+                        <p className="font-medium">{a.label}</p>
+                        {a.createdAt && (
+                          <p className="text-[11px] text-gray-500">
+                            {a.createdAt.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      <span className="rounded-full bg-[#222] px-3 py-1 text-[10px] uppercase text-gray-400">
+                        {a.type}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+
+            {/* Clients */}
+            <Card
+              title="Clients"
+              rightSlot={
+                <button
+                  onClick={() => navigate('/clients')}
+                  className="text-xs font-semibold text-[#f4d58d] hover:underline"
+                >
+                  View All
+                </button>
+              }
+              className="max-h-[350px]"
+            >
+              <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 text-sm">
+                {clients.length === 0 ? (
+                  <p className="text-gray-500">No clients yet.</p>
+                ) : (
+                  clients.map((client) => (
+                    <div
+                      key={client.id}
+                      className="flex justify-between rounded-xl bg-black/40 px-3 py-2"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-100">
+                          {client.name}
+                        </p>
+                        {(client.email || client.phone) && (
+                          <p className="text-[11px] text-gray-500">
+                            {client.email ?? client.phone}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+
+            {/* Quotes */}
+            <Card
+              title="Quotes"
+              rightSlot={
+                <button
+                  onClick={() => navigate('/quotes')}
+                  className="text-xs font-semibold text-[#f4d58d] hover:underline"
+                >
+                  View All
+                </button>
+              }
+              className="max-h-[350px]"
+            >
+              <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 text-sm">
+                {quotes.length === 0 ? (
+                  <p className="text-gray-500">No quotes yet.</p>
+                ) : (
+                  quotes.map((q) => (
+                    <div
+                      key={q.id}
+                      className="flex justify-between rounded-xl bg-black/40 px-3 py-2"
+                    >
+                      <div>
+                        <p className="font-medium text-gray-100">
+                          {q.clientName}
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          {String(q.status).replace(/_/g, ' ')}
+                        </p>
+                      </div>
+                      {typeof q.total === 'number' && (
+                        <span className="text-[#f4d58d] font-semibold">
+                          ${q.total.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div className="space-y-6">
+            {/* Status grid */}
+            <Card title="Overview">
+              <div className="grid grid-cols-2 gap-3">
+                {statusCards.map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => handleStatusClick(s.key)}
+                    className="group flex flex-col justify-between rounded-2xl bg-black/60 px-4 py-3 ring-1 ring-[#272727] hover:ring-[#f4d58d]/70 hover:-translate-y-0.5 transition text-left"
+                  >
+                    <span className="text-[11px] uppercase text-gray-400">
+                      {s.label}
+                    </span>
+                    <span className="text-2xl font-semibold text-[#f4d58d]">
+                      {s.count}
+                    </span>
+                    <span className="text-[10px] text-gray-500 group-hover:text-gray-400">
+                      Click to view
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+
+            <Card
+              title="Reminders"
+              rightSlot={
+                <button className="text-xs font-semibold text-[#f4d58d] opacity-70">
+                  + Add
+                </button>
+              }
+            >
+              <p className="text-sm text-gray-400">
+                No reminders yet. Add Firestore support later if needed.
+              </p>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-function ChevronIcon({ open }: { open: boolean }) {
-  return (
-    <span
-      className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] transition-transform ${
-        open ? 'rotate-90' : ''
-      }`}
-    >
-      ❯
-    </span>
-  )
-}
+export default DashboardPage
