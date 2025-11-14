@@ -138,16 +138,16 @@ body {
 
 /* ✅ FIXED INPUT STYLE — SEARCH BAR NOW WORKS */
 .input {
+  @apply w-full border rounded-xl px-4 py-3
+         focus:outline-none focus:ring-2 focus:ring-[var(--color-accent1)]
+         placeholder-[#ccb76c];
+
   background-color: #0f0f0f;
   color: var(--color-text);
   border-color: var(--color-border);
 
-  /* FIX: allow pl-10 from Dashboard.tsx to take effect */
-  @apply w-full border rounded-xl py-3 pr-4
-         focus:outline-none focus:ring-2 focus:ring-[var(--color-accent1)]
-         placeholder-[#ccb76c];
-
-  padding-left: inherit !important;
+  /* FIX: gives icon room and ALWAYS works */
+  padding-left: 42px !important;
 }
 
 
