@@ -2,7 +2,47 @@ import Dexie, { Table } from 'dexie'
 import { db as firestoreDb } from '../firebase'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 
-// ------------------ Types ------------------
+// ------------------ Shared Types ------------------
+
+export type AttachmentType =
+  | 'photo'
+  | 'document'
+  | 'contract'
+  | 'care_sheet'
+
+export type Attachment = {
+  id: string
+  name: string
+  url: string
+  type: AttachmentType
+  createdAt: number
+}
+
+export type ConversationChannel =
+  | 'call'
+  | 'text'
+  | 'email'
+  | 'in_person'
+  | 'other'
+
+export type ConversationEntry = {
+  id: string
+  message: string
+  channel: ConversationChannel
+  createdAt: number
+}
+
+export type Reminder = {
+  id: string
+  clientId: string
+  quoteId?: string
+  remindAt: number          // timestamp (ms)
+  snoozeDays?: number
+  done: boolean
+  note?: string
+}
+
+// ------------------ Core Entities ------------------
 
 export type Client = {
   id: string
@@ -11,7 +51,15 @@ export type Client = {
   email?: string
   address?: string
   notes?: string
+
+  // existing
   photos?: string[]
+
+  // new
+  attachments?: Attachment[]
+  conversations?: ConversationEntry[]
+  reminders?: Reminder[]
+
   createdAt: number
   updatedAt: number
 }
@@ -56,6 +104,32 @@ export type Quote = {
   status: QuoteStatus
   signature: Signature | null
 
+  // new
+  attachments?: Attachment[]
+  sentAt?: number | null
+  expiresAt?: number | null
+  pdfUrl?: string | null
+
+  createdAt: number
+  updatedAt: number
+}
+
+export type InvoiceStatus = 'unpaid' | 'partial' | 'paid' | 'refunded'
+
+export type Invoice = {
+  id: string
+  clientId: string
+  quoteId?: string
+
+  total: number
+  amountPaid: number
+  status: InvoiceStatus
+
+  dueDate?: number
+  notes?: string
+
+  attachments?: Attachment[]
+
   createdAt: number
   updatedAt: number
 }
@@ -96,14 +170,26 @@ export class AppDB extends Dexie {
   quotes!: Table<Quote, string>
   settings!: Table<Settings, string>
   catalog!: Table<ServiceCatalog, string>
+  invoices!: Table<Invoice, string>
 
   constructor() {
     super('reglaze-me-db')
+
+    // old schema (v1) kept for safety
     this.version(1).stores({
       clients: 'id, createdAt, updatedAt, name, email, phone',
       quotes: 'id, clientId, createdAt, updatedAt, status, clientName',
       settings: 'id',
       catalog: 'id',
+    })
+
+    // new schema with invoices table
+    this.version(2).stores({
+      clients: 'id, createdAt, updatedAt, name, email, phone',
+      quotes: 'id, clientId, createdAt, updatedAt, status, clientName',
+      settings: 'id',
+      catalog: 'id',
+      invoices: 'id, clientId, quoteId, status, createdAt, updatedAt',
     })
   }
 }

@@ -1,129 +1,164 @@
-import { create } from 'zustand'
+// -------------------------------------------------------------
+// useQuotesStore.ts  (UPGRADED FOR NEW DATABASE TYPES)
+// -------------------------------------------------------------
+
+import { create } from "zustand";
 import {
   collection,
   doc,
   getDocs,
+  setDoc,
+  deleteDoc,
   query,
   orderBy,
-  setDoc,
-  deleteDoc
-} from 'firebase/firestore'
-import { db } from '../firebase'
-import { formatQuoteId, sumItems } from '@utils/quote'
-import { getOrInitSettings } from '@db/index'
-import type { Quote } from '@db/index'
+} from "firebase/firestore";
+import { db as firestoreDb } from "../firebase";
+import type { Quote, Attachment } from "@db/index";
+import { sumItems } from "@utils/quote";
 
 type QuotesState = {
-  quotes: Quote[]
-  loading: boolean
-  init: () => Promise<void>
-  upsert: (q: Quote) => Promise<Quote>
-  byClient: (clientId: string) => Quote[]
-  search: (term: string) => Quote[]
-  remove: (id: string) => Promise<void>
-}
+  quotes: Quote[];
+  loading: boolean;
+  init: () => Promise<void>;
+  upsert: (q: Partial<Quote>) => Promise<Quote>;
+  remove: (id: string) => Promise<void>;
+  byClient: (clientId: string) => Quote[];
+  search: (term: string) => Quote[];
+};
 
-const quotesCol = collection(db, 'quotes')
+const quotesCol = collection(firestoreDb, "quotes");
+
+/**
+ * Normalize a Quote into a fully-populated safe object
+ * so Firestore + UI + TypeScript all agree.
+ */
+function normalizeQuote(raw: Partial<Quote>): Quote {
+  const items = raw.items ?? [];
+  const subtotal = raw.subtotal ?? sumItems(items);
+  const taxRate = raw.taxRate ?? 0;
+  const discount = raw.discount ?? 0;
+  const tax = raw.tax ?? subtotal * taxRate;
+  const total = raw.total ?? subtotal + tax - discount;
+
+  return {
+    id: raw.id!,
+    clientId: raw.clientId!,
+    clientName: raw.clientName ?? "",
+
+    items,
+    services: raw.services ?? [],
+
+    subtotal,
+    taxRate,
+    tax,
+    discount,
+    total,
+
+    notes: raw.notes ?? "",
+    status: raw.status ?? "pending",
+    signature: raw.signature ?? null,
+
+    // ---- NEW FIELDS ----
+    attachments: raw.attachments ?? [],
+    pdfUrl: raw.pdfUrl ?? null,
+    sentAt: raw.sentAt ?? null,
+    expiresAt: raw.expiresAt ?? null,
+
+    createdAt: raw.createdAt!,
+    updatedAt: raw.updatedAt!,
+  };
+}
 
 export const useQuotesStore = create<QuotesState>((set, get) => ({
   quotes: [],
   loading: true,
 
-  // Load all quotes
+  // -------------------------------------------------
+  // LOAD ALL QUOTES
+  // -------------------------------------------------
   init: async () => {
-    const qSnap = await getDocs(query(quotesCol, orderBy('createdAt')))
+    const snap = await getDocs(query(quotesCol, orderBy("updatedAt", "desc")));
 
-    const quotes = qSnap.docs.map(d => {
-      const data = d.data() as Quote
+    const quotes: Quote[] = snap.docs.map((d) => {
+      const data = d.data() as Partial<Quote>;
+      const now = Date.now();
 
-      return {
+      return normalizeQuote({
         ...data,
         id: d.id,
-        clientName: data.clientName || "Unnamed" // ⭐ Ensure always present
-      }
-    })
+        createdAt: data.createdAt ?? now,
+        updatedAt: data.updatedAt ?? now,
+      });
+    });
 
-    set({ quotes, loading: false })
+    set({ quotes, loading: false });
   },
 
-  // Create/update quote
+  // -------------------------------------------------
+  // UPSERT (CREATE OR UPDATE)
+  // -------------------------------------------------
   upsert: async (q) => {
-    const now = Date.now()
+    const now = Date.now();
 
-    // Create ID if new
-    if (!q.id) {
-      const settings = await getOrInitSettings()
-      const seq = settings.nextSequence ?? 1
-      const newId = formatQuoteId(new Date(), seq)
-
-      q.id = newId
-      q.createdAt = now
-
-      await setDoc(doc(db, 'settings', 'settings'), {
-        ...settings,
-        nextSequence: seq + 1
-      })
-    }
-
-    // Ensure totals
-    const totals = sumItems(q.items, q.taxRate, q.discount)
-
-    const toSave: Quote = {
+    const base: Partial<Quote> = {
       ...q,
-      ...totals,
-      clientName: q.clientName || "Unnamed", // ⭐ Save clientName always
-      updatedAt: now
-    }
+      createdAt: q.createdAt ?? now,
+      updatedAt: now,
+    };
 
-    await setDoc(doc(quotesCol, toSave.id), toSave)
+    const clean = normalizeQuote(base);
 
-    // Reload all quotes
-    const qSnap = await getDocs(query(quotesCol, orderBy('createdAt')))
-    const quotes = qSnap.docs.map(d => {
-      const data = d.data() as Quote
+    await setDoc(doc(quotesCol, clean.id), clean, { merge: true });
 
-      return {
-        ...data,
-        id: d.id,
-        clientName: data.clientName || "Unnamed" // ⭐ Ensure always present
-      }
-    })
+    // reload quotes
+    const snap = await getDocs(query(quotesCol, orderBy("updatedAt", "desc")));
+    const quotes: Quote[] = snap.docs.map((d) => {
+      const data = d.data() as Partial<Quote>;
+      return normalizeQuote({ ...data, id: d.id });
+    });
 
-    set({ quotes })
+    set({ quotes });
 
-    return toSave
+    return clean;
   },
 
-  // Filter quotes by clientId
-  byClient: (clientId) => {
-    return get().quotes.filter(q => q.clientId === clientId)
-  },
-
-  // Search
-  search: (term) => {
-    const t = term.toLowerCase()
-    return get().quotes.filter(q =>
-      q.id.toLowerCase().includes(t) ||
-      (q.clientName ?? '').toLowerCase().includes(t) || // ⭐ search by client
-      (q.notes ?? '').toLowerCase().includes(t)
-    )
-  },
-
-  // Delete quote
+  // -------------------------------------------------
+  // REMOVE QUOTE
+  // -------------------------------------------------
   remove: async (id) => {
-    await deleteDoc(doc(quotesCol, id))
+    await deleteDoc(doc(quotesCol, id));
 
-    const qSnap = await getDocs(query(quotesCol, orderBy('createdAt')))
-    const quotes = qSnap.docs.map(d => {
-      const data = d.data() as Quote
+    const snap = await getDocs(query(quotesCol, orderBy("updatedAt", "desc")));
+    const quotes: Quote[] = snap.docs.map((d) => {
+      const data = d.data() as Partial<Quote>;
+      return normalizeQuote({ ...data, id: d.id });
+    });
 
-      return {
-        ...data,
-        id: d.id,
-        clientName: data.clientName || "Unnamed" // ⭐ Ensure always present
-      }
-    })
+    set({ quotes });
+  },
 
-    set({ quotes })
-  }
-}))
+  // -------------------------------------------------
+  // FILTER BY CLIENT
+  // -------------------------------------------------
+  byClient: (clientId) => {
+    return get().quotes.filter((q) => q.clientId === clientId);
+  },
+
+  // -------------------------------------------------
+  // SEARCH QUOTES
+  // -------------------------------------------------
+  search: (term) => {
+    const q = term.toLowerCase();
+    return get().quotes.filter((quote) =>
+      [
+        quote.id,
+        quote.clientName,
+        quote.notes,
+        quote.status,
+        quote.total.toString(),
+      ]
+        .filter(Boolean)
+        .some((v) => v!.toLowerCase().includes(q))
+    );
+  },
+}));

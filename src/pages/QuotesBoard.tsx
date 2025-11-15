@@ -4,11 +4,13 @@ import StatusBadge from '@components/StatusBadge'
 import { Link, useSearchParams } from 'react-router-dom'
 
 export default function QuotesBoard() {
-  const { quotes, init } = useQuotesStore()
+  const { quotes, init, remove } = useQuotesStore()
   const [params] = useSearchParams()
 
   const [term, setTerm] = useState('')
   const [status, setStatus] = useState(params.get('status') || '')
+
+  const [selected, setSelected] = useState<string[]>([])
 
   useEffect(() => { init() }, [init])
   useEffect(() => {
@@ -32,6 +34,36 @@ export default function QuotesBoard() {
     })
   }, [quotes, term, status])
 
+
+  /* SELECTION LOGIC */
+  const toggle = (id: string) => {
+    setSelected(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  const toggleAll = () => {
+    if (selected.length === filtered.length) {
+      setSelected([])
+    } else {
+      setSelected(filtered.map(q => q.id))
+    }
+  }
+
+  const clearSelection = () => setSelected([])
+
+  const deleteSelected = async () => {
+    if (!selected.length) return
+
+    if (!confirm(`Delete ${selected.length} quote(s)?`)) return
+
+    for (const id of selected) {
+      await remove(id)
+    }
+    clearSelection()
+  }
+
+
   return (
     <div className="p-4 md:p-6 space-y-6">
 
@@ -43,7 +75,7 @@ export default function QuotesBoard() {
             🔍
           </span>
           <input
-            className="input w-full pl-8 pr-3 py-2 rounded-full bg-[#111] border border-[#2a2a2a] focus:border-[#e8d487]"
+            className="input w-full pl-10 pr-3 py-2 rounded-full bg-[#111] border border-[#2a2a2a] focus:border-[#e8d487]"
             placeholder="Search quotes..."
             value={term}
             onChange={(e) => setTerm(e.target.value)}
@@ -71,18 +103,58 @@ export default function QuotesBoard() {
         </select>
       </div>
 
+
+      {/* BULK DELETE BAR */}
+      {filtered.length > 0 && (
+        <div className="flex justify-between items-center py-2 px-3 bg-black/40 rounded-xl border border-[#2a2a2a]">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selected.length === filtered.length}
+              onChange={toggleAll}
+            />
+            <span className="text-sm text-gray-300">
+              Select All
+            </span>
+          </div>
+
+          {selected.length > 0 && (
+            <button
+              className="text-red-500 text-sm underline"
+              onClick={deleteSelected}
+            >
+              Delete Selected ({selected.length})
+            </button>
+          )}
+        </div>
+      )}
+      
+
       {/* QUOTES LIST */}
-      <div className="card p-6 rounded-2xl bg-[#101010] border border-[#2a2414] shadow-[0_10px_30px_rgba(0,0,0,0.6)] section-scroll"
-           style={{ maxHeight: '70vh' }}>
+      <div
+        className="card p-6 rounded-2xl bg-[#101010] border border-[#2a2414] shadow-[0_10px_30px_rgba(0,0,0,0.6)] section-scroll"
+        style={{ maxHeight: '70vh' }}
+      >
 
         <div className="space-y-3">
           {filtered.map((q) => (
-            <Link
+            <div
               key={q.id}
-              to={`/quotes/${q.id}`}
               className="flex items-center justify-between p-4 rounded-xl bg-black/20 hover:bg-black/40 transition-all"
             >
-              <div className="flex flex-col">
+              {/* CHECKBOX */}
+              <input
+                type="checkbox"
+                className="mr-3"
+                checked={selected.includes(q.id)}
+                onChange={() => toggle(q.id)}
+              />
+
+              {/* CLICKABLE AREA */}
+              <Link
+                to={`/quotes/${q.id}`}
+                className="flex flex-col flex-1 px-3"
+              >
                 <span className="font-semibold text-[#f5f3da]">
                   {q.clientName || 'Unnamed Client'}
                 </span>
@@ -92,10 +164,23 @@ export default function QuotesBoard() {
                 <span className="text-[10px] text-gray-500 mt-1">
                   ID: {q.id}
                 </span>
-              </div>
+              </Link>
 
+              {/* STATUS */}
               <StatusBadge status={q.status} />
-            </Link>
+
+              {/* SINGLE DELETE */}
+              <button
+                onClick={async () => {
+                  if (confirm(`Delete quote ${q.id}?`)) {
+                    await remove(q.id)
+                  }
+                }}
+                className="ml-4 text-red-500 hover:text-red-400 text-sm"
+              >
+                ✕
+              </button>
+            </div>
           ))}
 
           {!filtered.length && (

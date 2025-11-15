@@ -1,631 +1,450 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useClientsStore } from '@store/useClientsStore'
-import { useQuotesStore } from '@store/useQuotesStore'
-import type { LineItem, Quote } from '@db/index'
-import { computeItem, formatCurrency, sumItems } from '@utils/quote'
-import SignatureModal from '@components/SignatureModal'
-import PDFButton from '@components/PDFButton'
-import StatusBadge from '@components/StatusBadge'
-import QuoteServicesSelector from '@components/QuoteServicesSelector'
-import { useSettingsStore } from '@store/useSettingsStore'
-import { useToastStore } from '@store/useToastStore'
+// -------------------------------------------------------------
+// QuoteEditor.tsx  (UPGRADED FOR NEW QUOTE TYPE)
+// -------------------------------------------------------------
 
-export default function QuoteEditor({ mode }: { mode: 'create' | 'edit' }) {
-  const { id } = useParams()
-  const [params] = useSearchParams()
-  const navigate = useNavigate()
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  DocumentData,
+} from "firebase/firestore";
+import { db as firestoreDb } from "../firebase";
+import {
+  Quote,
+  LineItem,
+  QuoteStatus,
+  getOrInitSettings,
+} from "@db/index";
 
-  const { clients, init: initClients, upsert: upsertClient } = useClientsStore()
-  const { quotes, init: initQuotes, upsert } = useQuotesStore()
-  const { settings, init: initSettings } = useSettingsStore()
+type QuoteEditorProps = {
+  mode: "create" | "edit";
+};
 
-  useEffect(() => {
-    initClients()
-    initQuotes()
-    initSettings()
-  }, [])
+function createEmptyItem(): LineItem {
+  const id =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
 
-  const existing = mode === 'edit' ? quotes.find(q => q.id === id) : undefined
-
-  const [clientId, setClientId] = useState(
-    existing?.clientId || params.get('clientId') || ''
-  )
-  const [clientName, setClientName] = useState('')
-  const [clientPhone, setClientPhone] = useState('')
-  const [clientEmail, setClientEmail] = useState('')
-  const [clientAddress, setClientAddress] = useState('')
-  const [clientNotes, setClientNotes] = useState('')
-
-  const [items, setItems] = useState<LineItem[]>(existing?.items || [])
-  const [taxRate, setTaxRate] = useState(
-    existing?.taxRate ?? settings?.defaultTaxRate ?? 0
-  )
-  const [discount, setDiscount] = useState(existing?.discount ?? 0)
-  const [notes, setNotes] = useState(existing?.notes || '')
-  const [status, setStatus] = useState<Quote['status']>(
-    existing?.status || 'pending'
-  )
-  const [signature, setSignature] = useState(existing?.signature || null)
-
-  const [openSig, setOpenSig] = useState(false)
-  const viewMode = params.get('view') === 'client'
-
-  const totals = useMemo(
-    () => sumItems(items, taxRate, discount),
-    [items, taxRate, discount]
-  )
-
-  const selectedClient = useMemo(
-    () => clients.find(c => c.id === clientId),
-    [clients, clientId]
-  )
-
-  // When selecting an existing client, fill fields
-  useEffect(() => {
-    if (selectedClient) {
-      setClientName(selectedClient.name || '')
-      setClientPhone(selectedClient.phone || '')
-      setClientEmail(selectedClient.email || '')
-      setClientAddress(selectedClient.address || '')
-      setClientNotes(selectedClient.notes || '')
-    }
-  }, [selectedClient])
-
-  function addItem() {
-    setItems(prev => [
-      ...prev,
-      computeItem({
-        id: crypto.randomUUID(),
-        description: '',
-        qty: 1,
-        unitPrice: 0,
-        total: 0
-      })
-    ])
-  }
-
-  function updateItem(id: string, patch: Partial<LineItem>) {
-    setItems(prev =>
-      prev.map(it => (it.id === id ? computeItem({ ...it, ...patch }) : it))
-    )
-  }
-
-  function removeItem(id: string) {
-    setItems(prev => prev.filter(it => it.id !== id))
-  }
-
-  async function save() {
-    // 1. CREATE OR UPDATE CLIENT
-    let cid = clientId
-
-    if (!cid) {
-      // new client
-      cid = crypto.randomUUID()
-      await upsertClient({
-        id: cid,
-        name: clientName || 'Unnamed',
-        phone: clientPhone || '',
-        email: clientEmail || '',
-        address: clientAddress || '',
-        notes: clientNotes || '',
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      })
-    } else if (selectedClient) {
-      // update existing client
-      await upsertClient({
-        ...selectedClient,
-        name: clientName || 'Unnamed',
-        phone: clientPhone || '',
-        email: clientEmail || '',
-        address: clientAddress || '',
-        notes: clientNotes || '',
-        updatedAt: Date.now()
-      })
-    }
-
-    // 2. CLEAN ITEMS
-    const cleanItems = items.map(i => ({
-      id: i.id,
-      description: i.description || '',
-      qty: i.qty || 0,
-      unitPrice: i.unitPrice || 0,
-      total: i.total || 0,
-      warning: i.warning || ''
-    }))
-
-    // 3. BUILD FINAL QUOTE PAYLOAD
-    const quoteId = existing?.id || crypto.randomUUID()
-
-    const payload: Quote = {
-      id: quoteId,
-      clientId: cid,
-      clientName: clientName || 'Unnamed',
-      items: cleanItems,
-      services: [],
-      subtotal: totals.subtotal,
-      taxRate,
-      tax: totals.tax,
-      discount,
-      total: totals.total,
-      notes: notes || '',
-      status,
-      signature: signature || null,
-      createdAt: existing?.createdAt || Date.now(),
-      updatedAt: Date.now()
-    }
-
-    // 4. SAVE QUOTE
-    const saved = await upsert(payload)
-
-    // 5. NAV + SUCCESS
-    navigate(`/quotes/${saved.id}`)
-    useToastStore.getState().show('Save Successful')
-  }
-
-  const targetId = 'quote-preview'
-
-  return (
-    <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* LEFT SIDE (form) */}
-      <div className="lg:col-span-2 space-y-4">
-
-        {/* CLIENT CARD */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-lg text-[#e8d487]">
-              Client & Quote Details
-            </h3>
-            <StatusBadge status={status} />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="label text-sm text-[#e8d487]/80">
-                Select Existing
-              </label>
-              <select
-                disabled={viewMode}
-                className="input mt-1"
-                value={clientId}
-                onChange={e => setClientId(e.target.value)}
-              >
-                <option value="">New client...</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label text-sm text-[#e8d487]/80">
-                Status
-              </label>
-              <select
-                disabled={viewMode}
-                className="input mt-1"
-                value={status}
-                onChange={e => setStatus(e.target.value as Quote['status'])}
-              >
-                {[
-                  'pending',
-                  'approved',
-                  'scheduled',
-                  'in_progress',
-                  'completed',
-                  'canceled'
-                ].map(s => (
-                  <option key={s} value={s}>
-                    {s.replace('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Client fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-            <div>
-              <label className="label text-sm text-[#e8d487]/80">
-                Client Name
-              </label>
-              <input
-                disabled={viewMode}
-                className="input mt-1"
-                value={clientName}
-                onChange={e => setClientName(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="label text-sm text-[#e8d487]/80">
-                Phone
-              </label>
-              <input
-                disabled={viewMode}
-                className="input mt-1"
-                value={clientPhone}
-                onChange={e => setClientPhone(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="label text-sm text-[#e8d487]/80">
-                Email
-              </label>
-              <input
-                disabled={viewMode}
-                className="input mt-1"
-                value={clientEmail}
-                onChange={e => setClientEmail(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="label text-sm text-[#e8d487]/80">
-                Address
-              </label>
-              <input
-                disabled={viewMode}
-                className="input mt-1"
-                value={clientAddress}
-                onChange={e => setClientAddress(e.target.value)}
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="label text-sm text-[#e8d487]/80">
-                Client Notes
-              </label>
-              <textarea
-                disabled={viewMode}
-                className="input h-20 mt-1"
-                value={clientNotes}
-                onChange={e => setClientNotes(e.target.value)}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* SERVICES */}
-        {!viewMode && (
-          <QuoteServicesSelector items={items} setItems={setItems} />
-        )}
-
-        {/* LINE ITEMS */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-[#e8d487]">Line Items</h3>
-            {!viewMode && (
-              <button className="btn-gold" onClick={addItem}>
-                Add Item
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            {items.map(it => (
-              <div key={it.id} className="grid grid-cols-12 gap-2">
-                <input
-                  disabled={viewMode}
-                  className="input col-span-6"
-                  placeholder="Description"
-                  value={it.description}
-                  onChange={e =>
-                    updateItem(it.id, { description: e.target.value })
-                  }
-                />
-
-                <input
-                  disabled={viewMode}
-                  className="input col-span-2"
-                  type="number"
-                  value={it.qty}
-                  onChange={e =>
-                    updateItem(it.id, { qty: Number(e.target.value) })
-                  }
-                />
-
-                <input
-                  disabled={viewMode}
-                  className="input col-span-2"
-                  type="number"
-                  value={it.unitPrice}
-                  onChange={e =>
-                    updateItem(it.id, { unitPrice: Number(e.target.value) })
-                  }
-                />
-
-                <div className="col-span-2 flex items-center justify-between">
-                  <div className="font-medium">
-                    {formatCurrency(it.total)}
-                  </div>
-                  {!viewMode && (
-                    <button
-                      className="text-xs text-red-500 hover:text-red-400"
-                      onClick={() => removeItem(it.id)}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-
-                <input
-                  disabled={viewMode}
-                  className="input col-span-12"
-                  placeholder="Warning (optional)"
-                  value={it.warning || ''}
-                  onChange={e =>
-                    updateItem(it.id, { warning: e.target.value })
-                  }
-                />
-              </div>
-            ))}
-
-            {!items.length && (
-              <div className="text-gray-500 text-sm">No items</div>
-            )}
-          </div>
-        </div>
-
-        {/* TOTALS + SAVE */}
-        {!viewMode && (
-          <div className="card grid grid-cols-1 md:grid-cols-3 gap-3">
-            <label className="label text-sm text-[#e8d487]/80">
-              Tax Rate (%)
-              <input
-                className="input mt-1"
-                type="number"
-                value={(taxRate * 100).toString()}
-                onChange={e => setTaxRate(Number(e.target.value) / 100)}
-              />
-            </label>
-
-            <label className="label text-sm text-[#e8d487]/80">
-              Discount ($)
-              <input
-                className="input mt-1"
-                type="number"
-                value={discount}
-                onChange={e => setDiscount(Number(e.target.value))}
-              />
-            </label>
-
-            <div className="flex items-end">
-              <button
-                className="btn-gold w-full"
-                onClick={save}
-              >
-                Save Quote
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* SIGN + PDF */}
-        <div className="card flex flex-wrap items-center gap-3">
-          {!viewMode && (
-            <button
-              className="btn-outline-gold"
-              onClick={() => setOpenSig(true)}
-            >
-              Sign
-            </button>
-          )}
-
-          <PDFButton
-            targetId={targetId}
-            fileName={`${existing?.id || 'quote'}_${clientName || 'client'}.pdf`}
-          />
-
-          {signature && (
-            <span className="text-xs text-gray-400">Signed</span>
-          )}
-        </div>
-      </div>
-
-      {/* RIGHT SIDE PREVIEW */}
-      <div
-        className="card lg:sticky lg:top-6 h-fit"
-        id={targetId}
-        style={{ background: '#f2f5f9', color: '#1f2a3a' }}
-      >
-        <QuotePreview
-          clientName={clientName || 'Unnamed'}
-          client={{
-            phone: clientPhone,
-            email: clientEmail,
-            address: clientAddress
-          }}
-          items={items}
-          totals={{ ...totals, taxRate, discount }}
-          status={status}
-          signature={signature?.dataUrl}
-          notes={notes}
-          setNotes={setNotes}
-          readOnly={viewMode}
-        />
-      </div>
-
-      <SignatureModal
-        open={openSig}
-        onClose={() => setOpenSig(false)}
-        onSave={dataUrl => {
-          setSignature({ dataUrl, signedAt: new Date().toISOString() })
-          setOpenSig(false)
-        }}
-      />
-    </div>
-  )
+  return {
+    id,
+    description: "",
+    qty: 1,
+    unitPrice: 0,
+    total: 0,
+  };
 }
 
-function QuotePreview({
-  clientName,
-  client,
-  items,
-  totals,
-  status,
-  signature,
-  notes,
-  setNotes,
-  readOnly
-}: {
-  clientName: string
-  client: { phone?: string; email?: string; address?: string }
-  items: LineItem[]
-  totals: {
-    subtotal: number
-    tax: number
-    total: number
-    taxRate: number
-    discount: number
-  }
-  status: Quote['status']
-  signature?: string | null
-  notes: string
-  setNotes: (v: string) => void
-  readOnly?: boolean
-}) {
-  const s = useSettingsStore.getState().settings
-  const left =
-    s?.companyLeftLines || [
-      'ReGlaze Me LLC',
-      '217 3rd Ave',
-      'Frankfort, NY 13340'
-    ]
-  const right =
-    s?.companyRightLines || ['reglazemellc@gmail.com', '315-525-9142']
+function calculateTotals(items: LineItem[], taxRate: number, discount: number) {
+  const subtotal = items.reduce((sum, it) => sum + (it.total || 0), 0);
+  const tax = subtotal * taxRate;
+  const total = subtotal + tax - discount;
+  return { subtotal, tax, total };
+}
+
+export default function QuoteEditor({ mode }: QuoteEditorProps) {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+
+  const isEdit = mode === "edit";
+  const quoteId = isEdit ? id ?? "" : "";
+
+  // ---------- State ----------
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [clientId, setClientId] = useState("");
+  const [clientName, setClientName] = useState("");
+
+  const [items, setItems] = useState<LineItem[]>([createEmptyItem()]);
+
+  const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<QuoteStatus>("pending");
+  const [discount, setDiscount] = useState(0);
+  const [taxRate, setTaxRate] = useState(0);
+
+  // NEW FIELDS
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [sentAt, setSentAt] = useState<number | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+
+  // ---------- Load existing quote or defaults ----------
+
+  useEffect(() => {
+    const run = async () => {
+      try {
+        if (isEdit && quoteId) {
+          const ref = doc(firestoreDb, "quotes", quoteId);
+          const snap = await getDoc(ref);
+
+          if (!snap.exists()) {
+            alert("Quote not found.");
+            navigate("/quotes");
+            return;
+          }
+
+          const data = snap.data() as DocumentData;
+
+          setClientId(String(data.clientId ?? ""));
+          setClientName(String(data.clientName ?? ""));
+
+          const loadedItems: LineItem[] = Array.isArray(data.items)
+            ? data.items.map((it: any) => ({
+                id: String(it.id ?? ""),
+                description: String(it.description ?? ""),
+                qty: Number(it.qty ?? 0),
+                unitPrice: Number(it.unitPrice ?? 0),
+                total: Number(it.total ?? 0),
+                warning: it.warning ? String(it.warning) : undefined,
+              }))
+            : [createEmptyItem()];
+
+          setItems(loadedItems);
+          setNotes(String(data.notes ?? ""));
+          setStatus((data.status as QuoteStatus) || "pending");
+          setDiscount(Number(data.discount ?? 0));
+          setTaxRate(Number(data.taxRate ?? 0));
+
+          // NEW FIELDS
+          setAttachments(data.attachments ?? []);
+          setPdfUrl(data.pdfUrl ?? null);
+          setSentAt(data.sentAt ?? null);
+          setExpiresAt(data.expiresAt ?? null);
+        } else {
+          const clientFromUrl = searchParams.get("clientId") ?? "";
+          setClientId(clientFromUrl);
+
+          const settings = await getOrInitSettings();
+          setTaxRate(settings.defaultTaxRate ?? 0);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, [isEdit, quoteId, navigate, searchParams]);
+
+  // ---------- Totals ----------
+
+  const totals = useMemo(
+    () => calculateTotals(items, taxRate, discount),
+    [items, taxRate, discount]
+  );
+
+  // ---------- Handlers ----------
+
+  const updateItem = (id: string, patch: Partial<LineItem>) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== id) return it;
+        const next: LineItem = { ...it, ...patch };
+        next.total = Number(next.qty || 0) * Number(next.unitPrice || 0);
+        return next;
+      })
+    );
+  };
+
+  const addItem = () => setItems((prev) => [...prev, createEmptyItem()]);
+
+  const removeItem = (id: string) =>
+    setItems((prev) => {
+      const next = prev.filter((it) => it.id !== id);
+      return next.length ? next : [createEmptyItem()];
+    });
+
+  const handleSave = async () => {
+    if (!clientName.trim()) {
+      alert("Please enter a client name.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const now = Date.now();
+
+      const payload: Partial<Quote> = {
+        id: quoteId || "",
+        clientId,
+        clientName: clientName.trim(),
+        items,
+        services: [],
+        subtotal: totals.subtotal,
+        taxRate,
+        tax: totals.tax,
+        discount,
+        total: totals.total,
+        notes,
+        status,
+        signature: null,
+
+        // NEW FIELDS – preserve values
+        attachments,
+        pdfUrl,
+        sentAt,
+        expiresAt,
+
+        createdAt: isEdit ? undefined : now,
+        updatedAt: now,
+      };
+
+      const colRef = collection(firestoreDb, "quotes");
+
+      if (isEdit && quoteId) {
+        const ref = doc(colRef, quoteId);
+        await setDoc(ref, { ...payload, id: quoteId }, { merge: true });
+        alert("Quote updated.");
+      } else {
+        const newRef = doc(colRef);
+        const finalPayload = { ...payload, id: newRef.id, createdAt: now };
+        await setDoc(newRef, finalPayload);
+        alert("Quote created.");
+      }
+
+      navigate("/quotes");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save quote.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---------- Render ----------
+
+  if (loading)
+    return <div className="p-6 text-center text-gray-400">Loading quote…</div>;
 
   return (
-    <div className="relative">
-      {s?.watermark && (
-        <img
-          src={s.watermark}
-          className="absolute inset-0 m-auto opacity-10 pointer-events-none select-none w-1/2"
-        />
-      )}
+    <div className="p-4 md:p-6 max-w-4xl mx-auto flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold text-[#e8d487] mb-2">
+        {isEdit ? "Edit Quote" : "New Quote"}
+      </h1>
 
-      <header className="flex items-center justify-between border-b pb-3 mb-3">
-        <div className="text-sm text-gray-700">
-          {left.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
-        </div>
+      {/* CLIENT INFO */}
+      <div className="card p-4 space-y-3">
+        <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2 text-[#f5f3da]">
+          Client
+        </h2>
 
-        <img src="/logo.png" className="w-16 h-16" />
-
-        <div className="text-sm text-right text-gray-700">
-          {right.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
-        </div>
-      </header>
-
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <div className="text-xs text-gray-500">Client</div>
-          <div className="font-semibold">{clientName}</div>
-          <div className="text-xs text-gray-600">
-            {[client.phone, client.email].filter(Boolean).join(' • ')}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">
+              Client Name
+            </label>
+            <input
+              className="input w-full"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+            />
           </div>
-          {client.address && (
-            <div className="text-xs text-gray-600">
-              {client.address}
-            </div>
-          )}
-        </div>
 
-        <StatusBadge status={status} />
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">
+              Client ID
+            </label>
+            <input
+              className="input w-full"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-gray-500">
-            <th className="py-2">Description</th>
-            <th className="py-2">Qty</th>
-            <th className="py-2">Unit</th>
-            <th className="py-2">Total</th>
-          </tr>
-        </thead>
+      {/* LINE ITEMS */}
+      <div className="card p-4 space-y-3">
+        <div className="flex justify-between items-center mb-1">
+          <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2 text-[#f5f3da]">
+            Line Items
+          </h2>
+          <button className="btn-outline-gold text-sm" onClick={addItem}>
+            + Add Item
+          </button>
+        </div>
 
-        <tbody>
-          {items.map(it => (
-            <tr key={it.id} className="border-t">
-              <td className="py-2">
-                <div>
-                  {it.description || (
-                    <span className="text-gray-400">
-                      No description
-                    </span>
-                  )}
-                </div>
-                {it.warning && (
-                  <div className="text-xs text-amber-600">
-                    ⚠ {it.warning}
-                  </div>
-                )}
-              </td>
+        <div className="space-y-3">
+          {items.map((it) => (
+            <div
+              key={it.id}
+              className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_auto] gap-2 items-center bg-black/40 rounded-lg p-3"
+            >
+              <input
+                className="input"
+                placeholder="Description"
+                value={it.description}
+                onChange={(e) =>
+                  updateItem(it.id, { description: e.target.value })
+                }
+              />
+              <input
+                className="input"
+                type="number"
+                value={it.qty}
+                onChange={(e) =>
+                  updateItem(it.id, { qty: Number(e.target.value) })
+                }
+              />
+              <input
+                className="input"
+                type="number"
+                step="0.01"
+                value={it.unitPrice}
+                onChange={(e) =>
+                  updateItem(it.id, {
+                    unitPrice: Number(e.target.value),
+                  })
+                }
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm text-[#f5f3da]">
+                  ${it.total.toFixed(2)}
+                </span>
+                <button
+                  className="text-red-500 text-xs"
+                  onClick={() => removeItem(it.id)}
+                >
+                  Remove
+                </button>
+              </div>
 
-              <td className="py-2">{it.qty}</td>
-              <td className="py-2">
-                {formatCurrency(it.unitPrice)}
-              </td>
-              <td className="py-2 font-medium">
-                {formatCurrency(it.total)}
-              </td>
-            </tr>
+              <textarea
+                className="input md:col-span-4 h-16"
+                placeholder="Optional warning"
+                value={it.warning ?? ""}
+                onChange={(e) =>
+                  updateItem(it.id, { warning: e.target.value })
+                }
+              />
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+      {/* NOTES + TOTALS */}
+      <div className="card p-4 grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
         <div>
-          <div className="text-xs text-gray-500">Notes</div>
+          <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2 text-[#f5f3da]">
+            Notes
+          </h2>
           <textarea
-            disabled={readOnly}
-            className="input h-24"
+            className="input h-32"
             value={notes}
-            onChange={e => setNotes(e.target.value)}
+            onChange={(e) => setNotes(e.target.value)}
           />
         </div>
 
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Subtotal</span>
-            <span>{formatCurrency(totals.subtotal)}</span>
-          </div>
+        <div>
+          <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2 text-[#f5f3da]">
+            Totals
+          </h2>
 
-          <div className="flex items-center justify_between">
-            <span className="text-gray-600">
-              Tax ({(totals.taxRate * 100).toFixed(2)}%)
-            </span>
-            <span>{formatCurrency(totals.tax)}</span>
-          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Subtotal</span>
+              <span className="text-[#f5f3da]">
+                ${totals.subtotal.toFixed(2)}
+              </span>
+            </div>
 
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Discount</span>
-            <span>-{formatCurrency(totals.discount)}</span>
-          </div>
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-gray-400">Tax Rate</span>
+              <input
+                className="input w-24 text-right"
+                type="number"
+                step="0.001"
+                value={taxRate}
+                onChange={(e) => setTaxRate(Number(e.target.value))}
+              />
+            </div>
 
-          <div className="flex items-center justify-between font-semibold text-lg border-t pt-1">
-            <span>Total</span>
-            <span>{formatCurrency(totals.total)}</span>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Tax</span>
+              <span className="text-[#f5f3da]">
+                ${totals.tax.toFixed(2)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center gap-2">
+              <span className="text-gray-400">Discount</span>
+              <input
+                className="input w-24 text-right"
+                type="number"
+                step="0.01"
+                value={discount}
+                onChange={(e) => setDiscount(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="flex justify-between border-t border-[#2a2a2a] pt-2 mt-2">
+              <span className="font-semibold text-[#e8d487]">Total</span>
+              <span className="font-bold text-[#f5f3da]">
+                ${totals.total.toFixed(2)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-4">
-        <div className="text-xs text-gray-500 mb-1">Signature</div>
+      {/* FUTURE FIELDS (READ-ONLY FOR NOW) */}
+      <div className="card p-4 space-y-3">
+        <h2 className="text-lg font-semibold text-[#f5f3da]">
+          Additional Info
+        </h2>
 
-        {signature ? (
-          <img src={signature} alt="signature" className="h-20" />
-        ) : (
-          <div className="h-20 border rounded bg-gray-50" />
-        )}
+        <div className="text-sm text-gray-400 space-y-1">
+          <div>Attachments: {attachments.length}</div>
+          <div>PDF: {pdfUrl ? "Attached" : "None"}</div>
+          <div>
+            Sent:
+            {sentAt ? ` ${new Date(sentAt).toLocaleString()}` : " Not sent"}
+          </div>
+          <div>
+            Expires:
+            {expiresAt
+              ? ` ${new Date(expiresAt).toLocaleDateString()}`
+              : " None"}
+          </div>
+        </div>
+      </div>
+
+      {/* SAVE */}
+      <div className="sticky bottom-0 left-0 right-0 border-t border-[#2a2a2a] bg-[#050505]/95 backdrop-blur mt-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between px-4 py-3">
+          <div className="text-xs text-gray-400">
+            {isEdit ? "Editing quote" : "Creating quote"}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              className="btn-outline-gold px-4"
+              onClick={() => navigate(-1)}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-gold px-6"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving
+                ? isEdit
+                  ? "Saving..."
+                  : "Creating..."
+                : isEdit
+                ? "Save Quote"
+                : "Create Quote"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-  )
+  );
 }

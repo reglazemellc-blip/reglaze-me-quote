@@ -1,206 +1,175 @@
 import { useClientsStore } from '@store/useClientsStore'
+import { useQuotesStore } from '@store/useQuotesStore'
 import { useEffect, useMemo, useState } from 'react'
 import SearchBar from '@components/SearchBar'
-import { Link } from 'react-router-dom'
-import { db } from '@db/index'
+import { Link, useNavigate } from 'react-router-dom'
 
 export default function Clients() {
-  const { clients, init } = useClientsStore()
+  const { clients, init, remove } = useClientsStore()
+  const { quotes } = useQuotesStore()
+
   const [term, setTerm] = useState('')
+  const navigate = useNavigate()
 
-  useEffect(() => { init() }, [init])
+  const [selected, setSelected] = useState<string[]>([])
 
-  const list = useMemo(() => {
+  useEffect(() => {
+    init()
+  }, [init])
+
+  /* ---------------- FILTER CLIENT LIST ---------------- */
+  const filtered = useMemo(() => {
     const arr = [...clients]
-    if (term) {
-      const q = term.toLowerCase()
-      return arr.filter(c =>
-        [c.name, c.phone, c.email, c.address]
-          .filter(Boolean)
-          .some(v => v!.toLowerCase().includes(q))
-      )
-    }
-    return arr
+    if (!term.trim()) return arr
+
+    const q = term.toLowerCase()
+
+    return arr.filter((c) =>
+      [c.name, c.phone, c.email, c.address]
+        .filter(Boolean)
+        .some((v) => v!.toLowerCase().includes(q))
+    )
   }, [clients, term])
 
-  const [showForm, setShowForm] = useState(false)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [address, setAddress] = useState('')
-  const [notes, setNotes] = useState('')
+  /* ---------------- SELECTION LOGIC ---------------- */
+  const toggle = (id: string) => {
+    setSelected(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  const toggleAll = () => {
+    if (selected.length === filtered.length) {
+      setSelected([])
+    } else {
+      setSelected(filtered.map(c => c.id))
+    }
+  }
+
+  const clearSelection = () => setSelected([])
+
+  const deleteSelected = async () => {
+    if (!selected.length) return
+
+    // Count total quotes across all selected clients
+    const totalQuotes = quotes.filter(q => selected.includes(q.clientId)).length
+
+    const msg =
+      totalQuotes > 0
+        ? `Delete ${selected.length} clients AND ${totalQuotes} associated quote(s)?`
+        : `Delete ${selected.length} clients?`
+
+    if (!confirm(msg)) return
+
+    for (const id of selected) {
+      await remove(id)
+    }
+
+    clearSelection()
+  }
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto">
-      <div className="card mb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
-          <h2 className="font-semibold text-lg text-[#e8d487]">Clients</h2>
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="flex-1 md:flex-none">
-              <SearchBar
-                placeholder="Search by name, phone, email, address"
-                onChange={setTerm}
-              />
-            </div>
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h2 className="text-xl font-semibold text-[#e8d487]">Clients</h2>
 
-            <button
-              className="btn-gold whitespace-nowrap"
-              onClick={() => setShowForm(s => !s)}
-            >
-              {showForm ? 'Close' : 'Add Client'}
-            </button>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex-1 md:flex-none">
+            <SearchBar
+              placeholder="Search by name, phone, email, address"
+              onChange={setTerm}
+            />
           </div>
+
+          <button
+            className="btn-gold"
+            onClick={() => navigate('/clients/new')}
+          >
+            Add Client
+          </button>
         </div>
+      </div>
 
-        {/* ADD CLIENT FORM */}
-        {showForm && (
-          <div className="p-4 rounded-xl bg-[#0f0f0f] border border-[#2a2414] mb-4 shadow-[0_0_20px_rgba(0,0,0,0.4)]">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className="text-sm text-[#e8d487]/80">
-                Name
-                <input
-                  className="input mt-1"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="Full name"
-                />
-              </label>
-
-              <label className="text-sm text-[#e8d487]/80">
-                Phone
-                <input
-                  className="input mt-1"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="(555) 555-5555"
-                />
-              </label>
-
-              <label className="text-sm text-[#e8d487]/80">
-                Email
-                <input
-                  className="input mt-1"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="name@email.com"
-                />
-              </label>
-
-              <label className="text-sm text-[#e8d487]/80">
-                Address
-                <input
-                  className="input mt-1"
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  placeholder="Street, City, State"
-                />
-              </label>
-
-              <label className="text-sm text-[#e8d487]/80 md:col-span-2">
-                Notes
-                <textarea
-                  className="input h-24 mt-1"
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="Notes"
-                />
-              </label>
-            </div>
-
-            <div className="mt-4 flex items-center gap-3">
-              <button
-                className="btn-gold"
-                onClick={async () => {
-                  if (!name.trim()) {
-                    alert('Please enter a name')
-                    return
-                  }
-
-                  await useClientsStore.getState().create({
-                    name: name.trim(),
-                    phone: phone || undefined,
-                    email: email || undefined,
-                    address: address || undefined,
-                    notes: notes || undefined
-                  })
-
-                  setName('')
-                  setPhone('')
-                  setEmail('')
-                  setAddress('')
-                  setNotes('')
-                  setShowForm(false)
-                }}
-              >
-                Save Client
-              </button>
-
-              <button
-                className="btn-outline-gold"
-                onClick={() => {
-                  setName('')
-                  setPhone('')
-                  setEmail('')
-                  setAddress('')
-                  setNotes('')
-                  setShowForm(false)
-                }}
-              >
-                Cancel
-              </button>
-            </div>
+      {/* BULK DELETE BAR */}
+      {filtered.length > 0 && (
+        <div className="flex justify-between items-center py-2 px-3 bg-black/40 rounded-xl border border-[#2a2a2a]">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selected.length === filtered.length}
+              onChange={toggleAll}
+            />
+            <span className="text-sm text-gray-300">Select All</span>
           </div>
-        )}
 
-        {/* CLIENT LIST */}
-        <div className="divide-y divide-[#2a2a2a]">
-          {list.map(c => (
+          {selected.length > 0 && (
+            <button
+              className="text-red-500 text-sm underline"
+              onClick={deleteSelected}
+            >
+              Delete Selected ({selected.length})
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* CLIENT LIST */}
+      <div className="card p-4 divide-y divide-[#2a2a2a]">
+        {filtered.map((c) => {
+          // Count quotes linked to this client
+          const count = quotes.filter(q => q.clientId === c.id).length
+
+          return (
             <div
               key={c.id}
-              className="flex items-center justify-between py-3 hover:bg-black/40 rounded-lg transition-all px-2"
+              className="flex items-center justify-between py-3 hover:bg-white/5 rounded-lg px-2 transition"
             >
-              <Link
-                to={`/clients/${c.id}`}
-                className="flex-1 mr-3 hover:opacity-90"
-              >
+              {/* CHECKBOX */}
+              <input
+                type="checkbox"
+                className="mr-3"
+                checked={selected.includes(c.id)}
+                onChange={() => toggle(c.id)}
+              />
+
+              {/* CLIENT INFO */}
+              <Link to={`/clients/${c.id}`} className="flex-1 mr-3">
                 <div className="font-medium text-[#f5f3da]">{c.name}</div>
                 <div className="text-xs text-gray-400">
-                  {[c.phone, c.email, c.address]
-                    .filter(Boolean)
-                    .join(' • ')}
+                  {[c.phone, c.email, c.address].filter(Boolean).join(' • ')}
+                </div>
+                <div className="text-[11px] text-gray-500 mt-1">
+                  {count} quote{count !== 1 ? 's' : ''}
                 </div>
               </Link>
 
+              {/* SINGLE DELETE */}
               <button
-                className="btn-outline-gold whitespace-nowrap"
+                className="text-red-500 hover:text-red-400 text-sm"
                 onClick={async () => {
-                  const count = await db.quotes
-                    .where('clientId')
-                    .equals(c.id)
-                    .count()
-
                   const msg =
                     count > 0
-                      ? `Delete this client and ${count} associated quote(s)?`
+                      ? `Delete this client AND ${count} quote(s)?`
                       : 'Delete this client?'
 
                   if (confirm(msg)) {
-                    await useClientsStore.getState().remove(c.id)
+                    await remove(c.id)
                   }
                 }}
               >
-                Delete
+                ✕
               </button>
             </div>
-          ))}
+          )
+        })}
 
-          {!list.length && (
-            <div className="text-center text-gray-500 py-6">
-              No clients found.
-            </div>
-          )}
-        </div>
+        {!filtered.length && (
+          <div className="text-center text-gray-500 py-6 text-sm">
+            No clients found.
+          </div>
+        )}
       </div>
     </div>
   )

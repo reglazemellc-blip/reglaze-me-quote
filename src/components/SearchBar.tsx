@@ -1,56 +1,43 @@
-import { useState } from 'react'
+import { Search } from "lucide-react";
 
-type SearchBarProps = {
-  placeholder?: string
-  onChange: (v: string) => void
-}
+type Props = {
+  placeholder?: string;
+  value?: string;
+  onChange?: (v: string) => void;
+};
 
-export default function SearchBar({ placeholder, onChange }: SearchBarProps): JSX.Element {
-  const [value, setValue] = useState('')
-
-  function handleChange(v: string) {
-    setValue(v)
-    onChange(v)
-  }
-
-  function clear() {
-    setValue('')
-    onChange('')
-  }
-
+export default function SearchBar({ placeholder, value = "", onChange }: Props) {
   return (
     <div className="relative w-full">
-      <input
-        value={value}
-        onChange={(e) => handleChange(e.target.value)}
-        placeholder={placeholder || 'Search...'}
-        className="
-          w-full px-4 py-2 rounded-xl
-          bg-[#151515]
-          border border-[#2a2a2a]
-          text-[#e8d487]
-          placeholder:text-[#777]
-          shadow-[0_0_10px_rgba(255,215,0,0.12)]
-          focus:shadow-[0_0_18px_rgba(255,215,0,0.35)]
-          transition-all
-          focus:outline-none
-        "
+      {/* ICON */}
+      <Search
+        size={16}
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e8d487]/70 pointer-events-none"
       />
 
-      {value && (
-        <button
-          onClick={clear}
-          className="
-            absolute right-3 top-1/2 -translate-y-1/2
-            text-[#e8d487]/60
-            hover:text-[#fff1a8]
-            transition-all
-            text-sm
-          "
-        >
-          Clear
-        </button>
-      )}
+      {/* INPUT */}
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        
+        // *** HARD-FORCE THE SPACING (THIS CANNOT FAIL) ***
+        style={{ paddingLeft: "2.2rem" }}
+        
+        className="
+          w-full
+          h-11
+          bg-[#0f0f0f]
+          border border-[#2a2a2a]
+          rounded-lg
+          text-[#f1f1f1]
+          placeholder:text-gray-500
+          focus:outline-none
+          focus:border-[#e8d487]
+          shadow-[0_0_10px_rgba(0,0,0,0.2)]
+        "
+      />
     </div>
-  )
+  );
 }

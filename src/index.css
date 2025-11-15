@@ -54,6 +54,11 @@
   focus:outline-none focus:border-[#e8d487];
 }
 
+.dashboard-search-input {
+  padding-left: 2.8rem; /* push text past the icon */
+}
+
+
 /* Cards (match theme) */
 .card {
   @apply rounded-2xl bg-[#101010] border border-[#2a2414]
