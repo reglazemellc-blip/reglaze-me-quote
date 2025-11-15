@@ -11,7 +11,7 @@ import QuoteServicesSelector from '@components/QuoteServicesSelector'
 import { useSettingsStore } from '@store/useSettingsStore'
 import { useToastStore } from '@store/useToastStore'
 
-export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
+export default function QuoteEditor({ mode }: { mode: 'create' | 'edit' }) {
   const { id } = useParams()
   const [params] = useSearchParams()
   const navigate = useNavigate()
@@ -28,7 +28,9 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
 
   const existing = mode === 'edit' ? quotes.find(q => q.id === id) : undefined
 
-  const [clientId, setClientId] = useState(existing?.clientId || params.get('clientId') || '')
+  const [clientId, setClientId] = useState(
+    existing?.clientId || params.get('clientId') || ''
+  )
   const [clientName, setClientName] = useState('')
   const [clientPhone, setClientPhone] = useState('')
   const [clientEmail, setClientEmail] = useState('')
@@ -36,10 +38,14 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
   const [clientNotes, setClientNotes] = useState('')
 
   const [items, setItems] = useState<LineItem[]>(existing?.items || [])
-  const [taxRate, setTaxRate] = useState(existing?.taxRate ?? settings?.defaultTaxRate ?? 0)
+  const [taxRate, setTaxRate] = useState(
+    existing?.taxRate ?? settings?.defaultTaxRate ?? 0
+  )
   const [discount, setDiscount] = useState(existing?.discount ?? 0)
   const [notes, setNotes] = useState(existing?.notes || '')
-  const [status, setStatus] = useState<Quote['status']>(existing?.status || 'pending')
+  const [status, setStatus] = useState<Quote['status']>(
+    existing?.status || 'pending'
+  )
   const [signature, setSignature] = useState(existing?.signature || null)
 
   const [openSig, setOpenSig] = useState(false)
@@ -104,7 +110,7 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
         address: clientAddress || '',
         notes: clientNotes || '',
         createdAt: Date.now(),
-        updatedAt: Date.now(),
+        updatedAt: Date.now()
       })
     } else if (selectedClient) {
       // update existing client
@@ -119,9 +125,7 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
       })
     }
 
-    // 2. PREP QUOTE CLEAN
-    const quoteId = existing?.id || crypto.randomUUID()
-
+    // 2. CLEAN ITEMS
     const cleanItems = items.map(i => ({
       id: i.id,
       description: i.description || '',
@@ -131,9 +135,13 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
       warning: i.warning || ''
     }))
 
+    // 3. BUILD FINAL QUOTE PAYLOAD
+    const quoteId = existing?.id || crypto.randomUUID()
+
     const payload: Quote = {
       id: quoteId,
       clientId: cid,
+      clientName: clientName || 'Unnamed',
       items: cleanItems,
       services: [],
       subtotal: totals.subtotal,
@@ -145,13 +153,13 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
       status,
       signature: signature || null,
       createdAt: existing?.createdAt || Date.now(),
-      updatedAt: Date.now(),
+      updatedAt: Date.now()
     }
 
-    // 3. SAVE QUOTE
+    // 4. SAVE QUOTE
     const saved = await upsert(payload)
 
-    // 4. DONE
+    // 5. NAV + SUCCESS
     navigate(`/quotes/${saved.id}`)
     useToastStore.getState().show('Save Successful')
   }
@@ -159,19 +167,27 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
   const targetId = 'quote-preview'
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* LEFT SIDE (form) */}
       <div className="lg:col-span-2 space-y-4">
 
         {/* CLIENT CARD */}
-        <div className="card p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-lg text-[#e8d487]">
+              Client & Quote Details
+            </h3>
+            <StatusBadge status={status} />
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="label">Select Existing</label>
+              <label className="label text-sm text-[#e8d487]/80">
+                Select Existing
+              </label>
               <select
                 disabled={viewMode}
-                className="input"
+                className="input mt-1"
                 value={clientId}
                 onChange={e => setClientId(e.target.value)}
               >
@@ -185,10 +201,12 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
             </div>
 
             <div>
-              <label className="label">Status</label>
+              <label className="label text-sm text-[#e8d487]/80">
+                Status
+              </label>
               <select
                 disabled={viewMode}
-                className="input"
+                className="input mt-1"
                 value={status}
                 onChange={e => setStatus(e.target.value as Quote['status'])}
               >
@@ -198,7 +216,7 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
                   'scheduled',
                   'in_progress',
                   'completed',
-                  'canceled',
+                  'canceled'
                 ].map(s => (
                   <option key={s} value={s}>
                     {s.replace('_', ' ')}
@@ -209,52 +227,62 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
           </div>
 
           {/* Client fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
             <div>
-              <label className="label">Client Name</label>
+              <label className="label text-sm text-[#e8d487]/80">
+                Client Name
+              </label>
               <input
                 disabled={viewMode}
-                className="input"
+                className="input mt-1"
                 value={clientName}
                 onChange={e => setClientName(e.target.value)}
               />
             </div>
 
             <div>
-              <label className="label">Phone</label>
+              <label className="label text-sm text-[#e8d487]/80">
+                Phone
+              </label>
               <input
                 disabled={viewMode}
-                className="input"
+                className="input mt-1"
                 value={clientPhone}
                 onChange={e => setClientPhone(e.target.value)}
               />
             </div>
 
             <div>
-              <label className="label">Email</label>
+              <label className="label text-sm text-[#e8d487]/80">
+                Email
+              </label>
               <input
                 disabled={viewMode}
-                className="input"
+                className="input mt-1"
                 value={clientEmail}
                 onChange={e => setClientEmail(e.target.value)}
               />
             </div>
 
             <div>
-              <label className="label">Address</label>
+              <label className="label text-sm text-[#e8d487]/80">
+                Address
+              </label>
               <input
                 disabled={viewMode}
-                className="input"
+                className="input mt-1"
                 value={clientAddress}
                 onChange={e => setClientAddress(e.target.value)}
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="label">Client Notes</label>
+              <label className="label text-sm text-[#e8d487]/80">
+                Client Notes
+              </label>
               <textarea
                 disabled={viewMode}
-                className="input h-20"
+                className="input h-20 mt-1"
                 value={clientNotes}
                 onChange={e => setClientNotes(e.target.value)}
               />
@@ -263,20 +291,22 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
         </div>
 
         {/* SERVICES */}
-        {!viewMode &&
+        {!viewMode && (
           <QuoteServicesSelector items={items} setItems={setItems} />
-        }
+        )}
 
         {/* LINE ITEMS */}
-        <div className="card p-4">
+        <div className="card">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Line Items</h3>
+            <h3 className="font-semibold text-[#e8d487]">Line Items</h3>
             {!viewMode && (
-              <button className="btn btn-primary" onClick={addItem}>Add Item</button>
+              <button className="btn-gold" onClick={addItem}>
+                Add Item
+              </button>
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {items.map(it => (
               <div key={it.id} className="grid grid-cols-12 gap-2">
                 <input
@@ -310,9 +340,16 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
                 />
 
                 <div className="col-span-2 flex items-center justify-between">
-                  <div className="font-medium">{formatCurrency(it.total)}</div>
+                  <div className="font-medium">
+                    {formatCurrency(it.total)}
+                  </div>
                   {!viewMode && (
-                    <button className="text-red-600" onClick={() => removeItem(it.id)}>Remove</button>
+                    <button
+                      className="text-xs text-red-500 hover:text-red-400"
+                      onClick={() => removeItem(it.id)}
+                    >
+                      Remove
+                    </button>
                   )}
                 </div>
 
@@ -321,34 +358,36 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
                   className="input col-span-12"
                   placeholder="Warning (optional)"
                   value={it.warning || ''}
-                  onChange={e => updateItem(it.id, { warning: e.target.value })}
+                  onChange={e =>
+                    updateItem(it.id, { warning: e.target.value })
+                  }
                 />
               </div>
             ))}
 
             {!items.length && (
-              <div className="text-gray-500">No items</div>
+              <div className="text-gray-500 text-sm">No items</div>
             )}
           </div>
         </div>
 
         {/* TOTALS + SAVE */}
         {!viewMode && (
-          <div className="card p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <label className="label">
+          <div className="card grid grid-cols-1 md:grid-cols-3 gap-3">
+            <label className="label text-sm text-[#e8d487]/80">
               Tax Rate (%)
               <input
-                className="input"
+                className="input mt-1"
                 type="number"
                 value={(taxRate * 100).toString()}
                 onChange={e => setTaxRate(Number(e.target.value) / 100)}
               />
             </label>
 
-            <label className="label">
+            <label className="label text-sm text-[#e8d487]/80">
               Discount ($)
               <input
-                className="input"
+                className="input mt-1"
                 type="number"
                 value={discount}
                 onChange={e => setDiscount(Number(e.target.value))}
@@ -356,7 +395,10 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
             </label>
 
             <div className="flex items-end">
-              <button className="btn btn-primary w-full" onClick={save}>
+              <button
+                className="btn-gold w-full"
+                onClick={save}
+              >
                 Save Quote
               </button>
             </div>
@@ -364,9 +406,12 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
         )}
 
         {/* SIGN + PDF */}
-        <div className="card p-4 flex items-center gap-2">
+        <div className="card flex flex-wrap items-center gap-3">
           {!viewMode && (
-            <button className="btn btn-secondary" onClick={() => setOpenSig(true)}>
+            <button
+              className="btn-outline-gold"
+              onClick={() => setOpenSig(true)}
+            >
               Sign
             </button>
           )}
@@ -377,14 +422,14 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
           />
 
           {signature && (
-            <span className="text-xs text-gray-600">Signed</span>
+            <span className="text-xs text-gray-400">Signed</span>
           )}
         </div>
       </div>
 
       {/* RIGHT SIDE PREVIEW */}
       <div
-        className="card p-4 lg:sticky lg:top-6 h-fit"
+        className="card lg:sticky lg:top-6 h-fit"
         id={targetId}
         style={{ background: '#f2f5f9', color: '#1f2a3a' }}
       >
@@ -393,7 +438,7 @@ export default function QuoteEditor({ mode }:{ mode:'create'|'edit' }) {
           client={{
             phone: clientPhone,
             email: clientEmail,
-            address: clientAddress,
+            address: clientAddress
           }}
           items={items}
           totals={{ ...totals, taxRate, discount }}
@@ -426,12 +471,18 @@ function QuotePreview({
   signature,
   notes,
   setNotes,
-  readOnly,
+  readOnly
 }: {
   clientName: string
   client: { phone?: string; email?: string; address?: string }
   items: LineItem[]
-  totals: { subtotal: number; tax: number; total: number; taxRate: number; discount: number }
+  totals: {
+    subtotal: number
+    tax: number
+    total: number
+    taxRate: number
+    discount: number
+  }
   status: Quote['status']
   signature?: string | null
   notes: string
@@ -439,8 +490,14 @@ function QuotePreview({
   readOnly?: boolean
 }) {
   const s = useSettingsStore.getState().settings
-  const left = s?.companyLeftLines || ['ReGlaze Me LLC', '217 3rd Ave', 'Frankfort, NY 13340']
-  const right = s?.companyRightLines || ['reglazemellc@gmail.com', '315-525-9142']
+  const left =
+    s?.companyLeftLines || [
+      'ReGlaze Me LLC',
+      '217 3rd Ave',
+      'Frankfort, NY 13340'
+    ]
+  const right =
+    s?.companyRightLines || ['reglazemellc@gmail.com', '315-525-9142']
 
   return (
     <div className="relative">
@@ -475,7 +532,9 @@ function QuotePreview({
             {[client.phone, client.email].filter(Boolean).join(' • ')}
           </div>
           {client.address && (
-            <div className="text-xs text-gray-600">{client.address}</div>
+            <div className="text-xs text-gray-600">
+              {client.address}
+            </div>
           )}
         </div>
 
@@ -498,7 +557,9 @@ function QuotePreview({
               <td className="py-2">
                 <div>
                   {it.description || (
-                    <span className="text-gray-400">No description</span>
+                    <span className="text-gray-400">
+                      No description
+                    </span>
                   )}
                 </div>
                 {it.warning && (
@@ -509,7 +570,9 @@ function QuotePreview({
               </td>
 
               <td className="py-2">{it.qty}</td>
-              <td className="py-2">{formatCurrency(it.unitPrice)}</td>
+              <td className="py-2">
+                {formatCurrency(it.unitPrice)}
+              </td>
               <td className="py-2 font-medium">
                 {formatCurrency(it.total)}
               </td>
@@ -535,7 +598,7 @@ function QuotePreview({
             <span>{formatCurrency(totals.subtotal)}</span>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify_between">
             <span className="text-gray-600">
               Tax ({(totals.taxRate * 100).toFixed(2)}%)
             </span>

@@ -1,6 +1,6 @@
-import Dexie, { Table } from 'dexie';
-import { db as firestoreDb } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import Dexie, { Table } from 'dexie'
+import { db as firestoreDb } from '../firebase'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 // ------------------ Types ------------------
 
@@ -33,19 +33,29 @@ export type LineItem = {
   warning?: string
 }
 
+export type Signature = {
+  dataUrl: string
+  signedAt?: string
+}
+
 export type Quote = {
   id: string
   clientId: string
-  services: string[]
+  clientName: string
+
   items: LineItem[]
+  services: string[]
+
   subtotal: number
   taxRate: number
   tax: number
   discount: number
   total: number
-  notes?: string
+
+  notes: string
   status: QuoteStatus
-  signature?: { dataUrl: string; signedAt?: string } | null
+  signature: Signature | null
+
   createdAt: number
   updatedAt: number
 }
@@ -71,7 +81,11 @@ export type ServiceCatalog = {
   services: Array<{
     id: string
     name: string
-    subservices: Array<{ id: string; name: string; warning?: string }>
+    subservices: Array<{
+      id: string
+      name: string
+      warning?: string
+    }>
   }>
 }
 
@@ -87,7 +101,7 @@ export class AppDB extends Dexie {
     super('reglaze-me-db')
     this.version(1).stores({
       clients: 'id, createdAt, updatedAt, name, email, phone',
-      quotes: 'id, clientId, createdAt, updatedAt, status',
+      quotes: 'id, clientId, createdAt, updatedAt, status, clientName',
       settings: 'id',
       catalog: 'id',
     })
@@ -102,12 +116,10 @@ export async function getOrInitSettings(): Promise<Settings> {
   const ref = doc(firestoreDb, 'settings', 'settings')
   const snap = await getDoc(ref)
 
-  // If exists in Firestore → return it
   if (snap.exists()) {
     return snap.data() as Settings
   }
 
-  // Otherwise create defaults
   const defaults: Settings = {
     id: 'settings',
     companyLeftLines: ['ReGlaze Me LLC', '217 3rd Ave', 'Frankfort, NY 13340'],
