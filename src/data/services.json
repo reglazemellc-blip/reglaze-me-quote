@@ -1,0 +1,20 @@
+{
+  "services": [
+    {
+      "id": "tub",
+      "name": "Bathtub Re-Glazing",
+      "subservices": [
+        { "id": "tub-prep", "name": "Surface Prep", "warning": "Ensure ventilation; may produce odors." },
+        { "id": "tub-chip", "name": "Chip Repair", "warning": "Extra time may be required for curing." }
+      ]
+    },
+    {
+      "id": "tile",
+      "name": "Tile Re-Glazing",
+      "subservices": [
+        { "id": "tile-grout", "name": "Grout Repair", "warning": "Grout must be fully dried prior to application." }
+      ]
+    }
+  ]
+}
+

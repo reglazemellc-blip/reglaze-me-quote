@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ----------------------------------------
+   BLACK DIAMOND GOLD — GLOBAL BUTTON STYLES
+----------------------------------------- */
+
+.btn-gold {
+  @apply px-4 py-2 rounded-xl font-semibold
+  bg-gradient-to-b from-[#ffd700] to-[#b8860b]
+  text-black
+  shadow-[0_0_15px_rgba(255,215,0,0.35)]
+  hover:opacity-90
+  transition-all;
+}
+
+.btn-outline-gold {
+  @apply px-4 py-2 rounded-xl font-semibold
+  border border-[#444]
+  text-[#e8d487]/80
+  hover:text-[#fff1a8]
+  hover:border-[#b8860b]
+  transition-all;
+}
+
+.btn-dark {
+  @apply px-3 py-2 rounded-xl
+  bg-black/40
+  text-[#e8d487]/80
+  hover:bg-black/70
+  hover:text-[#fff1a8]
+  transition-all;
+}
+
+.btn-icon-gold {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center
+  bg-[#151515]
+  border border-[#2a2a2a]
+  text-[#e8d487]
+  hover:border-[#b8860b]
+  hover:text-[#fff1a8]
+  shadow-[0_0_12px_rgba(255,215,0,0.15)]
+  transition-all;
+}
+
+/* Inputs (match theme) */
+.input {
+  @apply w-full px-3 py-2 rounded-lg
+  bg-[#1b1b1b]
+  border border-[#2a2a2a]
+  text-[#e8d487]
+  placeholder:text-gray-500
+  focus:outline-none focus:border-[#e8d487];
+}
+
+.dashboard-search-input {
+  padding-left: 2.8rem; /* push text past the icon */
+}
+
+
+/* Cards (match theme) */
+.card {
+  @apply rounded-2xl bg-[#101010] border border-[#2a2414]
+  shadow-[0_10px_30px_rgba(0,0,0,0.6)] p-4 md:p-5;
+}
+
+/* Fix invisible View All links */
+.btn-link,
+.btn-link:hover {
+  color: var(--color-accent1) !important;
+}
+
+/* Ensure Delete + View All show up */
+.text-red-600 {
+  color: #ff4d4d !important;
+}
+
+.text-right,
+.text-gray-500,
+.text-gray-400 {
+  color: #cfcfcf !important;
+}
+
