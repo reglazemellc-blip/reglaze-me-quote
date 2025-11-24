@@ -37,6 +37,8 @@ import {
 
 import ClientDrawer from "@components/ClientDrawer";
 import PhotoUpload from "@components/PhotoUpload";
+import ClientAutocomplete from "@components/ClientAutocomplete";
+
 
 // -------------------------------------------------------------
 // Helpers
@@ -167,7 +169,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
   const [clientState, setClientState] = useState("");
   const [clientZip, setClientZip] = useState("");
 
-  const [showClientMenu, setShowClientMenu] = useState(false);
+ 
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
 
   // Quote state
@@ -212,7 +214,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
       if (!wrapperRef.current) return;
       if (!wrapperRef.current.contains(e.target as Node)) {
         setOpenServiceFor(null);
-        setShowClientMenu(false);
+       
       }
     }
     document.addEventListener("mousedown", handleClick);
@@ -359,17 +361,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
   // -------------------------------------------------------------
   // Client filtering for autocomplete
   // -------------------------------------------------------------
-  const filteredClients = useMemo(() => {
-    if (!clientName.trim()) return clients;
-    const lower = clientName.toLowerCase();
-
-    return clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(lower) ||
-        (c.phone ?? "").includes(clientName) ||
-        (c.email ?? "").toLowerCase().includes(lower)
-    );
-  }, [clientName, clients]);
+  
 
   // -------------------------------------------------------------
   // Flatten services for dropdown
@@ -666,67 +658,44 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
             </div>
           </div>
 
-          {/* Client Name + Autocomplete */}
-          <div className="relative">
-            <label className="text-xs text-gray-400 block mb-1">
-              Client Name
-            </label>
+       {/* Client Autocomplete */}
+<ClientAutocomplete
+  value={
+    clientId
+      ? clients.find((c) => c.id === clientId) ?? null
+      : null
+  }
+  onChange={(c) => {
+    if (!c) {
+      setClientId("");
+      setClientName("");
+      setClientPhone("");
+      setClientEmail("");
+      setClientStreet("");
+      setClientCity("");
+      setClientState("");
+      setClientZip("");
+      return;
+    }
 
-            <input
-              className="input w-full"
-              placeholder="Search or enter name"
-              value={clientName}
-              onChange={(e) => {
-                setClientName(e.target.value);
-                setClientId("");
-                setShowClientMenu(true);
-              }}
-              onFocus={() => setShowClientMenu(true)}
-            />
+    setClientId(c.id);
+    setClientName(c.name);
+    setClientPhone(c.phone ?? "");
+    setClientEmail(c.email ?? "");
 
-            {/* Autocomplete dropdown */}
-            {showClientMenu && clientName.trim() !== "" && (
-              <div
-                className="
-                  absolute left-0 right-0 bg-[#111]
-                  border border-[#2a2a2a] rounded-lg mt-1 shadow-xl
-                  z-[9999] max-h-60 overflow-auto
-                "
-              >
-                {filteredClients.length > 0 ? (
-                  filteredClients.map((c) => (
-                    <div
-                      key={c.id}
-                      className="px-3 py-2 hover:bg-black/40 cursor-pointer"
-                      onClick={() => {
-                        setClientId(c.id);
-                        setClientName(c.name);
-                        setClientPhone(c.phone ?? "");
-                        setClientEmail(c.email ?? "");
+    const parsed = parseAddressString(c.address ?? "");
+    setClientStreet(parsed.street);
+    setClientCity(parsed.city);
+    setClientState(parsed.state);
+    setClientZip(parsed.zip);
+  }}
+  label="Client"
+  placeholder="Search clients by name, phone, email, address…"
+  onAddNewViaDrawer={() => setClientDrawerOpen(true)}
+/>
 
-                        const parsed = parseAddressString(
-                          (c.address as string | undefined) ?? ""
-                        );
-                        setClientStreet(parsed.street);
-                        setClientCity(parsed.city);
-                        setClientState(parsed.state);
-                        setClientZip(parsed.zip);
 
-                        setShowClientMenu(false);
-                      }}
-                    >
-                      <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-gray-400">{c.phone}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-3 py-2 text-gray-400 text-sm">
-                    No matching clients.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+       
 
           {/* CONTACT DETAILS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1056,49 +1025,58 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2">
-              Totals
-            </h2>
+  <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2">
+    Totals
+  </h2>
 
-            <div className="space-y-2 mt-2 text-[#f5f3da]">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>${totals.subtotal.toFixed(2)}</span>
-              </div>
+  <div className="mt-3 space-y-3 bg-black/40 border border-[#2a2a2a] rounded-lg p-4 text-sm">
 
-              <div className="flex justify-between items-center gap-2">
-                <span>Tax Rate</span>
-                <input
-                  className="input w-24 text-right bg-black/40"
-                  type="number"
-                  step="0.001"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(Number(e.target.value))}
-                />
-              </div>
+    {/* Subtotal */}
+    <div className="flex justify-between text-[#f5f3da]">
+      <span>Subtotal</span>
+      <span>${totals.subtotal.toFixed(2)}</span>
+    </div>
 
-              <div className="flex justify-between">
-                <span>Tax</span>
-                <span>${totals.tax.toFixed(2)}</span>
-              </div>
+    {/* Tax Rate */}
+    <div className="flex justify-between items-center">
+      <span className="text-[#f5f3da]">Tax Rate</span>
+      <input
+        className="input w-24 text-right bg-black/60 border border-[#3a3a3a]"
+        type="number"
+        step="0.001"
+        value={taxRate}
+        onChange={(e) => setTaxRate(Number(e.target.value))}
+      />
+    </div>
 
-              <div className="flex justify-between items-center gap-2">
-                <span>Discount</span>
-                <input
-                  className="input w-24 text-right bg-black/40"
-                  type="number"
-                  step="0.01"
-                  value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value))}
-                />
-              </div>
+    {/* Tax */}
+    <div className="flex justify-between text-[#f5f3da]">
+      <span>Tax</span>
+      <span>${totals.tax.toFixed(2)}</span>
+    </div>
 
-              <div className="flex justify-between border-t border-[#2a2a2a] pt-2 mt-2 text-[#ffd700] font-semibold text-lg">
-                <span>Total</span>
-                <span>${totals.total.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
+    {/* Discount */}
+    <div className="flex justify-between items-center">
+      <span className="text-[#f5f3da]">Discount</span>
+      <input
+        className="input w-24 text-right bg-black/60 border border-[#3a3a3a]"
+        type="number"
+        step="0.01"
+        value={discount}
+        onChange={(e) => setDiscount(Number(e.target.value))}
+      />
+    </div>
+
+    {/* TOTAL */}
+    <div className="pt-3 mt-3 border-t border-[#3a3a3a]"></div>
+
+    <div className="flex justify-between items-center text-[#e8d487] font-semibold text-xl">
+      <span>Total</span>
+      <span>${totals.total.toFixed(2)}</span>
+    </div>
+  </div>
+</div>
+
         </div>
 
         {/* SAVE BAR */}

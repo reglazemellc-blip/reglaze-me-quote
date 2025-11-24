@@ -52,9 +52,18 @@ export type Reminder = {
 export type Client = {
   id: string;
   name: string;
+
   phone?: string;
   email?: string;
+
+  // full street address
   address?: string;
+
+  // NEW FIELDS — used by Clients page + QuoteEditor option C
+  city?: string;
+  state?: string;
+  zip?: string;
+
   notes?: string;
 
   // legacy
@@ -68,6 +77,7 @@ export type Client = {
   createdAt: number;
   updatedAt: number;
 };
+
 
 export type QuoteStatus =
   | "pending"

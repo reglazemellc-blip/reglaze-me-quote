@@ -1,8 +1,8 @@
 // -------------------------------------------------------------
-// useClientsStore.ts  (UPGRADED FOR NEW DATABASE TYPES)
+// useClientsStore.ts  (FULLY UPGRADED FOR CITY/STATE/ZIP)
 // -------------------------------------------------------------
 
-import { create } from 'zustand'
+import { create } from "zustand";
 import {
   collection,
   doc,
@@ -11,26 +11,26 @@ import {
   deleteDoc,
   query,
   where,
-} from 'firebase/firestore'
-import { db } from '../firebase'
+} from "firebase/firestore";
+import { db } from "../firebase";
 import type {
   Client,
   Attachment,
   ConversationEntry,
   Reminder,
-} from '@db/index'
+} from "@db/index";
 
 type ClientsState = {
-  clients: Client[]
-  loading: boolean
-  init: () => Promise<void>
-  upsert: (c: Partial<Client>) => Promise<Client>
-  remove: (id: string) => Promise<void>
-  search: (term: string) => Client[]
-}
+  clients: Client[];
+  loading: boolean;
+  init: () => Promise<void>;
+  upsert: (c: Partial<Client>) => Promise<Client>;
+  remove: (id: string) => Promise<void>;
+  search: (term: string) => Client[];
+};
 
-const clientsCol = collection(db, 'clients')
-const quotesCol = collection(db, 'quotes')
+const clientsCol = collection(db, "clients");
+const quotesCol = collection(db, "quotes");
 
 export const useClientsStore = create<ClientsState>((set, get) => ({
   clients: [],
@@ -40,38 +40,46 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
   // LOAD ALL CLIENTS
   // -------------------------------------------------
   init: async () => {
-    const snap = await getDocs(clientsCol)
+    const snap = await getDocs(clientsCol);
 
     const clients: Client[] = snap.docs.map((d) => ({
       ...(d.data() as Client),
       id: d.id,
 
-      // guaranteed defaults so nothing crashes
+      // SAFE FALLBACKS
       photos: d.data().photos ?? [],
       attachments: d.data().attachments ?? [],
       conversations: d.data().conversations ?? [],
       reminders: d.data().reminders ?? [],
-    }))
 
-    set({ clients, loading: false })
+      // NEW FIELDS WITH GUARANTEED SAFETY
+      city: d.data().city ?? "",
+      state: d.data().state ?? "",
+      zip: d.data().zip ?? "",
+    }));
+
+    set({ clients, loading: false });
   },
 
   // -------------------------------------------------
   // CREATE / UPDATE CLIENT
   // -------------------------------------------------
   upsert: async (c) => {
-    const now = Date.now()
+    const now = Date.now();
 
     const clean: Client = {
-      // required
       id: c.id!,
-      name: c.name ?? '',
-      phone: c.phone ?? '',
-      email: c.email ?? '',
-      address: c.address ?? '',
-      notes: c.notes ?? '',
+      name: c.name ?? "",
+      phone: c.phone ?? "",
+      email: c.email ?? "",
+      address: c.address ?? "",
+      notes: c.notes ?? "",
 
-      // NEW FIELDS - safe defaults
+      // ADDED LOCATION FIELDS
+      city: c.city ?? "",
+      state: c.state ?? "",
+      zip: c.zip ?? "",
+
       photos: c.photos ?? [],
       attachments: c.attachments ?? [],
       conversations: c.conversations ?? [],
@@ -79,12 +87,12 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
 
       createdAt: c.createdAt ?? now,
       updatedAt: now,
-    }
+    };
 
-    await setDoc(doc(clientsCol, clean.id), clean)
+    await setDoc(doc(clientsCol, clean.id), clean);
 
     // reload clients
-    const snap = await getDocs(clientsCol)
+    const snap = await getDocs(clientsCol);
     const clients: Client[] = snap.docs.map((d) => ({
       ...(d.data() as Client),
       id: d.id,
@@ -92,26 +100,35 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
       attachments: d.data().attachments ?? [],
       conversations: d.data().conversations ?? [],
       reminders: d.data().reminders ?? [],
-    }))
 
-    set({ clients })
+      // ensure new fields exist on reload
+      city: d.data().city ?? "",
+      state: d.data().state ?? "",
+      zip: d.data().zip ?? "",
+    }));
 
-    return clean
+    set({ clients });
+
+    return clean;
   },
 
   // -------------------------------------------------
   // REMOVE CLIENT + THEIR QUOTES
   // -------------------------------------------------
   remove: async (id) => {
-    await deleteDoc(doc(clientsCol, id))
+    await deleteDoc(doc(clientsCol, id));
 
     // delete quotes belonging to client
-    const qSnap = await getDocs(query(quotesCol, where('clientId', '==', id)))
-    const deletes = qSnap.docs.map((d) => deleteDoc(doc(quotesCol, d.id)))
-    await Promise.all(deletes)
+    const qSnap = await getDocs(
+      query(quotesCol, where("clientId", "==", id))
+    );
+    const deletes = qSnap.docs.map((d) =>
+      deleteDoc(doc(quotesCol, d.id))
+    );
+    await Promise.all(deletes);
 
     // reload
-    const snap = await getDocs(clientsCol)
+    const snap = await getDocs(clientsCol);
     const clients: Client[] = snap.docs.map((d) => ({
       ...(d.data() as Client),
       id: d.id,
@@ -119,20 +136,32 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
       attachments: d.data().attachments ?? [],
       conversations: d.data().conversations ?? [],
       reminders: d.data().reminders ?? [],
-    }))
+      city: d.data().city ?? "",
+      state: d.data().state ?? "",
+      zip: d.data().zip ?? "",
+    }));
 
-    set({ clients })
+    set({ clients });
   },
 
   // -------------------------------------------------
   // SEARCH CLIENTS
   // -------------------------------------------------
   search: (term) => {
-    const q = term.toLowerCase()
+    const q = term.toLowerCase();
+
     return get().clients.filter((c) =>
-      [c.name, c.phone, c.email, c.address]
+      [
+        c.name,
+        c.phone,
+        c.email,
+        c.address,
+        c.city,
+        c.state,
+        c.zip,
+      ]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q))
-    )
+    );
   },
-}))
+}));

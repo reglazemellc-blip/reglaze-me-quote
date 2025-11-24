@@ -1,3 +1,7 @@
+// -------------------------------------------------------------
+// App.tsx — ROUTES ONLY (NO GLOBAL DRAWER)
+// -------------------------------------------------------------
+
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 
 import Dashboard from "@pages/Dashboard";
@@ -30,7 +34,6 @@ export default function App() {
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         <Routes location={location}>
-
           {/* Dashboard */}
           <Route path="/" element={<Dashboard />} />
 
@@ -57,7 +60,6 @@ export default function App() {
 
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
-
         </Routes>
       </main>
 

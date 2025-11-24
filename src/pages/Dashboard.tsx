@@ -274,7 +274,6 @@ export default function Dashboard() {
     }
   };
 
-  // display Q-0001 or shortened ID if quoteNumber missing
   const displayQuoteNumber = (q: { id?: string; quoteNumber?: string | null }) => {
     if (q.quoteNumber) return q.quoteNumber;
     const id = q.id || "";
@@ -283,7 +282,6 @@ export default function Dashboard() {
     return `${id.slice(0, 6)}…${id.slice(-4)}`;
   };
 
-  // pill classes for recent filter
   const pillClasses = (value: RecentFilter) =>
     `px-2 py-0.5 rounded-full border text-[10px] cursor-pointer transition ${
       recentFilter === value
@@ -402,8 +400,11 @@ export default function Dashboard() {
         </div>
 
         <div className="flex gap-3">
+          {/* IMPORTANT: this is the only behavior change */}
           <button
-            onClick={() => navigate("/clients/new")}
+            onClick={() =>
+              navigate("/clients", { state: { openClientDrawer: true } })
+            }
             className={actionBtn}
           >
             + Add Client
