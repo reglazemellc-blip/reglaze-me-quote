@@ -1,15 +1,36 @@
+// src/pages/ClientDetail.tsx
+
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   doc,
   getDoc,
   updateDoc,
-  arrayUnion,
-  arrayRemove,
+  collection,
+  getDocs,
+  query,
+  where,
 } from "firebase/firestore";
 
 import { db, storage } from "../firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+
+import type { Attachment, AttachmentType } from "@db/index";
+
+// -------------------------------------------------------------
+// Helpers
+// -------------------------------------------------------------
+function createId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2);
+}
 
 type ConversationChannel = "call" | "text" | "email" | "in_person" | "other";
 
@@ -21,6 +42,17 @@ type ConversationEntry = {
   attachments?: { url: string; name: string }[];
 };
 
+type QuoteSummary = {
+  id: string;
+  quoteNumber?: string | null;
+  status?: string;
+  total?: number;
+  createdAt?: number;
+};
+
+// -------------------------------------------------------------
+// Component
+// -------------------------------------------------------------
 export default function ClientDetail() {
   const { id } = useParams();
   const clientId = id ?? "";
@@ -31,51 +63,116 @@ export default function ClientDetail() {
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Conversation composer
-const [newChannel, setNewChannel] = useState<ConversationChannel>("text");
-const [newMessage, setNewMessage] = useState("");
+  // Conversations
+  const [newChannel, setNewChannel] = useState<ConversationChannel>("text");
+  const [newMessage, setNewMessage] = useState("");
+  const [convUploading, setConvUploading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [editingChannel, setEditingChannel] =
+    useState<ConversationChannel>("text");
 
-// File upload busy flag
-const [convUploading, setConvUploading] = useState(false);
-
-// Edit mode
-const [editingId, setEditingId] = useState<string | null>(null);
-const [editingText, setEditingText] = useState("");
-const [editingChannel, setEditingChannel] =
-  useState<ConversationChannel>("text");
-
+  // Quotes for this client
+  const [quotes, setQuotes] = useState<QuoteSummary[]>([]);
+  const [loadingQuotes, setLoadingQuotes] = useState(true);
 
   // -------------------------------------------------------------
-  // Load client
+  // Load client + their quotes
   // -------------------------------------------------------------
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || clientId === "new") {
+      setLoading(false);
+      setClient(null);
+      setLoadingQuotes(false);
+      return;
+    }
 
     async function load() {
       try {
+        // ----- client -----
         const refDoc = doc(db, "clients", clientId);
         const snap = await getDoc(refDoc);
 
         if (!snap.exists()) {
-          alert("Client not found.");
+          setClient(null);
           return;
         }
 
-        const data = snap.data();
+        const data: any = snap.data() || {};
+
+        // Normalize attachments
+        const rawAttachments: any[] = Array.isArray(data.attachments)
+          ? data.attachments
+          : [];
+
+        const normalized: Attachment[] = rawAttachments.map((a) => ({
+          id: String(a.id ?? createId()),
+          name: String(a.name ?? "Attachment"),
+          url: String(a.url ?? ""),
+          type: (a.type as AttachmentType) || "photo",
+          createdAt: Number(a.createdAt ?? Date.now()),
+          path: String(a.path ?? ""),
+          conversationId: a.conversationId ?? undefined,
+        }));
+
+        // Legacy photos[] → attachments
+        const legacyPhotos: string[] = Array.isArray(data.photos)
+          ? data.photos
+          : [];
+
+        legacyPhotos.forEach((url) => {
+          if (!normalized.some((att) => att.url === url)) {
+            normalized.push({
+              id: createId(),
+              name: "Photo",
+              url,
+              type: "photo",
+              createdAt: Date.now(),
+              path: "",
+            });
+          }
+        });
+
         setClient({
           id: snap.id,
           ...data,
+          attachments: normalized,
           photos: data.photos || [],
-          attachments: data.attachments || [],
           conversations: data.conversations || [],
           reminders: data.reminders || [],
-          quotes: data.quotes || [],
         });
+
+        // ----- quotes for this client -----
+        const qSnap = await getDocs(
+          query(
+            collection(db, "quotes"),
+            where("clientId", "==", clientId)
+          )
+        );
+
+        const qList: QuoteSummary[] = qSnap.docs.map((d) => {
+          const qd = d.data() as any;
+          return {
+            id: d.id,
+            quoteNumber: qd.quoteNumber ?? null,
+            status: qd.status ?? "pending",
+            total:
+              typeof qd.total === "number"
+                ? qd.total
+                : typeof qd.subtotal === "number"
+                ? qd.subtotal
+                : 0,
+            createdAt: qd.createdAt ?? 0,
+          };
+        });
+
+        setQuotes(qList);
       } catch (err) {
         console.error(err);
         alert("Failed to load client.");
       } finally {
         setLoading(false);
+        setLoadingQuotes(false);
       }
     }
 
@@ -83,7 +180,7 @@ const [editingChannel, setEditingChannel] =
   }, [clientId]);
 
   // -------------------------------------------------------------
-  // Photos
+  // Photo Upload → attachments[]
   // -------------------------------------------------------------
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     if (!client) return;
@@ -94,27 +191,36 @@ const [editingChannel, setEditingChannel] =
     setUploadingPhotos(true);
 
     try {
-      const uploaded: string[] = [];
+      const existing: Attachment[] = client.attachments || [];
+      const additions: Attachment[] = [];
 
       for (const file of files) {
-        const storageRef = ref(
-          storage,
-          `clients/${client.id}/photos/${Date.now()}_${file.name}`
-        );
+        const path = `clients/${client.id}/attachments/${Date.now()}_${file.name}`;
+        const storageRef = ref(storage, path);
 
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
-        uploaded.push(url);
+
+        additions.push({
+          id: createId(),
+          name: file.name,
+          url,
+          type: "photo",
+          createdAt: Date.now(),
+          path,
+        });
       }
+
+      const updatedAttachments = [...existing, ...additions];
 
       const refDoc = doc(db, "clients", client.id);
       await updateDoc(refDoc, {
-        photos: arrayUnion(...uploaded),
+        attachments: updatedAttachments,
       });
 
       setClient((prev: any) => ({
         ...prev,
-        photos: [...(prev.photos || []), ...uploaded],
+        attachments: updatedAttachments,
       }));
     } catch (err) {
       console.error(err);
@@ -127,160 +233,176 @@ const [editingChannel, setEditingChannel] =
     }
   }
 
-  async function deletePhoto(url: string) {
+  // -------------------------------------------------------------
+  // Delete photo (from Storage + attachments[])
+  // -------------------------------------------------------------
+  async function deletePhoto(att: Attachment) {
     if (!client) return;
 
-    const refDoc = doc(db, "clients", client.id);
-    await updateDoc(refDoc, {
-      photos: arrayRemove(url),
-    });
+    try {
+      if (att.path) {
+        const storageRef = ref(storage, att.path);
+        await deleteObject(storageRef);
+      }
+    } catch (err) {
+      console.error("Storage delete failed (continuing):", err);
+    }
 
-    setClient((prev: any) => ({
-      ...prev,
-      photos: (prev.photos || []).filter((p: string) => p !== url),
-    }));
+    try {
+      const existing: Attachment[] = client.attachments || [];
+      const updated = existing.filter((a) => a.id !== att.id);
+
+      const refDoc = doc(db, "clients", client.id);
+      await updateDoc(refDoc, {
+        attachments: updated,
+      });
+
+      setClient((prev: any) => ({
+        ...prev,
+        attachments: updated,
+      }));
+    } catch (err) {
+      console.error("Failed to update Firestore after delete:", err);
+      alert("Failed to delete photo.");
+    }
   }
 
   // -------------------------------------------------------------
-// Conversations
-// -------------------------------------------------------------
-async function addConversation() {
-  if (!client) return;
-  if (!newMessage.trim()) return;
+  // Conversations
+  // -------------------------------------------------------------
+  async function addConversation() {
+    if (!client) return;
+    if (!newMessage.trim()) return;
 
-  const entry: ConversationEntry = {
-    id: String(Date.now()),
-    message: newMessage.trim(),
-    channel: newChannel,
-    createdAt: Date.now(),
-    attachments: [],
-  };
-
-  const refDoc = doc(db, "clients", client.id);
-
-  // add to Firestore
-  const existing: ConversationEntry[] = client.conversations || [];
-  const updatedList = [...existing, entry];
-
-  await updateDoc(refDoc, {
-    conversations: updatedList,
-  });
-
-  // update local state
-  setClient((prev: any) => ({
-    ...prev,
-    conversations: updatedList,
-  }));
-
-  setNewMessage("");
-}
-
-function startEditConversation(c: ConversationEntry) {
-  setEditingId(c.id);
-  setEditingText(c.message);
-  setEditingChannel(c.channel);
-}
-
-function cancelEditConversation() {
-  setEditingId(null);
-  setEditingText("");
-}
-
-async function saveEditConversation() {
-  if (!client || !editingId) return;
-  const text = editingText.trim();
-  if (!text) return;
-
-  const refDoc = doc(db, "clients", client.id);
-
-  const existing: ConversationEntry[] = client.conversations || [];
-  const updatedList = existing.map((c) =>
-    c.id === editingId
-      ? { ...c, message: text, channel: editingChannel }
-      : c
-  );
-
-  await updateDoc(refDoc, {
-    conversations: updatedList,
-  });
-
-  setClient((prev: any) => ({
-    ...prev,
-    conversations: updatedList,
-  }));
-
-  setEditingId(null);
-  setEditingText("");
-}
-
-async function deleteConversation(entry: ConversationEntry) {
-  if (!client) return;
-
-  const refDoc = doc(db, "clients", client.id);
-  const existing: ConversationEntry[] = client.conversations || [];
-  const updatedList = existing.filter((c) => c.id !== entry.id);
-
-  await updateDoc(refDoc, {
-    conversations: updatedList,
-  });
-
-  setClient((prev: any) => ({
-    ...prev,
-    conversations: updatedList,
-  }));
-
-  if (editingId === entry.id) {
-    setEditingId(null);
-    setEditingText("");
-  }
-}
-
-async function uploadConversationFile(
-  e: React.ChangeEvent<HTMLInputElement>,
-  conv: ConversationEntry
-) {
-  if (!client) return;
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  setConvUploading(true);
-
-  try {
-    const storageRef = ref(
-      storage,
-      `clients/${client.id}/conversations/${conv.id}_${file.name}`
-    );
-
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
-
-    // UPDATED CONVERSATION
-    const updatedConv: ConversationEntry = {
-      ...conv,
-      attachments: [...(conv.attachments || []), { url, name: file.name }],
+    const entry: ConversationEntry = {
+      id: String(Date.now()),
+      message: newMessage.trim(),
+      channel: newChannel,
+      createdAt: Date.now(),
+      attachments: [],
     };
 
-    // Replace that conversation in the array
-    const existing: ConversationEntry[] = client.conversations || [];
-    const updatedList = existing.map((c) =>
-      c.id === conv.id ? updatedConv : c
-    );
-
     const refDoc = doc(db, "clients", client.id);
-    await updateDoc(refDoc, { conversations: updatedList });
+
+    const existing: ConversationEntry[] = client.conversations || [];
+    const updatedList = [...existing, entry];
+
+    await updateDoc(refDoc, {
+      conversations: updatedList,
+    });
 
     setClient((prev: any) => ({
       ...prev,
       conversations: updatedList,
     }));
-  } catch (err) {
-    console.error(err);
-    alert("Failed to upload file.");
-  } finally {
-    setConvUploading(false);
-    e.target.value = "";
+
+    setNewMessage("");
   }
-}
+
+  function startEditConversation(c: ConversationEntry) {
+    setEditingId(c.id);
+    setEditingText(c.message);
+    setEditingChannel(c.channel);
+  }
+
+  function cancelEditConversation() {
+    setEditingId(null);
+    setEditingText("");
+  }
+
+  async function saveEditConversation() {
+    if (!client || !editingId) return;
+    const text = editingText.trim();
+    if (!text) return;
+
+    const refDoc = doc(db, "clients", client.id);
+
+    const existing: ConversationEntry[] = client.conversations || [];
+    const updatedList = existing.map((c) =>
+      c.id === editingId
+        ? { ...c, message: text, channel: editingChannel }
+        : c
+    );
+
+    await updateDoc(refDoc, {
+      conversations: updatedList,
+    });
+
+    setClient((prev: any) => ({
+      ...prev,
+      conversations: updatedList,
+    }));
+
+    setEditingId(null);
+    setEditingText("");
+  }
+
+  async function deleteConversation(entry: ConversationEntry) {
+    if (!client) return;
+
+    const refDoc = doc(db, "clients", client.id);
+    const existing: ConversationEntry[] = client.conversations || [];
+    const updatedList = existing.filter((c) => c.id !== entry.id);
+
+    await updateDoc(refDoc, {
+      conversations: updatedList,
+    });
+
+    setClient((prev: any) => ({
+      ...prev,
+      conversations: updatedList,
+    }));
+
+    if (editingId === entry.id) {
+      setEditingId(null);
+      setEditingText("");
+    }
+  }
+
+  async function uploadConversationFile(
+    e: React.ChangeEvent<HTMLInputElement>,
+    conv: ConversationEntry
+  ) {
+    if (!client) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setConvUploading(true);
+
+    try {
+      const storageRef = ref(
+        storage,
+        `clients/${client.id}/conversations/${conv.id}_${file.name}`
+      );
+
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      const updatedConv: ConversationEntry = {
+        ...conv,
+        attachments: [...(conv.attachments || []), { url, name: file.name }],
+      };
+
+      const existing: ConversationEntry[] = client.conversations || [];
+      const updatedList = existing.map((c) =>
+        c.id === conv.id ? updatedConv : c
+      );
+
+      const refDoc = doc(db, "clients", client.id);
+      await updateDoc(refDoc, { conversations: updatedList });
+
+      setClient((prev: any) => ({
+        ...prev,
+        conversations: updatedList,
+      }));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload file.");
+    } finally {
+      setConvUploading(false);
+      e.target.value = "";
+    }
+  }
 
   // -------------------------------------------------------------
   // Render
@@ -297,12 +419,15 @@ async function uploadConversationFile(
 
   const conversations: ConversationEntry[] = client.conversations || [];
   const reminders = client.reminders || [];
-  const quotes: string[] = client.quotes || [];
-  const attachments = client.attachments || [];
+
+  const allAttachments: Attachment[] = client.attachments || [];
+  const photoAttachments: Attachment[] = allAttachments.filter(
+    (a) => a.type === "photo"
+  );
 
   return (
     <div className="space-y-6 text-[#f5f3da]">
-      {/* CLIENT CARD (like your screenshot) */}
+      {/* CLIENT CARD */}
       <div className="card p-6">
         <div className="flex justify-between items-start">
           <div>
@@ -318,15 +443,18 @@ async function uploadConversationFile(
             <div className="mt-4 text-sm text-gray-400">Notes</div>
           </div>
 
-          <button className="text-red-500 text-sm">Delete</button>
+          {/* (Optional) delete button can be wired later */}
+          {/* <button className="text-red-500 text-sm">Delete</button> */}
         </div>
 
-        {/* Photos line + Add Photos link */}
+        {/* Photos + Add Photos */}
         <div className="mt-4 flex items-center justify-between">
           <div>
             <div className="text-sm font-semibold">Photos</div>
-            {client.photos.length === 0 && (
-              <div className="text-sm text-gray-400">No photos uploaded.</div>
+            {photoAttachments.length === 0 && (
+              <div className="text-sm text-gray-400">
+                No photos uploaded.
+              </div>
             )}
           </div>
 
@@ -339,7 +467,6 @@ async function uploadConversationFile(
           </button>
         </div>
 
-        {/* hidden input for actual upload */}
         <input
           ref={photoInputRef}
           type="file"
@@ -352,14 +479,17 @@ async function uploadConversationFile(
           <div className="text-xs text-gray-400 mt-2">Uploading…</div>
         )}
 
-        {client.photos.length > 0 && (
+        {photoAttachments.length > 0 && (
           <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-            {client.photos.map((url: string) => (
-              <div key={url} className="relative group">
-                <img src={url} className="rounded border border-gray-600" />
+            {photoAttachments.map((att) => (
+              <div key={att.id} className="relative group">
+                <img
+                  src={att.url}
+                  className="rounded border border-gray-600 w-full h-32 object-cover"
+                />
                 <button
-                  className="absolute top-1 right-1 text-red-400 text-xs"
-                  onClick={() => deletePhoto(url)}
+                  className="absolute top-1 right-1 text-red-400 text-xs bg-black/60 rounded px-1"
+                  onClick={() => deletePhoto(att)}
                 >
                   ✕
                 </button>
@@ -369,18 +499,18 @@ async function uploadConversationFile(
         )}
       </div>
 
-      {/* ATTACHMENTS CARD */}
+      {/* ATTACHMENTS */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
           Attachments
         </h2>
 
-        {attachments.length === 0 ? (
+        {allAttachments.length === 0 ? (
           <p className="text-sm text-gray-400 mt-2">No attachments.</p>
         ) : (
           <ul className="mt-3 space-y-1 text-sm">
-            {attachments.map((a: any, idx: number) => (
-              <li key={idx}>
+            {allAttachments.map((a) => (
+              <li key={a.id} className="flex items-center justify-between">
                 <a
                   href={a.url}
                   target="_blank"
@@ -389,163 +519,165 @@ async function uploadConversationFile(
                 >
                   {a.name || "Attachment"}
                 </a>
+                <button
+                  className="text-xs text-red-400"
+                  onClick={() => deletePhoto(a)}
+                >
+                  Delete
+                </button>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      {/* CONVERSATIONS CARD */}
       {/* CONVERSATIONS */}
-<div className="card p-6 space-y-4">
-  <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
-    Conversations
-  </h2>
+      <div className="card p-6 space-y-4">
+        <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
+          Conversations
+        </h2>
 
-  {/* Input row (channel + textarea + button) */}
-  <div className="space-y-2">
-    <div className="flex flex-col md:flex-row md:items-center gap-2">
-      <select
-        className="input md:w-40"
-        value={newChannel}
-        onChange={(e) =>
-          setNewChannel(e.target.value as ConversationChannel)
-        }
-      >
-        <option value="call">Call</option>
-        <option value="text">Text</option>
-        <option value="email">Email</option>
-        <option value="in_person">In person</option>
-        <option value="other">Other</option>
-      </select>
+        {/* composer */}
+        <div className="space-y-2">
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <select
+              className="input md:w-40"
+              value={newChannel}
+              onChange={(e) =>
+                setNewChannel(e.target.value as ConversationChannel)
+              }
+            >
+              <option value="call">Call</option>
+              <option value="text">Text</option>
+              <option value="email">Email</option>
+              <option value="in_person">In person</option>
+              <option value="other">Other</option>
+            </select>
 
-      <textarea
-        className="input flex-1 h-20"
-        placeholder="Paste conversation or notes…"
-        value={newMessage}
-        onChange={(e) => setNewMessage(e.target.value)}
-      />
-    </div>
+            <textarea
+              className="input flex-1 h-20"
+              placeholder="Paste conversation or notes…"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+            />
+          </div>
 
-    <button className="btn-gold" onClick={addConversation}>
-      Add Conversation
-    </button>
-  </div>
+          <button className="btn-gold" onClick={addConversation}>
+            Add Conversation
+          </button>
+        </div>
 
-  {convUploading && (
-    <div className="text-xs text-gray-400">Uploading file…</div>
-  )}
+        {convUploading && (
+          <div className="text-xs text-gray-400">Uploading file…</div>
+        )}
 
-  {/* List */}
-  <div className="space-y-3 mt-2">
-    {conversations.length === 0 && (
-      <p className="text-sm text-gray-400">No conversation logs.</p>
-    )}
+        <div className="space-y-3 mt-2">
+          {conversations.length === 0 && (
+            <p className="text-sm text-gray-400">No conversation logs.</p>
+          )}
 
-    {conversations.map((c) => (
-      <div
-        key={c.id}
-        className="p-3 bg-black/40 rounded border border-gray-700 text-sm"
-      >
-        <div className="flex justify-between items-start gap-2">
-          <div className="flex-1">
-            <div className="text-xs text-gray-400">
-              {new Date(c.createdAt).toLocaleString()} — {c.channel}
-            </div>
+          {conversations.map((c) => (
+            <div
+              key={c.id}
+              className="p-3 bg-black/40 rounded border border-gray-700 text-sm"
+            >
+              <div className="flex justify-between items-start gap-2">
+                <div className="flex-1">
+                  <div className="text-xs text-gray-400">
+                    {new Date(c.createdAt).toLocaleString()} — {c.channel}
+                  </div>
 
-            {editingId === c.id ? (
-              <div className="mt-2 space-y-2">
-                <select
-                  className="input w-40 text-xs"
-                  value={editingChannel}
-                  onChange={(e) =>
-                    setEditingChannel(
-                      e.target.value as ConversationChannel
-                    )
-                  }
-                >
-                  <option value="call">Call</option>
-                  <option value="text">Text</option>
-                  <option value="email">Email</option>
-                  <option value="in_person">In person</option>
-                  <option value="other">Other</option>
-                </select>
+                  {editingId === c.id ? (
+                    <div className="mt-2 space-y-2">
+                      <select
+                        className="input w-40 text-xs"
+                        value={editingChannel}
+                        onChange={(e) =>
+                          setEditingChannel(
+                            e.target.value as ConversationChannel
+                          )
+                        }
+                      >
+                        <option value="call">Call</option>
+                        <option value="text">Text</option>
+                        <option value="email">Email</option>
+                        <option value="in_person">In person</option>
+                        <option value="other">Other</option>
+                      </select>
 
-                <textarea
-                  className="input w-full h-20"
-                  value={editingText}
-                  onChange={(e) => setEditingText(e.target.value)}
-                />
+                      <textarea
+                        className="input w-full h-20"
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                      />
 
-                <div className="flex gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          className="btn-gold text-xs px-3"
+                          onClick={saveEditConversation}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="btn-outline-gold text-xs px-3"
+                          onClick={cancelEditConversation}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-line mt-1">
+                      {c.message}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1 items-end">
                   <button
-                    className="btn-gold text-xs px-3"
-                    onClick={saveEditConversation}
+                    className="text-xs text-gray-300"
+                    onClick={() => startEditConversation(c)}
                   >
-                    Save
+                    ✎ Edit
                   </button>
                   <button
-                    className="btn-outline-gold text-xs px-3"
-                    onClick={cancelEditConversation}
+                    className="text-xs text-red-400"
+                    onClick={() => deleteConversation(c)}
                   >
-                    Cancel
+                    Delete
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="whitespace-pre-line mt-1">
-                {c.message}
+
+              {(c.attachments || []).length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {c.attachments!.map((a: any, idx: number) => (
+                    <a
+                      key={idx}
+                      href={a.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-gold underline text-xs"
+                    >
+                      {a.name}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-2">
+                <input
+                  type="file"
+                  onChange={(e) => uploadConversationFile(e, c)}
+                  className="text-xs"
+                />
               </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1 items-end">
-            <button
-              className="text-xs text-gray-300"
-              onClick={() => startEditConversation(c)}
-            >
-              ✎ Edit
-            </button>
-            <button
-              className="text-xs text-red-400"
-              onClick={() => deleteConversation(c)}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-
-        {/* attachments */}
-        {(c.attachments || []).length > 0 && (
-          <div className="mt-2 space-y-1">
-            {c.attachments!.map((a: any, idx: number) => (
-              <a
-                key={idx}
-                href={a.url}
-                target="_blank"
-                rel="noreferrer"
-                className="block text-gold underline text-xs"
-              >
-                {a.name}
-              </a>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-2">
-          <input
-            type="file"
-            onChange={(e) => uploadConversationFile(e, c)}
-            className="text-xs"
-          />
+            </div>
+          ))}
         </div>
       </div>
-    ))}
-  </div>
-</div>
 
-
-      {/* REMINDERS CARD */}
+      {/* REMINDERS */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
           Reminders
@@ -562,7 +694,7 @@ async function uploadConversationFile(
         )}
       </div>
 
-      {/* QUOTES CARD */}
+      {/* QUOTES */}
       <div className="card p-6">
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
@@ -577,25 +709,29 @@ async function uploadConversationFile(
           </Link>
         </div>
 
-        {quotes.length === 0 ? (
+        {loadingQuotes ? (
+          <p className="text-sm text-gray-400">Loading quotes…</p>
+        ) : quotes.length === 0 ? (
           <p className="text-sm text-gray-400">No quotes yet.</p>
         ) : (
           <div className="space-y-2 text-sm">
-            {quotes.map((qid) => (
+            {quotes.map((q) => (
               <div
-                key={qid}
+                key={q.id}
                 className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-gray-700"
               >
                 <Link
-                  to={`/quotes/${qid}`}
+                  to={`/quotes/${q.id}`}
                   className="text-gold underline break-all"
                 >
-                  {qid}
+                  {q.quoteNumber || q.id}
                 </Link>
-                {/* You already had a Delete in your old UI; we can wire it later */}
-                <span className="text-red-500 text-xs cursor-pointer">
-                  Delete
-                </span>
+                <div className="text-xs text-gray-400 text-right ml-3">
+                  <div>{q.status || "pending"}</div>
+                  {typeof q.total === "number" && (
+                    <div>${q.total.toFixed(2)}</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

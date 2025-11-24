@@ -1,60 +1,64 @@
-import { Link, Route, Routes, useLocation } from "react-router-dom"
+import { Link, Route, Routes, useLocation } from "react-router-dom";
 
-import Dashboard from "@pages/Dashboard"
-import Clients from "@pages/Clients"
-import ClientDetail from "@pages/ClientDetail"
+import Dashboard from "@pages/Dashboard";
+import QuotePrint from "@pages/QuotePrint";
 
-import QuotesBoard from "@pages/QuotesBoard"
-import QuoteDetail from "@pages/QuoteDetail"
-import QuoteEditor from "@pages/QuoteEditor"
+import Clients from "@pages/Clients";
+import ClientDetail from "@pages/ClientDetail";
+import ClientNew from "@pages/ClientNew";
 
-import Catalog from "@pages/Catalog"
-import SettingsPage from "@pages/SettingsPage"
+import QuotesBoard from "@pages/QuotesBoard";
+import QuoteDetail from "@pages/QuoteDetail";
+import QuoteEditor from "@pages/QuoteEditor";
 
-import ServiceForm from "@pages/services/ServiceForm";
+import Catalog from "@pages/Catalog";
+import SettingsPage from "@pages/SettingsPage";
+
 import ServicesList from "@pages/services/ServicesList";
+import ServiceForm from "@pages/services/ServiceForm";
 
-
-import Header from "@components/Header"
-import OfflineToast from "@components/OfflineToast"
-import GoldToast from "@components/GoldToast"
-
+import Header from "@components/Header";
+import OfflineToast from "@components/OfflineToast";
+import GoldToast from "@components/GoldToast";
 
 export default function App() {
-  const location = useLocation()
+  const location = useLocation();
 
   return (
     <div className="min-h-full bg-background page-enter">
       <Header />
+
       <main className="max-w-6xl mx-auto px-4 py-6">
-       <Routes location={location}>
+        <Routes location={location}>
 
-  {/* Dashboard */}
-  <Route path="/" element={<Dashboard />} />
+          {/* Dashboard */}
+          <Route path="/" element={<Dashboard />} />
 
-  {/* Clients */}
-  <Route path="/clients" element={<Clients />} />
-  <Route path="/clients/:id" element={<ClientDetail />} />
+          {/* Clients */}
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/clients/new" element={<ClientNew />} />
+          <Route path="/clients/:id" element={<ClientDetail />} />
 
-  {/* Quotes */}
-  <Route path="/quotes" element={<QuotesBoard />} />
-  <Route path="/quotes/new" element={<QuoteEditor mode="create" />} />
-  <Route path="/quotes/:id" element={<QuoteDetail />} />
-  <Route path="/quotes/:id/edit" element={<QuoteEditor mode="edit" />} />
+          {/* Quotes */}
+          <Route path="/quotes" element={<QuotesBoard />} />
+          <Route path="/quotes/new" element={<QuoteEditor mode="create" />} />
+          <Route path="/quotes/:id" element={<QuoteDetail />} />
+          <Route path="/quotes/:id/edit" element={<QuoteEditor mode="edit" />} />
+          <Route path="/quotes/:id/print" element={<QuotePrint />} />
 
-  {/* Services */}
-  <Route path="/services" element={<ServicesList />} />
-  <Route path="/services/new" element={<ServiceForm />} />
-  <Route path="/services/:id/edit" element={<ServiceForm />} />
+          {/* Services */}
+          <Route path="/services" element={<ServicesList />} />
+          <Route path="/services/new" element={<ServiceForm />} />
+          <Route path="/services/:id/edit" element={<ServiceForm />} />
 
-  {/* Catalog + Settings */}
-  <Route path="/catalog" element={<Catalog />} />
-  <Route path="/settings" element={<SettingsPage />} />
+          {/* Catalog + Settings */}
+          <Route path="/catalog" element={<Catalog />} />
+          <Route path="/settings" element={<SettingsPage />} />
 
-  {/* Catch-all */}
-  <Route path="*" element={<NotFound />} />
-</Routes>
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
 
+        </Routes>
       </main>
 
       <OfflineToast />
@@ -64,14 +68,16 @@ export default function App() {
         Copyright ReGlaze Me LLC
       </footer>
     </div>
-  )
+  );
 }
 
 function NotFound() {
   return (
     <div className="card p-8 text-center">
-      <p className="text-gray-700">Page not found.</p>
-      <Link to="/" className="btn btn-outline mt-4">Go Home</Link>
+      <p className="text-gray-300">Page not found.</p>
+      <Link to="/" className="btn-outline-gold mt-4 px-4 py-2 inline-block">
+        Go Home
+      </Link>
     </div>
-  )
+  );
 }

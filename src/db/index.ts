@@ -4,11 +4,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // ------------------ Shared Types ------------------
 
-export type AttachmentType =
-  | "photo"
-  | "document"
-  | "contract"
-  | "care_sheet";
+export type AttachmentType = "photo" | "document" | "contract" | "care_sheet";
 
 export type Attachment = {
   id: string;
@@ -17,7 +13,10 @@ export type Attachment = {
   type: AttachmentType;
   createdAt: number;
 
-  // link back to a conversation, if any
+  // Firebase Storage path (needed to delete from storage)
+  path: string;
+
+  // optional link back to a conversation
   conversationId?: string;
 };
 
@@ -58,7 +57,7 @@ export type Client = {
   address?: string;
   notes?: string;
 
-  // existing
+  // legacy
   photos?: string[];
 
   // new-style
@@ -132,7 +131,9 @@ export type Quote = {
   appointmentDate?: string | null;
   appointmentTime?: string | null;
 
-  attachments: any[];
+  // full typed attachments saved on quote
+  attachments: Attachment[];
+
   pdfUrl: string | null;
   sentAt: number | null;
   expiresAt: number | null;

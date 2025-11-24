@@ -1,11 +1,12 @@
 // -------------------------------------------------------------
-// QuoteEditor.tsx — clean version with:
+// QuoteEditor.tsx
 // - Client autocomplete
 // - Street / City / State / ZIP (stored as multiline address string)
 // - Service dropdown on click
 // - Service Description textarea
 // - Warning textarea
 // - Saves BOTH clientId + client snapshot on the quote
+// - Strongly typed attachments + photo upload
 // -------------------------------------------------------------
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -30,9 +31,12 @@ import {
   getOrInitSettings,
   Client,
   QuoteClientSnapshot,
+  Attachment,
+  AttachmentType,
 } from "@db/index";
 
 import ClientDrawer from "@components/ClientDrawer";
+import PhotoUpload from "@components/PhotoUpload";
 
 // -------------------------------------------------------------
 // Helpers
@@ -139,7 +143,14 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
   const [searchParams] = useSearchParams();
 
   const isEdit = mode === "edit";
-  const quoteId = isEdit ? id ?? "" : "";
+  const quoteIdParam = isEdit ? id ?? "" : "";
+
+  // For NEW quotes, we pre-generate a stable ID so uploads can use it
+  const draftIdRef = useRef<string | null>(null);
+  if (!isEdit && !draftIdRef.current) {
+    draftIdRef.current = createId();
+  }
+  const effectiveQuoteId = isEdit ? quoteIdParam : draftIdRef.current!;
 
   // Stores
   const { services, init: initServices } = useServicesStore();
@@ -173,10 +184,13 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
 
-  const [attachments, setAttachments] = useState<any[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
+
+  // NEW: quote number badge support
+  const [quoteNumber, setQuoteNumber] = useState<string | null>(null);
 
   // Service dropdown control
   const [openServiceFor, setOpenServiceFor] = useState<string | null>(null);
@@ -211,8 +225,8 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
   useEffect(() => {
     const run = async () => {
       try {
-        if (isEdit && quoteId) {
-          const ref = doc(firestoreDb, "quotes", quoteId);
+        if (isEdit && quoteIdParam) {
+          const ref = doc(firestoreDb, "quotes", quoteIdParam);
           const snap = await getDoc(ref);
 
           if (!snap.exists()) {
@@ -222,6 +236,11 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
           }
 
           const data = snap.data() as DocumentData;
+
+          // quoteNumber support
+          setQuoteNumber(
+            (data.quoteNumber as string | undefined | null) ?? null
+          );
 
           const snapshot = (data.client || {}) as Partial<QuoteClientSnapshot>;
 
@@ -252,8 +271,8 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
           setClientId(loadedClientId);
           setClientName(loadedName);
-          setClientPhone(loadedPhone);
-          setClientEmail(loadedEmail);
+          setClientPhone(loadedPhone ?? "");
+          setClientEmail(loadedEmail ?? "");
 
           const parsedAddr = parseAddressString(loadedAddress);
           setClientStreet(parsedAddr.street);
@@ -285,13 +304,28 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
           setAppointmentDate(String(data.appointmentDate ?? ""));
           setAppointmentTime(String(data.appointmentTime ?? ""));
 
-          setAttachments(data.attachments ?? []);
+          // normalize existing attachments to typed Attachment[]
+          const rawAtt = Array.isArray(data.attachments)
+            ? data.attachments
+            : [];
+          const normalized: Attachment[] = rawAtt.map((a: any) => ({
+            id: String(a.id ?? createId()),
+            name: String(a.name ?? "Attachment"),
+            url: String(a.url ?? ""),
+            type: (a.type as AttachmentType) || "photo",
+            createdAt: Number(a.createdAt ?? Date.now()),
+            path: String(a.path ?? ""),
+            conversationId: a.conversationId ?? undefined,
+          }));
+          setAttachments(normalized);
+
           setPdfUrl(data.pdfUrl ?? null);
           setSentAt(data.sentAt ?? null);
           setExpiresAt(data.expiresAt ?? null);
         } else {
           const clientFromUrl = searchParams.get("clientId") ?? "";
           setClientId(clientFromUrl);
+          setQuoteNumber(null);
 
           const settings = await getOrInitSettings();
           setTaxRate(settings.defaultTaxRate ?? 0);
@@ -320,7 +354,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
     };
 
     run();
-  }, [isEdit, quoteId, navigate, searchParams, clients]);
+  }, [isEdit, quoteIdParam, navigate, searchParams, clients]);
 
   // -------------------------------------------------------------
   // Client filtering for autocomplete
@@ -524,9 +558,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
       };
 
       const payload: Partial<Quote> = {
-        id: quoteId || "",
-
-        // link + snapshot + legacy fields
+        // id will be set when writing
         clientId: finalClientId,
         clientName: clientName.trim(),
         clientPhone,
@@ -559,13 +591,17 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
       const quotesCol = collection(firestoreDb, "quotes");
 
-      if (isEdit && quoteId) {
-        const ref = doc(quotesCol, quoteId);
-        await setDoc(ref, { ...payload, id: quoteId }, { merge: true });
+      if (isEdit && quoteIdParam) {
+        const ref = doc(quotesCol, quoteIdParam);
+        await setDoc(ref, { ...payload, id: quoteIdParam }, { merge: true });
         alert("Quote updated.");
       } else {
-        const newRef = doc(quotesCol);
-        await setDoc(newRef, { ...payload, id: newRef.id, createdAt: now });
+        const newRef = doc(quotesCol, effectiveQuoteId);
+        await setDoc(newRef, {
+          ...payload,
+          id: effectiveQuoteId,
+          createdAt: now,
+        });
         alert("Quote created.");
       }
 
@@ -583,10 +619,10 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
   // -------------------------------------------------------------
   if (loading)
     return (
-      <div className="p-6 text-center text-gray-400">
-        Loading quote…
-      </div>
+      <div className="p-6 text-center text-gray-400">Loading quote…</div>
     );
+
+  const isNew = !isEdit;
 
   return (
     <>
@@ -595,8 +631,13 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
         className="p-4 md:p-6 max-w-4xl mx-auto flex flex-col gap-6 text-[#f5f3da]"
       >
         {/* HEADER */}
-        <h1 className="text-2xl font-semibold text-[#e8d487]">
-          {isEdit ? "Edit Quote" : "New Quote"}
+        <h1 className="text-2xl font-semibold text-[#e8d487] flex items-center gap-3">
+          <span>{isEdit ? "Edit Quote" : "New Quote"}</span>
+          {quoteNumber && (
+            <span className="text-xs px-2 py-1 rounded-full border border-[#e8d487]/60 text-[#e8d487]">
+              {quoteNumber}
+            </span>
+          )}
         </h1>
 
         {/* CLIENT SECTION */}
@@ -675,9 +716,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
                       }}
                     >
                       <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-gray-400">
-                        {c.phone}
-                      </div>
+                      <div className="text-xs text-gray-400">{c.phone}</div>
                     </div>
                   ))
                 ) : (
@@ -693,9 +732,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Phone */}
             <div>
-              <label className="text-xs text-gray-400 block mb-1">
-                Phone
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">Phone</label>
               <input
                 className="input w-full"
                 value={clientPhone}
@@ -705,9 +742,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
             {/* Email */}
             <div>
-              <label className="text-xs text-gray-400 block mb-1">
-                Email
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">Email</label>
               <input
                 className="input w-full"
                 value={clientEmail}
@@ -732,9 +767,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
             {/* City */}
             <div>
-              <label className="text-xs text-gray-400 block mb-1">
-                City
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">City</label>
               <input
                 className="input w-full"
                 value={clientCity}
@@ -744,9 +777,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
             {/* State */}
             <div>
-              <label className="text-xs text-gray-400 block mb-1">
-                State
-              </label>
+              <label className="text-xs text-gray-400 block mb-1">State</label>
               <input
                 className="input w-full"
                 value={clientState}
@@ -770,9 +801,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
         {/* STATUS + APPOINTMENT */}
         <div className="card p-4 space-y-3">
-          <label className="text-xs text-gray-400 block mb-1">
-            Status
-          </label>
+          <label className="text-xs text-gray-400 block mb-1">Status</label>
           <select
             className="input w-full"
             value={status}
@@ -1005,6 +1034,13 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
             })}
           </div>
         </div>
+
+        {/* PHOTO UPLOAD */}
+        <PhotoUpload
+          attachments={attachments}
+          setAttachments={setAttachments}
+          quoteId={effectiveQuoteId}
+        />
 
         {/* NOTES + TOTALS */}
         <div className="card p-4 grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
