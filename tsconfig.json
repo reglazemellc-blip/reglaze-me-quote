@@ -18,7 +18,8 @@
       "@store/*": ["src/store/*"],
       "@db/*": ["src/db/*"],
       "@utils/*": ["src/utils/*"],
-      "@data/*": ["src/data/*"]
+      "@data/*": ["src/data/*"],
+      "@config/*": ["src/config/*"]
     }
   },
   "include": ["src"]

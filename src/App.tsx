@@ -11,6 +11,9 @@ import QuotesBoard from "@pages/QuotesBoard";
 import QuoteDetail from "@pages/QuoteDetail";
 import QuoteEditor from "@pages/QuoteEditor";
 
+import InvoicesList from "@pages/InvoicesList";
+import ContractsList from "@pages/ContractsList";
+
 import Catalog from "@pages/Catalog";
 import SettingsPage from "@pages/SettingsPage";
 
@@ -46,6 +49,12 @@ export default function App() {
           <Route path="/quotes/:id" element={<QuoteDetail />} />
           <Route path="/quotes/:id/edit" element={<QuoteEditor mode="edit" />} />
           <Route path="/quotes/:id/print" element={<QuotePrint />} />
+
+          {/* Invoices */}
+          <Route path="/invoices" element={<InvoicesList />} />
+
+          {/* Contracts */}
+          <Route path="/contracts" element={<ContractsList />} />
 
           {/* Services */}
           <Route path="/services" element={<ServicesList />} />
