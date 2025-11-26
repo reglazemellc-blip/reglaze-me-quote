@@ -155,6 +155,20 @@ export default function QuoteDetail() {
             Print / PDF
           </button>
 
+          <button
+            onClick={() => navigate(`/invoices/new?quoteId=${quote.id}`)}
+            className="btn-outline-gold px-4 py-1 text-sm"
+          >
+            Convert to Invoice
+          </button>
+
+          <button
+            onClick={() => navigate(`/contracts/new?quoteId=${quote.id}`)}
+            className="btn-outline-gold px-4 py-1 text-sm"
+          >
+            Create Contract
+          </button>
+
           <Link
             to={`/quotes/${quote.id}/edit`}
             className="btn-gold px-4 py-1 text-sm"
