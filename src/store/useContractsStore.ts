@@ -103,9 +103,12 @@ export const useContractsStore = create<ContractsState>((set, get) => ({
 
     const existing = get().contracts.find((c) => c.id === id);
 
+    // Generate a default contract number if not provided
+    const defaultContractNumber = formatContractId(new Date(), Date.now() % 10000);
+
     const contract: Contract = {
       id,
-      contractNumber: data.contractNumber ?? existing?.contractNumber,
+      contractNumber: data.contractNumber ?? existing?.contractNumber ?? defaultContractNumber,
       clientId: data.clientId ?? existing?.clientId ?? "",
       quoteId: data.quoteId ?? existing?.quoteId,
       invoiceId: data.invoiceId ?? existing?.invoiceId,

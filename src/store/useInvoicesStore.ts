@@ -77,9 +77,12 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
 
     const existing = get().invoices.find((i) => i.id === id);
 
+    // Generate a default invoice number if not provided
+    const defaultInvoiceNumber = formatInvoiceId(new Date(), Date.now() % 10000);
+
     const invoice: Invoice = {
       id,
-      invoiceNumber: data.invoiceNumber ?? existing?.invoiceNumber,
+      invoiceNumber: data.invoiceNumber ?? existing?.invoiceNumber ?? defaultInvoiceNumber,
       clientId: data.clientId ?? existing?.clientId ?? "",
       quoteId: data.quoteId ?? existing?.quoteId,
       clientName: data.clientName ?? existing?.clientName,

@@ -4,13 +4,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
-import { db as firestoreDb } from "../../firebase";
 import { useInvoicesStore, formatInvoiceId } from "@store/useInvoicesStore";
 import { useClientsStore } from "@store/useClientsStore";
 import { useQuotesStore } from "@store/useQuotesStore";
 import { useSettingsStore } from "@store/useSettingsStore";
-import type { Invoice, LineItem, Quote } from "@db/index";
+import type { Invoice, LineItem } from "@db/index";
 import ClientAutocomplete from "@components/ClientAutocomplete";
 
 function createId() {
