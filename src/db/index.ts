@@ -1,6 +1,8 @@
 import Dexie, { Table } from "dexie";
 import { db as firestoreDb } from "../firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { businessProfile } from "@config/businessProfile";
+import { theme } from "@config/theme";
 
 // ------------------ Shared Types ------------------
 
@@ -151,21 +153,96 @@ export type Quote = {
   updatedAt: number;
 };
 
-export type InvoiceStatus = "unpaid" | "partial" | "paid" | "refunded";
+export type InvoiceStatus = "unpaid" | "partial" | "paid" | "overdue" | "refunded";
+
+export type Payment = {
+  id: string;
+  amount: number;
+  method: 'cash' | 'check' | 'credit_card' | 'venmo' | 'zelle' | 'other';
+  date: number;
+  notes?: string;
+};
 
 export type Invoice = {
   id: string;
+  invoiceNumber?: string; // inv-YYYYMMDD-####
   clientId: string;
   quoteId?: string;
 
+  // Client snapshot (similar to quotes)
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientAddress?: string;
+
+  // Line items (copied from quote or manual)
+  items: LineItem[];
+
+  subtotal: number;
+  taxRate: number;
+  tax: number;
+  discount: number;
   total: number;
+
   amountPaid: number;
   status: InvoiceStatus;
 
   dueDate?: number;
   notes?: string;
 
+  // Payment tracking
+  payments?: Payment[];
+
   attachments?: Attachment[];
+
+  pdfUrl?: string;
+  sentAt?: number;
+
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ContractStatus = 'draft' | 'sent' | 'client_signed' | 'fully_signed' | 'canceled';
+
+export type ContractSignature = {
+  dataUrl: string;
+  signedAt: number;
+  name?: string;
+};
+
+export type Contract = {
+  id: string;
+  contractNumber?: string; // con-YYYYMMDD-####
+  clientId: string;
+  quoteId?: string;
+  invoiceId?: string;
+
+  // Client snapshot
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientAddress?: string;
+
+  // Template used
+  templateVersion: string;
+
+  // Contract content (filled template)
+  content: string;
+
+  // Contract specifics
+  totalAmount: number;
+  depositAmount?: number;
+  appointmentDate?: string;
+  appointmentTime?: string;
+
+  // Signatures
+  clientSignature?: ContractSignature;
+  contractorSignature?: ContractSignature;
+
+  status: ContractStatus;
+
+  pdfUrl?: string;
+  sentAt?: number;
 
   createdAt: number;
   updatedAt: number;
@@ -208,6 +285,7 @@ export class AppDB extends Dexie {
   settings!: Table<Settings, string>;
   catalog!: Table<ServiceCatalog, string>;
   invoices!: Table<Invoice, string>;
+  contracts!: Table<Contract, string>;
 
   constructor() {
     super("reglaze-me-db");
@@ -220,13 +298,23 @@ export class AppDB extends Dexie {
       catalog: "id",
     });
 
-    // new schema with invoices table
+    // schema v2 with invoices table
     this.version(2).stores({
       clients: "id, createdAt, updatedAt, name, email, phone",
       quotes: "id, clientId, createdAt, updatedAt, status, clientName",
       settings: "id",
       catalog: "id",
       invoices: "id, clientId, quoteId, status, createdAt, updatedAt",
+    });
+
+    // schema v3 with contracts table
+    this.version(3).stores({
+      clients: "id, createdAt, updatedAt, name, email, phone",
+      quotes: "id, clientId, createdAt, updatedAt, status, clientName",
+      settings: "id",
+      catalog: "id",
+      invoices: "id, clientId, quoteId, status, createdAt, updatedAt",
+      contracts: "id, clientId, quoteId, invoiceId, status, createdAt, updatedAt",
     });
   }
 }
@@ -245,17 +333,17 @@ export async function getOrInitSettings(): Promise<Settings> {
 
   const defaults: Settings = {
     id: "settings",
-    companyLeftLines: ["ReGlaze Me LLC", "217 3rd Ave", "Frankfort, NY 13340"],
-    companyRightLines: ["reglazemellc@gmail.com", "315-525-9142"],
+    companyLeftLines: [...businessProfile.companyLeftLines],
+    companyRightLines: [...businessProfile.companyRightLines],
     theme: {
-      primary: "#e8d487",
-      secondary: "#151515",
-      accent1: "#ffd700",
-      accent2: "#b8860b",
-      background: "#0b0b0b",
+      primary: theme.defaults.primary,
+      secondary: theme.defaults.secondary,
+      accent1: theme.defaults.accent1,
+      accent2: theme.defaults.accent2,
+      background: theme.defaults.background,
     },
     watermark: "",
-    defaultTaxRate: 0.0,
+    defaultTaxRate: businessProfile.defaultTaxRate,
     nextSequence: 1,
   };
 

@@ -61,8 +61,10 @@ export default function Header(): JSX.Element {
   <IconLink to="/" label="Dashboard" svg={HomeIcon} />
   <IconLink to="/clients" label="Clients" svg={UsersIcon} />
   <IconLink to="/quotes/new" label="Quotes" svg={DocumentIcon} />
+  <IconLink to="/invoices" label="Invoices" svg={InvoiceIcon} />
+  <IconLink to="/contracts" label="Contracts" svg={ContractIcon} />
 
-  {/* NEW — SERVICES NAV ITEM */}
+  {/* Services */}
   <IconLink to="/services" label="Services" svg={ServicesIcon} />
 
   <IconLink to="/settings" label="Settings" svg={CogIcon} />
@@ -272,6 +274,37 @@ function ServicesIcon(): JSX.Element {
         stroke="url(#gold-services)"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function InvoiceIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
+      <defs>
+        <linearGradient id="gold-invoice" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe18d" />
+          <stop offset="100%" stopColor="#d4af37" />
+        </linearGradient>
+      </defs>
+      <rect x="4" y="2" width="16" height="20" rx="2" stroke="url(#gold-invoice)" />
+      <path d="M8 6h8M8 10h8M8 14h4" stroke="url(#gold-invoice)" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ContractIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
+      <defs>
+        <linearGradient id="gold-contract" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe18d" />
+          <stop offset="100%" stopColor="#d4af37" />
+        </linearGradient>
+      </defs>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="url(#gold-contract)" />
+      <path d="M14 2v6h6" stroke="url(#gold-contract)" />
+      <path d="M8 18l2-2c.5-.5 1.5-.5 2 0l2 2" stroke="url(#gold-contract)" strokeLinecap="round" />
     </svg>
   );
 }
