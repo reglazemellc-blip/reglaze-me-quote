@@ -1,7 +1,3 @@
-// -------------------------------------------------------------
-// App.tsx — ROUTES ONLY (NO GLOBAL DRAWER)
-// -------------------------------------------------------------
-
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 
 import Dashboard from "@pages/Dashboard";
@@ -20,6 +16,8 @@ import SettingsPage from "@pages/SettingsPage";
 
 import ServicesList from "@pages/services/ServicesList";
 import ServiceForm from "@pages/services/ServiceForm";
+
+import RemindersPage from "@pages/RemindersPage";
 
 import Header from "@components/Header";
 import OfflineToast from "@components/OfflineToast";
@@ -57,6 +55,9 @@ export default function App() {
           {/* Catalog + Settings */}
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/settings" element={<SettingsPage />} />
+
+          {/* Reminders */}
+          <Route path="/reminders" element={<RemindersPage />} />
 
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />

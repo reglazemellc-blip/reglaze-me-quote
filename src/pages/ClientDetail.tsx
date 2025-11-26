@@ -186,7 +186,7 @@ export default function ClientDetail() {
 
   // -------------------------------------------------------------
   // Delete client (via useClientsStore.remove)
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   async function handleDeleteClient() {
     if (!client) return;
     const ok = window.confirm(
@@ -259,7 +259,7 @@ export default function ClientDetail() {
 
   // -------------------------------------------------------------
   // Delete photo (from Storage + attachments[])
-// -------------------------------------------------------------
+  // -------------------------------------------------------------
   async function deletePhoto(att: Attachment) {
     if (!client) return;
 
@@ -451,328 +451,367 @@ export default function ClientDetail() {
 
   return (
     <>
-      <div className="space-y-6 text-[#f5f3da]">
-        {/* CLIENT CARD */}
-        <div className="card p-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Client</div>
-              <div className="text-xl font-semibold">{client.name}</div>
-
-              <div className="mt-3 text-sm text-gray-300 space-y-1">
-                <div>{client.phone}</div>
-                <div>{client.email}</div>
-                <div className="whitespace-pre-line">{client.address}</div>
-              </div>
-
-              <div className="mt-4 text-sm text-gray-400">Notes</div>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <button
-                className="text-[11px] text-gold underline hover:text-[#e8d487]"
-                onClick={() => setDrawerOpen(true)}
-              >
-                Edit
-              </button>
-              <button
-                className="text-[11px] text-red-400 hover:text-red-300"
-                onClick={handleDeleteClient}
-              >
-                Delete
-              </button>
-            </div>
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6 text-[#f5f3da]">
+        {/* PAGE HEADER */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl font-semibold text-[#e8d487]">
+              {client.name}
+            </h1>
+            <p className="text-xs text-gray-500">
+              Full profile, history, photos, reminders, and quotes.
+            </p>
           </div>
 
-          {/* Photos + Add Photos */}
-          <div className="mt-4 flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">Photos</div>
-              {photoAttachments.length === 0 && (
-                <div className="text-sm text-gray-400">
-                  No photos uploaded.
-                </div>
-              )}
-            </div>
-
+          <div className="flex flex-wrap gap-2 justify-start md:justify-end">
             <button
-              type="button"
-              className="text-gold text-sm underline"
-              onClick={() => photoInputRef.current?.click()}
+              className="btn-outline-gold px-4 py-1.5 text-xs md:text-sm"
+              onClick={() => setDrawerOpen(true)}
             >
-              Add Photos
+              Edit Client
+            </button>
+            <button
+              className="btn-gold px-4 py-1.5 text-xs md:text-sm"
+              onClick={() => navigate(`/quotes/new?clientId=${client.id}`)}
+            >
+              New Quote
+            </button>
+            <button
+              className="px-4 py-1.5 text-xs md:text-sm rounded-lg border border-red-500/70 text-red-400 hover:bg-red-500 hover:text-black transition"
+              onClick={handleDeleteClient}
+            >
+              Delete
             </button>
           </div>
+        </div>
 
-          <input
-            ref={photoInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handlePhotoUpload}
-          />
-
-          {uploadingPhotos && (
-            <div className="text-xs text-gray-400 mt-2">Uploading…</div>
-          )}
-
-          {photoAttachments.length > 0 && (
-            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-              {photoAttachments.map((att) => (
-                <div key={att.id} className="relative group">
-                  <img
-                    src={att.url}
-                    className="rounded border border-gray-600 w-full h-32 object-cover"
-                  />
-                  <button
-                    className="absolute top-1 right-1 text-red-400 text-xs bg-black/60 rounded px-1"
-                    onClick={() => deletePhoto(att)}
-                  >
-                    ✕
-                  </button>
+        {/* MAIN GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 md:gap-5">
+          {/* LEFT COLUMN --------------------------------------------------- */}
+          <div className="space-y-4 md:space-y-5">
+            {/* CLIENT CARD */}
+            <div className="card p-5 md:p-6">
+              <div className="flex flex-col gap-3">
+                <div className="text-[11px] tracking-wide text-gray-400">
+                  CLIENT
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {/* ATTACHMENTS */}
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
-            Attachments
-          </h2>
+                <div className="text-sm text-gray-300 space-y-1">
+                  {client.phone && <div>{client.phone}</div>}
+                  {client.email && <div>{client.email}</div>}
+                  {client.address && (
+                    <div className="whitespace-pre-line">{client.address}</div>
+                  )}
+                </div>
 
-          {allAttachments.length === 0 ? (
-            <p className="text-sm text-gray-400 mt-2">No attachments.</p>
-          ) : (
-            <ul className="mt-3 space-y-1 text-sm">
-              {allAttachments.map((a) => (
-                <li key={a.id} className="flex items-center justify-between">
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-gold underline"
-                  >
-                    {a.name || "Attachment"}
-                  </a>
-                  <button
-                    className="text-xs text-red-400"
-                    onClick={() => deletePhoto(a)}
-                  >
-                    Delete
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* CONVERSATIONS */}
-        <div className="card p-6 space-y-4">
-          <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
-            Conversations
-          </h2>
-
-          {/* composer */}
-          <div className="space-y-2">
-            <div className="flex flex-col md:flex-row md:items-center gap-2">
-              <select
-                className="input md:w-40"
-                value={newChannel}
-                onChange={(e) =>
-                  setNewChannel(e.target.value as ConversationChannel)
-                }
-              >
-                <option value="call">Call</option>
-                <option value="text">Text</option>
-                <option value="email">Email</option>
-                <option value="in_person">In person</option>
-                <option value="other">Other</option>
-              </select>
-
-              <textarea
-                className="input flex-1 h-20"
-                placeholder="Paste conversation or notes…"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-              />
-            </div>
-
-            <button className="btn-gold" onClick={addConversation}>
-              Add Conversation
-            </button>
-          </div>
-
-          {convUploading && (
-            <div className="text-xs text-gray-400">Uploading file…</div>
-          )}
-
-          <div className="space-y-3 mt-2">
-            {conversations.length === 0 && (
-              <p className="text-sm text-gray-400">No conversation logs.</p>
-            )}
-
-            {conversations.map((c) => (
-              <div
-                key={c.id}
-                className="p-3 bg-black/40 rounded border border-gray-700 text-sm"
-              >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1">
-                    <div className="text-xs text-gray-400">
-                      {new Date(c.createdAt).toLocaleString()} — {c.channel}
-                    </div>
-
-                    {editingId === c.id ? (
-                      <div className="mt-2 space-y-2">
-                        <select
-                          className="input w-40 text-xs"
-                          value={editingChannel}
-                          onChange={(e) =>
-                            setEditingChannel(
-                              e.target.value as ConversationChannel
-                            )
-                          }
-                        >
-                          <option value="call">Call</option>
-                          <option value="text">Text</option>
-                          <option value="email">Email</option>
-                          <option value="in_person">In person</option>
-                          <option value="other">Other</option>
-                        </select>
-
-                        <textarea
-                          className="input w-full h-20"
-                          value={editingText}
-                          onChange={(e) => setEditingText(e.target.value)}
-                        />
-
-                        <div className="flex gap-2">
-                          <button
-                            className="btn-gold text-xs px-3"
-                            onClick={saveEditConversation}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="btn-outline-gold text-xs px-3"
-                            onClick={cancelEditConversation}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="whitespace-pre-line mt-1">
-                        {c.message}
+                {/* Photos header */}
+                <div className="mt-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold">Photos</div>
+                    {photoAttachments.length === 0 && (
+                      <div className="text-xs text-gray-400">
+                        No photos uploaded.
                       </div>
                     )}
                   </div>
 
-                  <div className="flex flex-col items-end gap-1">
-                    <button
-                      className="text-xs text-gray-300"
-                      onClick={() => startEditConversation(c)}
-                    >
-                      ✎ Edit
-                    </button>
-                    <button
-                      className="text-xs text-red-400"
-                      onClick={() => deleteConversation(c)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="text-[11px] text-[#e8d487] underline"
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    Add Photos
+                  </button>
                 </div>
 
-                {(c.attachments || []).length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {c.attachments!.map((a: any, idx: number) => (
-                      <a
-                        key={idx}
-                        href={a.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block text-gold underline text-xs"
-                      >
-                        {a.name}
-                      </a>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
+
+                {uploadingPhotos && (
+                  <div className="text-xs text-gray-400 mt-1">Uploading…</div>
+                )}
+
+                {photoAttachments.length > 0 && (
+                  <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {photoAttachments.map((att) => (
+                      <div key={att.id} className="relative group">
+                        <img
+                          src={att.url}
+                          className="rounded border border-gray-700 w-full h-28 md:h-32 object-cover"
+                        />
+                        <button
+                          className="absolute top-1 right-1 text-red-400 text-[10px] bg-black/70 rounded px-1"
+                          onClick={() => deletePhoto(att)}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
 
-                <div className="mt-2">
-                  <input
-                    type="file"
-                    onChange={(e) => uploadConversationFile(e, c)}
-                    className="text-xs"
+            {/* ATTACHMENTS */}
+            <div className="card p-5 md:p-6">
+              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 mb-2">
+                Attachments
+              </h2>
+
+              {allAttachments.length === 0 ? (
+                <p className="text-xs text-gray-400">No attachments.</p>
+              ) : (
+                <ul className="mt-1 space-y-1 text-xs">
+                  {allAttachments.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <a
+                        href={a.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#e8d487] underline truncate"
+                      >
+                        {a.name || "Attachment"}
+                      </a>
+                      <button
+                        className="text-[11px] text-red-400"
+                        onClick={() => deletePhoto(a)}
+                      >
+                        Delete
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN -------------------------------------------------- */}
+          <div className="space-y-4 md:space-y-5">
+            {/* CONVERSATIONS */}
+            <div className="card p-5 md:p-6 space-y-3">
+              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
+                Conversations
+              </h2>
+
+              {/* composer */}
+              <div className="space-y-2">
+                <div className="flex flex-col md:flex-row md:items-center gap-2">
+                  <select
+                    className="input md:w-40 text-xs"
+                    value={newChannel}
+                    onChange={(e) =>
+                      setNewChannel(e.target.value as ConversationChannel)
+                    }
+                  >
+                    <option value="call">Call</option>
+                    <option value="text">Text</option>
+                    <option value="email">Email</option>
+                    <option value="in_person">In person</option>
+                    <option value="other">Other</option>
+                  </select>
+
+                  <textarea
+                    className="input flex-1 h-20 text-xs"
+                    placeholder="Paste conversation or notes…"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
                   />
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* REMINDERS */}
-        <div className="card p-6">
-          <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
-            Reminders
-          </h2>
-
-          {reminders.length === 0 ? (
-            <p className="text-sm text-gray-400 mt-2">No reminders.</p>
-          ) : (
-            <ul className="mt-3 space-y-1 text-sm">
-              {reminders.map((r: any) => (
-                <li key={r.id}>{r.note || "Reminder"}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* QUOTES */}
-        <div className="card p-6">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-lg font-semibold border-l-2 border-gold pl-2">
-              Quotes
-            </h2>
-
-            <Link
-              to={`/quotes/new?clientId=${client.id}`}
-              className="btn-gold text-sm px-4"
-            >
-              New Quote
-            </Link>
-          </div>
-
-          {loadingQuotes ? (
-            <p className="text-sm text-gray-400">Loading quotes…</p>
-          ) : quotes.length === 0 ? (
-            <p className="text-sm text-gray-400">No quotes yet.</p>
-          ) : (
-            <div className="space-y-2 text-sm">
-              {quotes.map((q) => (
-                <div
-                  key={q.id}
-                  className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-gray-700"
+                <button
+                  className="btn-gold text-xs px-3 py-1.5"
+                  onClick={addConversation}
                 >
-                  <Link
-                    to={`/quotes/${q.id}`}
-                    className="text-gold underline break-all"
-                  >
-                    {q.quoteNumber || q.id}
-                  </Link>
-                  <div className="text-xs text-gray-400 text-right ml-3">
-                    <div>{q.status || "pending"}</div>
-                    {typeof q.total === "number" && (
-                      <div>${q.total.toFixed(2)}</div>
-                    )}
-                  </div>
+                  Add Conversation
+                </button>
+              </div>
+
+              {convUploading && (
+                <div className="text-[11px] text-gray-400">
+                  Uploading file…
                 </div>
-              ))}
+              )}
+
+              <div className="space-y-3 mt-1">
+                {conversations.length === 0 && (
+                  <p className="text-xs text-gray-400">
+                    No conversation logs.
+                  </p>
+                )}
+
+                {conversations.map((c) => (
+                  <div
+                    key={c.id}
+                    className="p-3 bg-black/40 rounded border border-[#2a2a2a] text-xs"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-1">
+                        <div className="text-[10px] text-gray-400">
+                          {new Date(c.createdAt).toLocaleString()} —{" "}
+                          {c.channel}
+                        </div>
+
+                        {editingId === c.id ? (
+                          <div className="mt-2 space-y-2">
+                            <select
+                              className="input w-40 text-[11px]"
+                              value={editingChannel}
+                              onChange={(e) =>
+                                setEditingChannel(
+                                  e.target.value as ConversationChannel
+                                )
+                              }
+                            >
+                              <option value="call">Call</option>
+                              <option value="text">Text</option>
+                              <option value="email">Email</option>
+                              <option value="in_person">In person</option>
+                              <option value="other">Other</option>
+                            </select>
+
+                            <textarea
+                              className="input w-full h-20 text-xs"
+                              value={editingText}
+                              onChange={(e) =>
+                                setEditingText(e.target.value)
+                              }
+                            />
+
+                            <div className="flex gap-2">
+                              <button
+                                className="btn-gold text-[11px] px-3"
+                                onClick={saveEditConversation}
+                              >
+                                Save
+                              </button>
+                              <button
+                                className="btn-outline-gold text-[11px] px-3"
+                                onClick={cancelEditConversation}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-line mt-1">
+                            {c.message}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1">
+                        <button
+                          className="text-[11px] text-gray-300"
+                          onClick={() => startEditConversation(c)}
+                        >
+                          ✎ Edit
+                        </button>
+                        <button
+                          className="text-[11px] text-red-400"
+                          onClick={() => deleteConversation(c)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    {(c.attachments || []).length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {c.attachments!.map((a: any, idx: number) => (
+                          <a
+                            key={idx}
+                            href={a.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-[#e8d487] underline text-[11px]"
+                          >
+                            {a.name}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-2">
+                      <input
+                        type="file"
+                        onChange={(e) => uploadConversationFile(e, c)}
+                        className="text-[11px]"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
+
+            {/* REMINDERS */}
+            <div className="card p-5 md:p-6">
+              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 mb-2">
+                Reminders
+              </h2>
+
+              {reminders.length === 0 ? (
+                <p className="text-xs text-gray-400">No reminders.</p>
+              ) : (
+                <ul className="mt-1 space-y-1 text-xs">
+                  {reminders.map((r: any) => (
+                    <li key={r.id}>{r.note || "Reminder"}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* QUOTES */}
+            <div className="card p-5 md:p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
+                  Quotes
+                </h2>
+
+                <button
+                  className="btn-gold text-xs px-3 py-1.5"
+                  onClick={() => navigate(`/quotes/new?clientId=${client.id}`)}
+                >
+                  New Quote
+                </button>
+              </div>
+
+              {loadingQuotes ? (
+                <p className="text-xs text-gray-400">Loading quotes…</p>
+              ) : quotes.length === 0 ? (
+                <p className="text-xs text-gray-400">No quotes yet.</p>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {quotes.map((q) => (
+                    <div
+                      key={q.id}
+                      className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
+                    >
+                      <Link
+                        to={`/quotes/${q.id}`}
+                        className="text-[#e8d487] underline break-all"
+                      >
+                        {q.quoteNumber || q.id}
+                      </Link>
+                      <div className="text-[11px] text-gray-400 text-right ml-3">
+                        <div>{q.status || "pending"}</div>
+                        {typeof q.total === "number" && (
+                          <div>${q.total.toFixed(2)}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

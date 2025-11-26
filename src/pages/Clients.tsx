@@ -1,13 +1,26 @@
 // -------------------------------------------------------------
-// Clients.tsx — CLEAN MODERN CARDS LAYOUT + LOCAL DRAWER
+// Clients.tsx — Full Rewrite (Gold Dropdown + Sorting + Clean Cards)
 // -------------------------------------------------------------
 
 import { useClientsStore } from "@store/useClientsStore";
 import { useQuotesStore } from "@store/useQuotesStore";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+
 import SearchBar from "@components/SearchBar";
 import ClientDrawer from "@components/ClientDrawer";
+import { ChevronDown } from "lucide-react";
+
+// -------------------------------------------------------------
+// Sorting Options
+// -------------------------------------------------------------
+type SortMode =
+  | "newest"          // most recently created
+  | "oldest"          // oldest created
+  | "name_az"         // alphabetical
+  | "name_za"         // reverse
+  | "recent_activity" // last quote OR last conversation
+  | "quote_count";    // most quotes at top
 
 export default function Clients() {
   const { clients, init } = useClientsStore();
@@ -15,16 +28,21 @@ export default function Clients() {
 
   const [term, setTerm] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>("recent_activity");
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Load clients on mount
+  // -------------------------------------------------------------
+  // Load Clients on Mount
+  // -------------------------------------------------------------
   useEffect(() => {
     init();
   }, [init]);
 
-  // If we came from Dashboard with openClientDrawer flag, open and clear the flag
+  // -------------------------------------------------------------
+  // Auto-open Drawer if coming from Dashboard
+  // -------------------------------------------------------------
   useEffect(() => {
     const state = location.state as { openClientDrawer?: boolean } | null;
     if (state?.openClientDrawer) {
@@ -33,51 +51,108 @@ export default function Clients() {
     }
   }, [location.state, navigate]);
 
-  // Combined address displayed properly
+  // -------------------------------------------------------------
+  // Helper: Format Address
+  // -------------------------------------------------------------
   const formatAddress = (c: any) => {
-    const parts = [c.address, c.city, c.state, c.zip].filter(Boolean);
+    if (c.address) return c.address;
+    const parts = [c.street, c.city, c.state, c.zip].filter(Boolean);
     return parts.join("\n");
   };
 
-  // Filter clients
+  // -------------------------------------------------------------
+  // Quote Count per Client
+  // -------------------------------------------------------------
+  const quoteCount = (clientId: string) =>
+    quotes.filter((q) => q.clientId === clientId).length;
+
+  // -------------------------------------------------------------
+  // Compute last activity (quote or conversation)
+  // -------------------------------------------------------------
+  const lastActivity = (c: any) => {
+    const lastQuote = quotes
+      .filter((q) => q.clientId === c.id)
+      .sort((a, b) => (b.updatedAt ?? b.createdAt ?? 0) - (a.updatedAt ?? a.createdAt ?? 0))[0];
+
+    const lastConv = (c.conversations ?? []).sort(
+      (a: any, b: any) => b.createdAt - a.createdAt
+    )[0];
+
+    const quoteTime = lastQuote ? (lastQuote.updatedAt ?? lastQuote.createdAt ?? 0) : 0;
+    const convTime = lastConv ? lastConv.createdAt : 0;
+
+    return Math.max(quoteTime, convTime, c.createdAt ?? 0);
+  };
+
+  // -------------------------------------------------------------
+  // Search Filter
+  // -------------------------------------------------------------
   const filtered = useMemo(() => {
     if (!term.trim()) return [...clients];
 
     const q = term.toLowerCase().trim();
 
     return clients.filter((c) =>
-      [c.name, c.phone, c.email, c.address, c.city, c.state, c.zip]
+      [c.name, c.phone, c.email, c.address]
         .filter(Boolean)
-        .some((v) => v!.toLowerCase().includes(q))
+        .some((v) => String(v).toLowerCase().includes(q))
     );
   }, [clients, term]);
 
-  // Count quotes per client
-  const quoteCount = (clientId: string) =>
-    quotes.filter((q) => q.clientId === clientId).length;
+  // -------------------------------------------------------------
+  // Sorting Logic
+  // -------------------------------------------------------------
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
 
+    switch (sortMode) {
+      case "newest":
+        return arr.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+
+      case "oldest":
+        return arr.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+
+      case "name_az":
+        return arr.sort((a, b) => a.name.localeCompare(b.name));
+
+      case "name_za":
+        return arr.sort((a, b) => b.name.localeCompare(a.name));
+
+      case "quote_count":
+        return arr.sort((a, b) => quoteCount(b.id) - quoteCount(a.id));
+
+      case "recent_activity":
+      default:
+        return arr.sort((a, b) => lastActivity(b) - lastActivity(a));
+    }
+  }, [filtered, sortMode, quotes]);
+
+  // -------------------------------------------------------------
+  // UI
+  // -------------------------------------------------------------
   return (
     <>
-      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6 relative z-0">
-        {/* HEADER */}
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+
+        {/* HEADER ------------------------------------------------ */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
           <div>
             <h2 className="text-xl font-semibold text-[#e8d487]">Clients</h2>
             <p className="text-xs text-gray-500">Manage your customer list.</p>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="flex-1 md:flex-none">
-              {/* 🔥 FIXED — SearchBar is now controlled */}
-              <SearchBar
-                placeholder="Search by name, phone, email, address"
-                value={term}
-                onChange={setTerm}
-              />
-            </div>
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            {/* SEARCH BAR */}
+            <SearchBar
+              placeholder="Search by name, phone, email, address"
+              value={term}
+              onChange={setTerm}
+            />
 
+            {/* ACTIONS */}
             <button
-              className="btn-gold"
+              className="btn-gold whitespace-nowrap"
               onClick={() => setDrawerOpen(true)}
             >
               + Add Client
@@ -85,9 +160,65 @@ export default function Clients() {
           </div>
         </div>
 
-        {/* CLIENT GRID */}
+        {/* SORT DROPDOWN ----------------------------------------- */}
+        <div className="flex justify-end">
+          <div className="relative">
+            <button
+              className="
+                flex items-center gap-2 
+                px-3 py-2 text-sm 
+                border border-[#e8d487]/40 
+                rounded-lg text-[#e8d487]
+                bg-black/30 hover:bg-black/50
+              "
+              onClick={() => {
+                const menu = document.getElementById("sortMenu");
+                if (menu) menu.classList.toggle("hidden");
+              }}
+            >
+              Sort: {sortMode.replace("_", " ")}
+              <ChevronDown size={16} />
+            </button>
+
+            {/* DROPDOWN */}
+            <div
+              id="sortMenu"
+              className="
+                hidden absolute right-0 mt-2 w-48 
+                bg-[#111] border border-[#2a2a2a] 
+                rounded-lg shadow-lg z-50
+              "
+            >
+              {([
+                ["recent_activity", "Recent activity"],
+                ["newest", "Newest created"],
+                ["oldest", "Oldest created"],
+                ["name_az", "Name A–Z"],
+                ["name_za", "Name Z–A"],
+                ["quote_count", "Most quotes"],
+              ] as [SortMode, string][]).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setSortMode(value);
+                    const menu = document.getElementById("sortMenu");
+                    if (menu) menu.classList.add("hidden");
+                  }}
+                  className="
+                    w-full text-left px-4 py-2 text-sm 
+                    hover:bg-black/40 text-gray-300
+                  "
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* CLIENT LIST ------------------------------------------- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filtered.map((c) => (
+          {sorted.map((c) => (
             <Link
               key={c.id}
               to={`/clients/${c.id}`}
@@ -111,7 +242,7 @@ export default function Clients() {
                   <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
                     {c.phone && <div>{c.phone}</div>}
                     {c.email && <div>{c.email}</div>}
-                    {(c.address || c.city || c.state || c.zip) && (
+                    {formatAddress(c) && (
                       <div className="whitespace-pre-line text-gray-400">
                         {formatAddress(c)}
                       </div>
@@ -119,24 +250,23 @@ export default function Clients() {
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span
-                    className="
-                      text-[11px]
-                      px-2 py-1
-                      rounded-full 
-                      border border-[#e8d487]/70 
-                      text-[#e8d487]
-                    "
-                  >
-                    {quoteCount(c.id)} quotes
-                  </span>
-                </div>
+                <span
+                  className="
+                    text-[11px]
+                    px-2 py-1
+                    rounded-full 
+                    border border-[#e8d487]/70 
+                    text-[#e8d487]
+                    whitespace-nowrap
+                  "
+                >
+                  {quoteCount(c.id)} quotes
+                </span>
               </div>
             </Link>
           ))}
 
-          {!filtered.length && (
+          {!sorted.length && (
             <div className="col-span-full text-center text-gray-500 py-10">
               No clients found.
             </div>
@@ -144,7 +274,7 @@ export default function Clients() {
         </div>
       </div>
 
-      {/* LOCAL CLIENT DRAWER */}
+      {/* DRAWER ------------------------------------------------ */}
       <ClientDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
