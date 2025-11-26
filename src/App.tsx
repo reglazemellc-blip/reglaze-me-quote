@@ -11,6 +11,14 @@ import QuotesBoard from "@pages/QuotesBoard";
 import QuoteDetail from "@pages/QuoteDetail";
 import QuoteEditor from "@pages/QuoteEditor";
 
+import InvoicesList from "@pages/invoices/InvoicesList";
+import InvoiceDetail from "@pages/invoices/InvoiceDetail";
+import InvoiceEditor from "@pages/invoices/InvoiceEditor";
+
+import ContractsList from "@pages/contracts/ContractsList";
+import ContractDetail from "@pages/contracts/ContractDetail";
+import ContractEditor from "@pages/contracts/ContractEditor";
+
 import Catalog from "@pages/Catalog";
 import SettingsPage from "@pages/SettingsPage";
 
@@ -46,6 +54,18 @@ export default function App() {
           <Route path="/quotes/:id" element={<QuoteDetail />} />
           <Route path="/quotes/:id/edit" element={<QuoteEditor mode="edit" />} />
           <Route path="/quotes/:id/print" element={<QuotePrint />} />
+
+          {/* Invoices */}
+          <Route path="/invoices" element={<InvoicesList />} />
+          <Route path="/invoices/new" element={<InvoiceEditor mode="create" />} />
+          <Route path="/invoices/:id" element={<InvoiceDetail />} />
+          <Route path="/invoices/:id/edit" element={<InvoiceEditor mode="edit" />} />
+
+          {/* Contracts */}
+          <Route path="/contracts" element={<ContractsList />} />
+          <Route path="/contracts/new" element={<ContractEditor mode="create" />} />
+          <Route path="/contracts/:id" element={<ContractDetail />} />
+          <Route path="/contracts/:id/edit" element={<ContractEditor mode="edit" />} />
 
           {/* Services */}
           <Route path="/services" element={<ServicesList />} />

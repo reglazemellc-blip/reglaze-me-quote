@@ -151,13 +151,27 @@ export type Quote = {
   updatedAt: number;
 };
 
-export type InvoiceStatus = "unpaid" | "partial" | "paid" | "refunded";
+export type InvoiceStatus = "unpaid" | "partial" | "paid" | "overdue" | "refunded";
 
 export type Invoice = {
   id: string;
+  invoiceNumber?: string;
   clientId: string;
   quoteId?: string;
 
+  // Client snapshot at invoice time
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientAddress?: string;
+
+  // Line items copied from quote
+  items?: LineItem[];
+
+  subtotal: number;
+  taxRate: number;
+  tax: number;
+  discount: number;
   total: number;
   amountPaid: number;
   status: InvoiceStatus;
@@ -166,6 +180,39 @@ export type Invoice = {
   notes?: string;
 
   attachments?: Attachment[];
+  signature?: Signature;
+  pdfUrl?: string | null;
+
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ContractStatus = "draft" | "sent" | "signed" | "expired" | "canceled";
+
+export type Contract = {
+  id: string;
+  contractNumber?: string;
+  clientId: string;
+  quoteId?: string;
+  invoiceId?: string;
+
+  // Client snapshot
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientAddress?: string;
+
+  // Contract content
+  title: string;
+  content: string; // HTML or Markdown template content
+  terms?: string;
+
+  status: ContractStatus;
+  signature?: Signature;
+  signedAt?: number;
+
+  attachments?: Attachment[];
+  pdfUrl?: string | null;
 
   createdAt: number;
   updatedAt: number;
@@ -208,6 +255,7 @@ export class AppDB extends Dexie {
   settings!: Table<Settings, string>;
   catalog!: Table<ServiceCatalog, string>;
   invoices!: Table<Invoice, string>;
+  contracts!: Table<Contract, string>;
 
   constructor() {
     super("reglaze-me-db");
@@ -227,6 +275,16 @@ export class AppDB extends Dexie {
       settings: "id",
       catalog: "id",
       invoices: "id, clientId, quoteId, status, createdAt, updatedAt",
+    });
+
+    // v7 schema with contracts table
+    this.version(3).stores({
+      clients: "id, createdAt, updatedAt, name, email, phone",
+      quotes: "id, clientId, createdAt, updatedAt, status, clientName",
+      settings: "id",
+      catalog: "id",
+      invoices: "id, clientId, quoteId, status, createdAt, updatedAt",
+      contracts: "id, clientId, quoteId, invoiceId, status, createdAt, updatedAt",
     });
   }
 }
