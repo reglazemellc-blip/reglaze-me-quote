@@ -10,6 +10,9 @@ export const contractTemplate = {
   // Default contract title
   title: 'Service Agreement & Contract',
 
+  // Default deposit percentage (0.5 = 50%)
+  depositPercentage: 0.5,
+
   // Contract sections - placeholders use {{variable}} format
   sections: [
     {

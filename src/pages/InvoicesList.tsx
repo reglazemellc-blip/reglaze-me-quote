@@ -96,7 +96,7 @@ export default function InvoicesList() {
 
       {/* FILTERS */}
       <div className="flex flex-wrap gap-2">
-        {(['all', 'unpaid', 'partial', 'paid', 'overdue'] as const).map((f) => (
+        {(['all', 'unpaid', 'partial', 'paid', 'overdue', 'refunded'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}

@@ -260,12 +260,13 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       return 'paid';
     }
 
-    if (invoice.amountPaid > 0) {
-      return 'partial';
-    }
-
+    // Check overdue before partial - overdue takes precedence
     if (invoice.dueDate && invoice.dueDate < Date.now()) {
       return 'overdue';
+    }
+
+    if (invoice.amountPaid > 0) {
+      return 'partial';
     }
 
     return 'unpaid';

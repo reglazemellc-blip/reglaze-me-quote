@@ -96,7 +96,7 @@ export default function ContractsList() {
 
       {/* FILTERS */}
       <div className="flex flex-wrap gap-2">
-        {(['all', 'draft', 'sent', 'client_signed', 'fully_signed'] as const).map((f) => (
+        {(['all', 'draft', 'sent', 'client_signed', 'fully_signed', 'canceled'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}

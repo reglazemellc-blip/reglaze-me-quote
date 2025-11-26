@@ -172,7 +172,8 @@ export const useContractsStore = create<ContractsState>((set, get) => ({
       .map((item) => `• ${item.description}${item.warning ? ` (${item.warning})` : ''}`)
       .join('\n');
 
-    const depositAmount = Math.round(quote.total * 0.5 * 100) / 100; // 50% deposit
+    // Use configurable deposit percentage from template
+    const depositAmount = Math.round(quote.total * contractTemplate.depositPercentage * 100) / 100;
     const balanceAmount = quote.total - depositAmount;
 
     // Fill template with quote data
