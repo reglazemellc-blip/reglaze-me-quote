@@ -3,13 +3,16 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-
+import { useInvoicesStore } from "@store/useInvoicesStore";
+import { useConfigStore } from "@store/useConfigStore";
+import { generateQuotePDF } from "@utils/pdf";
 
 import type {
   Quote,
   LineItem,
   QuoteClientSnapshot,
   Attachment,
+  Invoice,
 } from "@db/index";
 
 // -------------------------------------------------------------
@@ -29,8 +32,63 @@ export default function QuoteDetail() {
   const quoteId = id ?? "";
   const navigate = useNavigate();
 
+  const { upsert: upsertInvoice, getByQuote, init: initInvoices } = useInvoicesStore();
+  const { config } = useConfigStore();
+
   const [loading, setLoading] = useState(true);
   const [quote, setQuote] = useState<SafeQuote | null>(null);
+  const [converting, setConverting] = useState(false);
+
+  useEffect(() => {
+    initInvoices();
+  }, [initInvoices]);
+
+  const handleConvertToInvoice = async () => {
+    if (!quote) return;
+
+    // Check if invoice already exists
+    const existing = getByQuote(quote.id);
+    if (existing) {
+      if (confirm('An invoice already exists for this quote. View it?')) {
+        navigate(`/invoices/${existing.id}`);
+      }
+      return;
+    }
+
+    if (!confirm('Convert this quote to an invoice?')) return;
+
+    setConverting(true);
+    try {
+      // Generate invoice ID: inv-YYYYMMDD-####
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+      const invoiceId = `inv-${dateStr}-${randomNum}`;
+
+      const invoice: Invoice = {
+        id: invoiceId,
+        clientId: quote.clientId || '',
+        quoteId: quote.id,
+        total: quote.total || 0,
+        amountPaid: 0,
+        status: 'unpaid',
+        dueDate: quote.dueDate, // Inherit due date from quote
+        notes: quote.notes,
+        attachments: quote.attachments || [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      await upsertInvoice(invoice);
+      alert('Invoice created successfully!');
+      navigate(`/invoices/${invoiceId}`);
+    } catch (err) {
+      console.error('Convert error:', err);
+      alert('Failed to create invoice');
+    } finally {
+      setConverting(false);
+    }
+  };
 
   useEffect(() => {
     if (!quoteId) return;
@@ -123,6 +181,28 @@ export default function QuoteDetail() {
     load();
   }, [quoteId, navigate]);
 
+  const handleGeneratePDF = async () => {
+    if (!quote || !config) {
+      alert('Unable to generate PDF. Missing quote or client data.')
+      return
+    }
+    try {
+      // Convert SafeQuote client snapshot to full Client object for PDF
+      const client = {
+        id: quote.client.id || quote.clientId || '',
+        name: quote.client.name || quote.clientName || '',
+        phone: quote.client.phone || quote.clientPhone || '',
+        email: quote.client.email || quote.clientEmail || '',
+        address: quote.client.address || quote.clientAddress || '',
+        createdAt: Date.now(),
+      }
+      await generateQuotePDF(quote as any, client, config.businessProfile)
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Failed to generate PDF')
+    }
+  }
+
   if (loading)
     return <div className="p-8 text-center text-gray-400">Loading quote…</div>;
 
@@ -149,10 +229,18 @@ export default function QuoteDetail() {
 
         <div className="flex gap-2">
           <button
-            onClick={() => navigate(`/quotes/${quote.id}/print`)}
+            onClick={handleGeneratePDF}
             className="btn-outline-gold px-4 py-1 text-sm"
           >
-            Print / PDF
+            Generate PDF
+          </button>
+
+          <button
+            onClick={handleConvertToInvoice}
+            disabled={converting}
+            className="btn-outline-gold px-4 py-1 text-sm"
+          >
+            {converting ? 'Converting...' : config?.labels?.quoteConvertToInvoiceButton || 'Convert to Invoice'}
           </button>
 
           <Link

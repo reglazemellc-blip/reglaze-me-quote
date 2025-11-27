@@ -23,6 +23,7 @@ import { db as firestoreDb } from "../firebase";
 
 import { useServicesStore } from "@store/useServicesStore";
 import { useClientsStore } from "@store/useClientsStore";
+import { useConfigStore } from "@store/useConfigStore";
 
 import {
   Quote,
@@ -157,6 +158,9 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
   // Stores
   const { services, init: initServices } = useServicesStore();
   const { clients, init: initClients } = useClientsStore();
+  const { config } = useConfigStore();
+
+  const labels = config?.labels;
 
   // Client state
   const [clientId, setClientId] = useState("");
@@ -193,6 +197,9 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
   // NEW: quote number badge support
   const [quoteNumber, setQuoteNumber] = useState<string | null>(null);
+
+  // Due date support
+  const [dueTerms, setDueTerms] = useState<string>("due_upon_completion");
 
   // Service dropdown control
   const [openServiceFor, setOpenServiceFor] = useState<string | null>(null);
@@ -305,6 +312,9 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
           setAppointmentDate(String(data.appointmentDate ?? ""));
           setAppointmentTime(String(data.appointmentTime ?? ""));
+
+          // Load due terms
+          setDueTerms(String(data.dueTerms ?? "due_upon_completion"));
 
           // normalize existing attachments to typed Attachment[]
           const rawAtt = Array.isArray(data.attachments)
@@ -541,6 +551,18 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
       const safeTime =
         status === "scheduled" ? appointmentTime || null : null;
 
+      // Calculate due date based on terms
+      let dueDate: number | undefined;
+      if (dueTerms === "due_upon_completion") {
+        dueDate = undefined; // Will be determined at completion
+      } else if (dueTerms === "net_15") {
+        dueDate = now + (15 * 24 * 60 * 60 * 1000);
+      } else if (dueTerms === "net_30") {
+        dueDate = now + (30 * 24 * 60 * 60 * 1000);
+      } else if (dueTerms === "net_60") {
+        dueDate = now + (60 * 24 * 60 * 60 * 1000);
+      }
+
       const clientSnapshot: QuoteClientSnapshot = {
         id: finalClientId,
         name: clientName.trim(),
@@ -573,6 +595,9 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
         signature: null,
         appointmentDate: safeDate,
         appointmentTime: safeTime,
+        quoteNumber: quoteNumber || undefined,
+        dueTerms,
+        dueDate,
         attachments,
         pdfUrl,
         sentAt,
@@ -624,7 +649,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
       >
         {/* HEADER */}
         <h1 className="text-2xl font-semibold text-[#e8d487] flex items-center gap-3">
-          <span>{isEdit ? "Edit Quote" : "New Quote"}</span>
+          <span>{isEdit ? (labels?.quoteIdLabel ? `Edit ${labels.quoteIdLabel}` : 'Edit Quote') : (labels?.quoteNewButton || 'New Quote')}</span>
           {quoteNumber && (
             <span className="text-xs px-2 py-1 rounded-full border border-[#e8d487]/60 text-[#e8d487]">
               {quoteNumber}
@@ -636,7 +661,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
         <div className="card p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2">
-              Client
+              {labels?.quoteClientLabel || 'Client'}
             </h2>
 
             <div className="flex gap-2">
@@ -645,7 +670,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
                 className="btn-outline-gold text-xs px-3 py-1"
                 onClick={handleSaveClient}
               >
-                Save Client
+                {labels?.clientSaveButton || 'Save Client'}
               </button>
 
               <button
@@ -653,7 +678,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
                 className="btn-outline-gold text-xs px-3 py-1"
                 onClick={() => setClientDrawerOpen(true)}
               >
-                + New Client
+                + {labels?.clientNewButton || 'New Client'}
               </button>
             </div>
           </div>
@@ -811,16 +836,31 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
               </div>
             </div>
           )}
+
+          {/* Due Date Terms */}
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Payment Terms</label>
+            <select
+              className="input w-full"
+              value={dueTerms}
+              onChange={(e) => setDueTerms(e.target.value)}
+            >
+              <option value="due_upon_completion">Due Upon Completion</option>
+              <option value="net_15">Net 15 Days</option>
+              <option value="net_30">Net 30 Days</option>
+              <option value="net_60">Net 60 Days</option>
+            </select>
+          </div>
         </div>
 
         {/* LINE ITEMS */}
         <div className="card p-4 space-y-4">
           <div className="flex justify-between items-center mb-1">
             <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2">
-              Line Items
+              {labels?.quoteItemsLabel || 'Line Items'}
             </h2>
             <button className="btn-outline-gold text-sm" onClick={addItem}>
-              + Add Item
+              + {labels?.lineItemAddButton || 'Add Item'}
             </button>
           </div>
 
@@ -1015,7 +1055,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
         <div className="card p-4 grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
           <div>
             <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2">
-              Notes
+              {labels?.quoteNotesLabel || 'Notes'}
             </h2>
             <textarea
               className="input h-32"
@@ -1026,7 +1066,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
           <div>
   <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2">
-    Totals
+    {labels?.quoteTotalLabel || 'Totals'}
   </h2>
 
   <div className="mt-3 space-y-3 bg-black/40 border border-[#2a2a2a] rounded-lg p-4 text-sm">

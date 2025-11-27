@@ -1,0 +1,19 @@
+{
+    "editor.inlineSuggest.enabled": true,
+    "github.copilot.enable": {
+        "*": true,
+        "plaintext": false,
+        "markdown": true,
+        "scminput": false
+    },
+    "emmet.showExpandedAbbreviation": "never",
+    "editor.quickSuggestions": {
+        "other": "on",
+        "comments": "off",
+        "strings": "on"
+    },
+    "editor.wordBasedSuggestions": "off",
+    "editor.suggest.showWords": false,
+    "github.copilot.editor.enableAutoCompletions": true,
+    "inlineChat.mode": "live"
+}

@@ -22,6 +22,7 @@ import {
 
 import type { Attachment, AttachmentType } from "@db/index";
 import { useClientsStore } from "@store/useClientsStore";
+import { useContractsStore } from "@store/useContractsStore";
 import ClientDrawer from "@components/ClientDrawer";
 
 // -------------------------------------------------------------
@@ -81,6 +82,10 @@ export default function ClientDetail() {
   const [quotes, setQuotes] = useState<QuoteSummary[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(true);
 
+  // Contracts for this client
+  const { contracts, init: initContracts } = useContractsStore();
+  const clientContracts = contracts.filter((c) => c.clientId === clientId);
+
   // Edit drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -88,6 +93,8 @@ export default function ClientDetail() {
   // Load client + their quotes
   // -------------------------------------------------------------
   useEffect(() => {
+    initContracts();
+    
     if (!clientId || clientId === "new") {
       setLoading(false);
       setClient(null);
@@ -804,6 +811,48 @@ export default function ClientDetail() {
                         <div>{q.status || "pending"}</div>
                         {typeof q.total === "number" && (
                           <div>${q.total.toFixed(2)}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* CONTRACTS */}
+            <div className="card p-5 md:p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
+                  Contracts
+                </h2>
+
+                <button
+                  className="btn-gold text-xs px-3 py-1.5"
+                  onClick={() => navigate('/contracts/new')}
+                >
+                  New Contract
+                </button>
+              </div>
+
+              {clientContracts.length === 0 ? (
+                <p className="text-xs text-gray-400">No contracts yet.</p>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {clientContracts.map((contract) => (
+                    <div
+                      key={contract.id}
+                      className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
+                    >
+                      <Link
+                        to={`/contracts/${contract.id}`}
+                        className="text-[#e8d487] underline break-all"
+                      >
+                        {contract.id}
+                      </Link>
+                      <div className="text-[11px] text-gray-400 text-right ml-3">
+                        <div>{contract.status || "draft"}</div>
+                        {typeof contract.totalAmount === "number" && (
+                          <div>${contract.totalAmount.toFixed(2)}</div>
                         )}
                       </div>
                     </div>

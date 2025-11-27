@@ -1,4 +1,5 @@
 import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 import Dashboard from "@pages/Dashboard";
 import QuotePrint from "@pages/QuotePrint";
@@ -13,18 +14,40 @@ import QuoteEditor from "@pages/QuoteEditor";
 
 import Catalog from "@pages/Catalog";
 import SettingsPage from "@pages/SettingsPage";
+import InvoicesPage from "@pages/InvoicesPage";
+import InvoiceDetail from "@pages/InvoiceDetail";
+import ContractsPage from "@pages/ContractsPage";
+import ContractDetail from "@pages/ContractDetail";
 
 import ServicesList from "@pages/services/ServicesList";
 import ServiceForm from "@pages/services/ServiceForm";
 
 import RemindersPage from "@pages/RemindersPage";
+import TestUI from "@pages/TestUI";
 
 import Header from "@components/Header";
 import OfflineToast from "@components/OfflineToast";
 import GoldToast from "@components/GoldToast";
 
+import { useConfigStore } from "@store/useConfigStore";
+
 export default function App() {
   const location = useLocation();
+  const { init: initConfig, loading: configLoading, config } = useConfigStore();
+
+  // Initialize config on app mount
+  useEffect(() => {
+    initConfig();
+  }, [initConfig]);
+
+  // Show loading state while config initializes
+  if (configLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-[var(--color-primary)] text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-background page-enter">
@@ -52,12 +75,23 @@ export default function App() {
           <Route path="/services/new" element={<ServiceForm />} />
           <Route path="/services/:id/edit" element={<ServiceForm />} />
 
+          {/* Invoices */}
+          <Route path="/invoices" element={<InvoicesPage />} />
+          <Route path="/invoices/:id" element={<InvoiceDetail />} />
+
+          {/* Contracts */}
+          <Route path="/contracts" element={<ContractsPage />} />
+          <Route path="/contracts/:id" element={<ContractDetail />} />
+
           {/* Catalog + Settings */}
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/settings" element={<SettingsPage />} />
 
           {/* Reminders */}
           <Route path="/reminders" element={<RemindersPage />} />
+
+          {/* Test UI */}
+          <Route path="/test" element={<TestUI />} />
 
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
@@ -68,7 +102,7 @@ export default function App() {
       <GoldToast />
 
       <footer className="text-center text-xs text-gray-500 py-6">
-        Copyright ReGlaze Me LLC
+        Copyright {config?.businessProfile?.companyName || 'ReGlaze Me LLC'}
       </footer>
     </div>
   );

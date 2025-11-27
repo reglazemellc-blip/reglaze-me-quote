@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useClientsStore } from "@store/useClientsStore";
 import { useQuotesStore } from "@store/useQuotesStore";
+import { useConfigStore } from "@store/useConfigStore";
 import { useNavigate } from "react-router-dom";
 
 // -------------------------------------------------------------
@@ -139,7 +140,10 @@ type RecentFilter = "all" | "pending" | "scheduled" | "unsent";
 export default function Dashboard() {
   const { clients, init: initClients } = useClientsStore();
   const { quotes, init: initQuotes } = useQuotesStore();
+  const { config } = useConfigStore();
   const navigate = useNavigate();
+
+  const labels = config?.labels;
 
   // -------------------------------------------------------------
   // INIT STORE DATA
@@ -392,10 +396,10 @@ export default function Dashboard() {
       <div className="flex justify-between items-center">
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold text-[#e8d487]">
-            Overview
+            {labels?.dashboardTitle || 'Dashboard'}
           </h2>
           <p className="text-xs text-gray-500">
-            Snapshot of your quotes, clients, and tasks for today.
+            {labels?.dashboardSubtitle || 'Business overview'}
           </p>
         </div>
 
@@ -407,14 +411,14 @@ export default function Dashboard() {
             }
             className={actionBtn}
           >
-            + Add Client
+            + {labels?.clientNewButton || 'New Client'}
           </button>
 
           <button
             onClick={() => navigate("/quotes/new")}
             className={actionBtn}
           >
-            + Create Quote
+            + {labels?.quoteNewButton || 'New Quote'}
           </button>
         </div>
       </div>
@@ -423,7 +427,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
         <div className={box} onClick={() => navigate("/quotes")}>
           <DocumentIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>TOTAL QUOTES</div>
+          <div className={label}>{(labels?.quotesTitle || 'QUOTES').toUpperCase()}</div>
           <div className={number}>{totalQuotes}</div>
         </div>
 
@@ -432,7 +436,7 @@ export default function Dashboard() {
           onClick={() => navigate("/quotes?status=pending")}
         >
           <ClockIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>PENDING</div>
+          <div className={label}>{(labels?.statusPending || 'PENDING').toUpperCase()}</div>
           <div className={number}>{pending}</div>
         </div>
 
@@ -441,13 +445,13 @@ export default function Dashboard() {
           onClick={() => navigate("/quotes?status=scheduled")}
         >
           <CalendarIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>SCHEDULED</div>
+          <div className={label}>{(labels?.statusScheduled || 'SCHEDULED').toUpperCase()}</div>
           <div className={number}>{scheduled}</div>
         </div>
 
         <div className={box} onClick={() => navigate("/clients")}>
           <UsersIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>CLIENTS</div>
+          <div className={label}>{(labels?.clientsTitle || 'CLIENTS').toUpperCase()}</div>
           <div className={number}>{totalClients}</div>
         </div>
       </div>

@@ -4,6 +4,7 @@
 
 import { useClientsStore } from "@store/useClientsStore";
 import { useQuotesStore } from "@store/useQuotesStore";
+import { useConfigStore } from "@store/useConfigStore";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -25,6 +26,9 @@ type SortMode =
 export default function Clients() {
   const { clients, init } = useClientsStore();
   const { quotes } = useQuotesStore();
+  const { config } = useConfigStore();
+
+  const labels = config?.labels;
 
   const [term, setTerm] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -138,14 +142,14 @@ export default function Clients() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
           <div>
-            <h2 className="text-xl font-semibold text-[#e8d487]">Clients</h2>
+            <h2 className="text-xl font-semibold text-[#e8d487]">{labels?.clientsTitle || 'Clients'}</h2>
             <p className="text-xs text-gray-500">Manage your customer list.</p>
           </div>
 
           <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
             {/* SEARCH BAR */}
             <SearchBar
-              placeholder="Search by name, phone, email, address"
+              placeholder={labels?.clientsSearchPlaceholder || 'Search clients...'}
               value={term}
               onChange={setTerm}
             />
@@ -155,7 +159,7 @@ export default function Clients() {
               className="btn-gold whitespace-nowrap"
               onClick={() => setDrawerOpen(true)}
             >
-              + Add Client
+              + {labels?.clientNewButton || 'New Client'}
             </button>
           </div>
         </div>

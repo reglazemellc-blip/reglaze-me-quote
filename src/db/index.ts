@@ -144,6 +144,11 @@ export type Quote = {
   // full typed attachments saved on quote
   attachments: Attachment[];
 
+  // Quote number and due date
+  quoteNumber?: string;
+  dueDate?: number;
+  dueTerms?: string; // e.g., "Due upon completion", "Net 30"
+
   pdfUrl: string | null;
   sentAt: number | null;
   expiresAt: number | null;
@@ -166,6 +171,51 @@ export type Invoice = {
   notes?: string;
 
   attachments?: Attachment[];
+
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type ContractStatus = "draft" | "sent" | "signed" | "completed" | "canceled";
+
+export type Contract = {
+  id: string;
+  clientId: string;
+  quoteId?: string;
+
+  // Contract details
+  templateId: string;
+  terms: string;
+  scope: string;
+  warranty: string;
+
+  // Project info
+  startDate?: string;
+  endDate?: string;
+  propertyAddress?: string;
+
+  // Financial
+  totalAmount?: number;
+  checkAmount?: number;
+  cashAmount?: number;
+  balanceAmount?: number;
+  dueDate?: number;
+  dueTerms?: string; // e.g., "Due upon completion", "Net 30"
+
+  // Signatures
+  clientSignature?: {
+    dataUrl: string;
+    name: string;
+    date: number;
+  };
+  contractorSignature?: {
+    dataUrl: string;
+    name: string;
+    date: number;
+  };
+
+  status: ContractStatus;
+  notes?: string;
 
   createdAt: number;
   updatedAt: number;

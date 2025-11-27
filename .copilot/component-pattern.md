@@ -1,6 +1,15 @@
+# ReGlaze Component Pattern
+
+Copilot must generate React components that follow this exact structure, based on the example below.
+
+---
+
+## 📌 Base Component Template (STRICT)
+
+```tsx
 import { useEffect } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
-import { db } from './firebase' // if this path is wrong, tell me your folder layout
+import { db } from './firebase'
 
 function TestFirestore() {
   useEffect(() => {
@@ -15,4 +24,3 @@ function TestFirestore() {
 }
 
 export default TestFirestore
-

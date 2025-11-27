@@ -15,6 +15,24 @@
   transition-all;
 }
 
+.btn-primary {
+  @apply px-4 py-2 rounded-xl font-semibold
+  bg-gradient-to-b from-[#ffd700] to-[#b8860b]
+  text-black
+  shadow-[0_0_15px_rgba(255,215,0,0.35)]
+  hover:opacity-90
+  transition-all;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 rounded-xl font-semibold
+  border border-[#444]
+  text-[#e8d487]/80
+  hover:text-[#fff1a8]
+  hover:border-[#b8860b]
+  transition-all;
+}
+
 .btn-outline-gold {
   @apply px-4 py-2 rounded-xl font-semibold
   border border-[#444]
@@ -52,6 +70,31 @@
   text-[#e8d487]
   placeholder:text-gray-500
   focus:outline-none focus:border-[#e8d487];
+}
+
+.input-field {
+  @apply w-full px-3 py-2 rounded-lg
+  bg-[#1b1b1b]
+  border border-[#2a2a2a]
+  text-[#e8d487]
+  placeholder:text-gray-500
+  focus:outline-none focus:border-[#e8d487];
+}
+
+/* Date input calendar icon styling */
+input[type="date"].input-field {
+  color-scheme: dark;
+  position: relative;
+}
+
+input[type="date"].input-field::-webkit-calendar-picker-indicator {
+  filter: invert(73%) sepia(47%) saturate(407%) hue-rotate(10deg) brightness(95%) contrast(90%);
+  cursor: pointer;
+  opacity: 1;
+}
+
+input[type="date"].input-field::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.8;
 }
 
 .dashboard-search-input {

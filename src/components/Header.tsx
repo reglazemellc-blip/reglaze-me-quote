@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useSettingsStore } from '@store/useSettingsStore'
+import { useConfigStore } from '@store/useConfigStore'
 import ThemeEditor from './ThemeEditor'
 import { useEffect, useState } from 'react'
 import { exportElementToPDF } from '@utils/pdf'
@@ -13,6 +14,7 @@ type IconLinkProps = {
 
 export default function Header(): JSX.Element {
   const { settings, init } = useSettingsStore()
+  const { config } = useConfigStore()
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -26,6 +28,16 @@ export default function Header(): JSX.Element {
     const el = document.getElementById('quote-preview')
     if (el) await exportElementToPDF(el, 'quote.pdf')
   }
+
+  // Use config labels with proper fallbacks
+  const appName = config?.labels?.appName || 'ReGlaze Me LLC'
+  const navDashboard = config?.labels?.navDashboard || 'Dashboard'
+  const navClients = config?.labels?.navClients || 'Clients'
+  const navQuotes = config?.labels?.navQuotes || 'Quotes'
+  const navInvoices = config?.labels?.navInvoices || 'Invoices'
+  const navContracts = config?.labels?.navContracts || 'Contracts'
+  const navCatalog = config?.labels?.navCatalog || 'Services'
+  const navSettings = config?.labels?.navSettings || 'Settings'
 
   return (
     <header
@@ -52,20 +64,19 @@ export default function Header(): JSX.Element {
             className="text-xl font-semibold tracking-wide"
             style={{ color: 'var(--color-primary)' }}
           >
-            ReGlaze Me Quote
+            {appName}
           </Link>
         </div>
 
         {/* CENTER NAV */}
         <nav className="flex items-center gap-6 text-sm">
-  <IconLink to="/" label="Dashboard" svg={HomeIcon} />
-  <IconLink to="/clients" label="Clients" svg={UsersIcon} />
-  <IconLink to="/quotes/new" label="Quotes" svg={DocumentIcon} />
-
-  {/* NEW — SERVICES NAV ITEM */}
-  <IconLink to="/services" label="Services" svg={ServicesIcon} />
-
-  <IconLink to="/settings" label="Settings" svg={CogIcon} />
+  <IconLink to="/" label={navDashboard} svg={HomeIcon} />
+  <IconLink to="/clients" label={navClients} svg={UsersIcon} />
+  <IconLink to="/quotes/new" label={navQuotes} svg={DocumentIcon} />
+  <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
+  <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
+  <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
+  <IconLink to="/settings" label={navSettings} svg={CogIcon} />
 </nav>
 
 
@@ -272,6 +283,48 @@ function ServicesIcon(): JSX.Element {
         stroke="url(#gold-services)"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function InvoiceIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
+      <defs>
+        <linearGradient id="gold-invoice" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe18d" />
+          <stop offset="100%" stopColor="#d4af37" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+        stroke="url(#gold-invoice)"
+      />
+      <path d="M14 2v6h6" stroke="url(#gold-invoice)" />
+      <path d="M8 13h8" stroke="url(#gold-invoice)" />
+      <path d="M8 17h8" stroke="url(#gold-invoice)" />
+      <circle cx="10" cy="10" r="0.5" fill="url(#gold-invoice)" />
+    </svg>
+  );
+}
+
+function ContractIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
+      <defs>
+        <linearGradient id="gold-contract" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe18d" />
+          <stop offset="100%" stopColor="#d4af37" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+        stroke="url(#gold-contract)"
+      />
+      <path d="M14 2v6h6" stroke="url(#gold-contract)" />
+      <path d="M9 12h6" stroke="url(#gold-contract)" />
+      <path d="M9 16h6" stroke="url(#gold-contract)" />
+      <path d="M9 20h3" stroke="url(#gold-contract)" />
     </svg>
   );
 }
