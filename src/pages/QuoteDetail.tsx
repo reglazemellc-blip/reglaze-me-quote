@@ -86,6 +86,11 @@ export default function QuoteDetail() {
       if (quote.notes) invoiceData.notes = quote.notes;
       if (quote.attachments && quote.attachments.length > 0) invoiceData.attachments = quote.attachments;
       if (invoiceNumber) invoiceData.invoiceNumber = invoiceNumber;
+      if (quote.jobsiteReadyAcknowledged) {
+        invoiceData.jobsiteReadyAcknowledged = quote.jobsiteReadyAcknowledged;
+        invoiceData.jobsiteReadyAcknowledgedAt = quote.jobsiteReadyAcknowledgedAt;
+      }
+      if (quote.waterShutoffElected) invoiceData.waterShutoffElected = quote.waterShutoffElected;
 
       await upsertInvoice(invoiceData as Invoice);
       alert('Invoice created successfully!');
@@ -178,6 +183,10 @@ export default function QuoteDetail() {
 
           createdAt: data.createdAt ?? 0,
           updatedAt: data.updatedAt ?? 0,
+          
+          jobsiteReadyAcknowledged: data.jobsiteReadyAcknowledged ?? false,
+          jobsiteReadyAcknowledgedAt: data.jobsiteReadyAcknowledgedAt,
+          waterShutoffElected: data.waterShutoffElected ?? false,
         };
 
         setQuote(fixed);
@@ -237,11 +246,45 @@ export default function QuoteDetail() {
       setQuote({
         ...quote,
         jobsiteReadyAcknowledged: newValue,
-        jobsiteReadyAcknowledgedAt: timestamp
+        jobsiteReadyAcknowledgedAt: timestamp,
+        updatedAt: Date.now()
       })
     } catch (error) {
       console.error('Error updating acknowledgment:', error)
       alert('Failed to update acknowledgment')
+    } finally {
+      setAcknowledgeSaving(false)
+    }
+  }
+
+  const handleToggleWaterShutoff = async () => {
+    if (!quote) return
+    
+    // Check if locked (PDF has been generated)
+    if (quote.pdfUrl) {
+      alert('Water shutoff election is locked after PDF generation.')
+      return
+    }
+    
+    setAcknowledgeSaving(true)
+    try {
+      const newValue = !quote.waterShutoffElected
+      
+      const { setDoc } = await import('firebase/firestore')
+      const quoteRef = doc(db, 'quotes', quote.id)
+      await setDoc(quoteRef, {
+        waterShutoffElected: newValue,
+        updatedAt: Date.now()
+      }, { merge: true })
+      
+      setQuote({
+        ...quote,
+        waterShutoffElected: newValue,
+        updatedAt: Date.now()
+      })
+    } catch (error) {
+      console.error('Error updating water shutoff election:', error)
+      alert('Failed to update water shutoff election')
     } finally {
       setAcknowledgeSaving(false)
     }
@@ -442,6 +485,39 @@ export default function QuoteDetail() {
         {!quote.jobsiteReadyAcknowledged && (
           <div className="text-xs text-yellow-500 mt-2">
             ⚠ This must be acknowledged before generating the PDF
+          </div>
+        )}
+        
+        {/* WATER SHUTOFF ELECTION (INTERNAL ONLY) */}
+        {quote.jobsiteReadyAcknowledged && (
+          <div className="mt-6 pt-6 border-t border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-200 mb-3">
+              Water Shutoff Election (Internal)
+            </h3>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={quote.waterShutoffElected || false}
+                onChange={handleToggleWaterShutoff}
+                disabled={acknowledgeSaving || !!quote.pdfUrl}
+                className="w-5 h-5 rounded border-gray-600 text-red-500 focus:ring-red-500 focus:ring-offset-gray-900"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-200">
+                  Allow water shutoff to continue work (voids warranty)
+                </div>
+                {quote.waterShutoffElected && (
+                  <div className="text-xs text-red-400 mt-1">
+                    ⚠ Warranty will be voided due to water shutoff
+                  </div>
+                )}
+                {quote.pdfUrl && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    🔒 Locked after PDF generation
+                  </div>
+                )}
+              </div>
+            </label>
           </div>
         )}
       </div>

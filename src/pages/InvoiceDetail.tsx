@@ -75,6 +75,8 @@ export default function InvoiceDetail() {
         // Propagate jobsite readiness acknowledgment to PDF generator
         jobsiteReadyAcknowledged: relatedQuote.jobsiteReadyAcknowledged,
         jobsiteReadyAcknowledgedAt: relatedQuote.jobsiteReadyAcknowledgedAt,
+        // Propagate water shutoff election to PDF generator
+        waterShutoffElected: relatedQuote.waterShutoffElected,
       }
       
       await generateInvoicePDF(invoiceWithItems as any, client, config.businessProfile)

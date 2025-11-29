@@ -456,6 +456,16 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
     const acknowledgedDate = new Date((quote as any).jobsiteReadyAcknowledgedAt).toLocaleString()
     pdf.setFontSize(9)
     pdf.text(`Acknowledged on: ${acknowledgedDate}`, margin + 10, yPos)
+    yPos += 16
+    
+    // Water shutoff warranty void notice
+    if ((quote as any).waterShutoffElected) {
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      pdf.setTextColor(200, 50, 50) // Red color for warranty void
+      pdf.text('Warranty voided due to customer-elected water shutoff.', margin + 10, yPos)
+      yPos += 10
+    }
   }
   
   addFooter(pdf, businessProfile)
@@ -751,6 +761,16 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
     const acknowledgedDate = new Date((invoice as any).jobsiteReadyAcknowledgedAt).toLocaleString()
     pdf.setFontSize(9)
     pdf.text(`Acknowledged on: ${acknowledgedDate}`, margin + 10, yPos)
+    yPos += 16
+    
+    // Water shutoff warranty void notice
+    if ((invoice as any).waterShutoffElected) {
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      pdf.setTextColor(200, 50, 50) // Red color for warranty void
+      pdf.text('Warranty voided due to customer-elected water shutoff.', margin + 10, yPos)
+      yPos += 10
+    }
   }
   
   // (Moved) Jobsite Readiness acknowledgment now rendered above Notes section
@@ -760,6 +780,23 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
 }
 
 export async function generateContractPDF(contract: Contract, client: Client, businessProfile: BusinessProfile) {
+  // Fetch linked quote data directly from Firestore if contract has a quoteId
+  let quoteData: any = null
+  if (contract.quoteId) {
+    try {
+      const { doc, getDoc } = await import('firebase/firestore')
+      const { db } = await import('../firebase')
+      const quoteSnap = await getDoc(doc(db, 'quotes', contract.quoteId))
+      if (quoteSnap.exists()) {
+        quoteData = quoteSnap.data()
+      } else {
+        console.warn(`Contract PDF: Quote not found for quoteId '${contract.quoteId}'. Jobsite Readiness section will not appear.`)
+      }
+    } catch (error) {
+      console.warn(`Contract PDF: Failed to fetch quote '${contract.quoteId}':`, error)
+    }
+  }
+  
   let logoData: { data: string; format: string } | null = null
   if (businessProfile.logo && businessProfile.logo.trim()) {
     logoData = await loadLogoAsBase64(businessProfile.logo)
@@ -852,13 +889,22 @@ export async function generateContractPDF(contract: Contract, client: Client, bu
       pdf.text(line, margin + 10, yPos)
       yPos += 10
     })
+    yPos += 20
   }
   
-  // Jobsite Readiness acknowledgment (text-only)
-  if ((contract as any).jobsiteReadyAcknowledged && (contract as any).jobsiteReadyAcknowledgedAt) {
-    yPos += 14
+  // Jobsite Readiness acknowledgment (with gold header bar like Quote and Invoice)
+  // Render based on linked quote's fields, not contract fields
+  if (quoteData && quoteData.jobsiteReadyAcknowledged && quoteData.jobsiteReadyAcknowledgedAt) {
+    pdf.setFillColor(...COLORS.gold)
+    pdf.rect(margin, yPos, pageWidth - (2 * margin), 18, 'F')
+    pdf.setFontSize(9)
+    pdf.setTextColor(...COLORS.black)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('JOBSITE READINESS', margin + 10, yPos + 12)
+    yPos += 30
+    
     pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(FONTS.body)
+    pdf.setFontSize(10)
     pdf.setTextColor(...COLORS.mediumGray)
     // Plumbing requirement explanatory text
     pdf.text('All plumbing fixtures must be operational before refinishing begins.', margin + 10, yPos)
@@ -870,11 +916,20 @@ export async function generateContractPDF(contract: Contract, client: Client, bu
     
     // Acknowledgment lines
     pdf.text('Jobsite Readiness & Plumbing Condition Acknowledged', margin + 10, yPos)
-    yPos += 12
-    const acknowledgedDate = new Date((contract as any).jobsiteReadyAcknowledgedAt).toLocaleString()
+    yPos += 14
+    const acknowledgedDate = new Date(quoteData.jobsiteReadyAcknowledgedAt).toLocaleString()
     pdf.setFontSize(9)
     pdf.text(`Acknowledged on: ${acknowledgedDate}`, margin + 10, yPos)
-    yPos += 10
+    yPos += 16
+    
+    // Water shutoff warranty void notice
+    if (quoteData.waterShutoffElected) {
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      pdf.setTextColor(200, 50, 50) // Red color for warranty void
+      pdf.text('Warranty voided due to customer-elected water shutoff.', margin + 10, yPos)
+      yPos += 10
+    }
   }
   
   addFooter(pdf, businessProfile)

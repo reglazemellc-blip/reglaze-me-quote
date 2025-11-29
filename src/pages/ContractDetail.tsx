@@ -162,7 +162,18 @@ export default function ContractDetail() {
       }
 
       // Only add optional fields if they have values
-      if (quoteId) data.quoteId = quoteId
+      // Validate quoteId is a valid Firestore document ID
+      // BUG FIX: Handle 'None' selection (empty string) and validate against loaded quotes
+      if (quoteId && quoteId.trim() !== '') {
+        const validQuote = quotes.find(q => q.id === quoteId)
+        if (validQuote) {
+          data.quoteId = quoteId
+        } else {
+          console.warn('Invalid quoteId selected:', quoteId, '- Quote not found in quotes array. Contract will be saved without quoteId.')
+        }
+      }
+      // If quoteId is empty or 'None' was selected, omit it from the data object entirely
+      
       if (startDate) data.startDate = startDate
       if (endDate) data.endDate = endDate
       // Combine address fields into propertyAddress
@@ -174,16 +185,16 @@ export default function ContractDetail() {
       if (totalAmount) data.totalAmount = parseFloat(totalAmount)
       
       // Calculate and save due date based on terms
+      // BUG FIX: Never set dueDate to undefined - omit it instead
       data.dueTerms = dueTerms
-      if (dueTerms === 'due_upon_completion') {
-        data.dueDate = undefined // Will be determined at completion
-      } else if (dueTerms === 'net_15') {
+      if (dueTerms === 'net_15') {
         data.dueDate = now + (15 * 24 * 60 * 60 * 1000)
       } else if (dueTerms === 'net_30') {
         data.dueDate = now + (30 * 24 * 60 * 60 * 1000)
       } else if (dueTerms === 'net_60') {
         data.dueDate = now + (60 * 24 * 60 * 60 * 1000)
       }
+      // For 'due_upon_completion', don't set dueDate at all (omit the field)
       
       if (contract?.clientSignature) data.clientSignature = contract.clientSignature
       if (contract?.contractorSignature) data.contractorSignature = contract.contractorSignature
@@ -228,14 +239,7 @@ export default function ContractDetail() {
       return
     }
     try {
-      // Include jobsite readiness acknowledgment from linked quote for PDF display
-      const relatedQuote = contract.quoteId ? quotes.find((q) => q.id === contract.quoteId) : undefined
-      const contractWithAck: any = {
-        ...contract,
-        jobsiteReadyAcknowledged: relatedQuote?.jobsiteReadyAcknowledged,
-        jobsiteReadyAcknowledgedAt: relatedQuote?.jobsiteReadyAcknowledgedAt,
-      }
-      await generateContractPDF(contractWithAck, selectedClient, config.businessProfile)
+      await generateContractPDF(contract, selectedClient, config.businessProfile)
     } catch (error) {
       console.error('Error generating PDF:', error)
       alert('Failed to generate PDF')
@@ -389,7 +393,7 @@ export default function ContractDetail() {
               {quotes
                 .filter((q) => q.clientId === clientId)
                 .map((q) => (
-                  <option key={q.id} value={q.id}>{q.id} - ${q.total}</option>
+                  <option key={q.id} value={q.id}>{q.quoteNumber} - ${q.total}</option>
                 ))}
             </select>
           </div>

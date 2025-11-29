@@ -158,6 +158,9 @@ export type Quote = {
   // Jobsite readiness acknowledgment
   jobsiteReadyAcknowledged?: boolean;
   jobsiteReadyAcknowledgedAt?: number;
+  
+  // Water shutoff election (voids warranty)
+  waterShutoffElected?: boolean;
 };
 
 export type InvoiceStatus = "unpaid" | "partial" | "paid" | "refunded";
@@ -176,6 +179,9 @@ export type Invoice = {
   notes?: string;
 
   attachments?: Attachment[];
+  
+  // Water shutoff election (voids warranty)
+  waterShutoffElected?: boolean;
 
   createdAt: number;
   updatedAt: number;
@@ -221,6 +227,9 @@ export type Contract = {
 
   status: ContractStatus;
   notes?: string;
+  
+  // Water shutoff election (voids warranty)
+  waterShutoffElected?: boolean;
 
   createdAt: number;
   updatedAt: number;
