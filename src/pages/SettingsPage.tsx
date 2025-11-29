@@ -88,47 +88,40 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
       return
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB')
+    // Validate file size (max 2MB for base64 storage)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image size must be less than 2MB. Please compress or resize your image.')
       return
     }
 
     setUploading(true)
     try {
-      // Convert image to base64 first for PDF compatibility
+      // Convert image to base64 for PDF compatibility
       const base64Promise = new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
-        reader.onloadend = () => resolve(reader.result as string)
-        reader.onerror = reject
+        reader.onloadend = () => {
+          const result = reader.result as string
+          // Validate the base64 result
+          if (!result || result.length > 5000000) {
+            reject(new Error('Image is too large after conversion'))
+            return
+          }
+          resolve(result)
+        }
+        reader.onerror = () => reject(new Error('Failed to read file'))
         reader.readAsDataURL(file)
       })
       
       const base64Data = await base64Promise
       
-      // Also upload to Firebase Storage for displaying in UI
-      const timestamp = Date.now()
-      const fileName = `logo_${timestamp}_${file.name}`
-      const storageRef = ref(storage, `business/${fileName}`)
+      console.log('Logo converted to base64, size:', base64Data.length, 'characters')
       
-      // Upload with metadata to set cache control
-      const metadata = {
-        contentType: file.type,
-        cacheControl: 'public, max-age=31536000',
-      }
-      
-      await uploadBytes(storageRef, file, metadata)
-      const url = await getDownloadURL(storageRef)
-      
-      console.log('Logo uploaded, Firebase URL:', url)
-      console.log('Logo base64 length:', base64Data.length)
-      
-      // Store base64 instead of Firebase URL for PDF compatibility
+      // Store base64 for PDF compatibility
       setProfile({ ...profile, logo: base64Data })
-      alert('Logo uploaded successfully! Remember to click Save.')
+      alert('Logo uploaded successfully! Click "Save Business Profile" to save changes.')
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Failed to upload logo: ' + String(error))
+      alert('Failed to upload logo: ' + (error instanceof Error ? error.message : String(error)))
     } finally {
       setUploading(false)
     }

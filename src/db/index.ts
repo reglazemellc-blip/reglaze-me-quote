@@ -154,12 +154,17 @@ export type Quote = {
   expiresAt: number | null;
   createdAt: number;
   updatedAt: number;
+  
+  // Jobsite readiness acknowledgment
+  jobsiteReadyAcknowledged?: boolean;
+  jobsiteReadyAcknowledgedAt?: number;
 };
 
 export type InvoiceStatus = "unpaid" | "partial" | "paid" | "refunded";
 
 export type Invoice = {
   id: string;
+  invoiceNumber?: string;
   clientId: string;
   quoteId?: string;
 

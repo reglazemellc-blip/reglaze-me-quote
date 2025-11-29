@@ -16,13 +16,20 @@ export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { invoices, recordPayment } = useInvoicesStore()
-  const { clients } = useClientsStore()
-  const { quotes } = useQuotesStore()
+  const { invoices, recordPayment, init: initInvoices } = useInvoicesStore()
+  const { clients, init: initClients } = useClientsStore()
+  const { quotes, init: initQuotes } = useQuotesStore()
   const { config } = useConfigStore()
 
   const [paymentAmount, setPaymentAmount] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Initialize stores
+  useEffect(() => {
+    initInvoices()
+    initClients()
+    initQuotes()
+  }, [initInvoices, initClients, initQuotes])
 
   const invoice = invoices.find((i) => i.id === id)
   const client = invoice ? clients.find((c) => c.id === invoice.clientId) : null
@@ -65,6 +72,9 @@ export default function InvoiceDetail() {
         discount: relatedQuote.discount || 0,
         payments: [], // TODO: Add payment tracking to invoice type
         balance: invoice.total - invoice.amountPaid,
+        // Propagate jobsite readiness acknowledgment to PDF generator
+        jobsiteReadyAcknowledged: relatedQuote.jobsiteReadyAcknowledged,
+        jobsiteReadyAcknowledgedAt: relatedQuote.jobsiteReadyAcknowledgedAt,
       }
       
       await generateInvoicePDF(invoiceWithItems as any, client, config.businessProfile)
@@ -137,7 +147,7 @@ export default function InvoiceDetail() {
             <ArrowLeft className="w-4 h-4" />
             Back to Invoices
           </button>
-          <h1 className="text-2xl font-semibold text-[#e8d487]">{invoice.id}</h1>
+          <h1 className="text-2xl font-semibold text-[#e8d487]">{invoice.invoiceNumber || invoice.id}</h1>
           <div className="flex items-center gap-3 mt-2">
             <span className={`text-sm px-3 py-1 rounded-full border ${statusColor(invoice.status)}`}>
               {labels?.[`status${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}` as keyof typeof labels] || invoice.status}

@@ -110,7 +110,7 @@ export default function InvoicesPage() {
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <span className="font-semibold text-[#e8d487]">{invoice.id}</span>
+                  <span className="font-semibold text-[#e8d487]">{invoice.invoiceNumber || invoice.id}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(invoice.status)}`}>
                     {labels?.[`status${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}` as keyof typeof labels] || invoice.status}
                   </span>

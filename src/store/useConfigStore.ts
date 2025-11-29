@@ -101,6 +101,12 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     // Apply theme to CSS variables
     applyTheme(config.theme)
 
+    // Load logo from localStorage if it exists (too large for Firestore)
+    const savedLogo = localStorage.getItem('businessProfile.logo')
+    if (savedLogo) {
+      config.businessProfile.logo = savedLogo
+    }
+
     set({ config, loading: false })
   },
 
@@ -180,9 +186,39 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     }
 
     const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
-    await setDoc(ref, updated)
-
-    set({ config: updated })
+    
+    try {
+      // Update each field individually to avoid nested entity errors
+      const updateData: any = {
+        updatedAt: updated.updatedAt,
+      }
+      
+      // Flatten businessProfile fields, but handle logo separately
+      Object.keys(profile).forEach((key) => {
+        if (key === 'logo') {
+          // Store logo in localStorage instead of Firestore (too large)
+          if (profile.logo) {
+            localStorage.setItem('businessProfile.logo', profile.logo)
+          } else {
+            // Clear logo from localStorage if it's empty
+            localStorage.removeItem('businessProfile.logo')
+          }
+        } else {
+          updateData[`businessProfile.${key}`] = profile[key as keyof BusinessProfile]
+        }
+      })
+      
+      // Update labels if company name changed
+      if (profile.companyName) {
+        updateData['labels.appName'] = profile.companyName
+      }
+      
+      await setDoc(ref, updateData, { merge: true })
+      set({ config: updated })
+    } catch (error) {
+      console.error('Failed to update business profile:', error)
+      throw error
+    }
   },
 
   updateServices: async (services) => {

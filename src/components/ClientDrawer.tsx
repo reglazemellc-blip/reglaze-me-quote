@@ -120,13 +120,34 @@ export default function ClientDrawer({
 
   const [saving, setSaving] = useState(false);
 
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    if (cleaned.length === 0) {
+      return '';
+    } else if (cleaned.length <= 3) {
+      return `(${cleaned}`;
+    } else if (cleaned.length <= 6) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    } else {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhone(formatted);
+  };
+
   // Reset form when drawer opens or when client/mode changes
   useEffect(() => {
     if (!open) return;
 
     if (mode === "edit" && client) {
       setName(client.name ?? "");
-      setPhone(client.phone ?? "");
+      setPhone(formatPhoneNumber(client.phone ?? ""));
       setEmail(client.email ?? "");
 
       const parsed = parseAddressString(client.address ?? "");
@@ -139,7 +160,7 @@ export default function ClientDrawer({
     } else {
       // create mode: use initial props, clear notes
       setName(initialName ?? "");
-      setPhone(initialPhone ?? "");
+      setPhone(formatPhoneNumber(initialPhone ?? ""));
       setEmail(initialEmail ?? "");
       setStreet(initialStreet ?? "");
       setCity(initialCity ?? "");
@@ -304,8 +325,9 @@ export default function ClientDrawer({
             <input
               className="input w-full"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Phone"
+              onChange={handlePhoneChange}
+              placeholder="(315) 555-5555"
+              maxLength={14}
             />
           </div>
 

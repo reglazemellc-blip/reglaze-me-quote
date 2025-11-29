@@ -51,6 +51,24 @@ function createId() {
   return Math.random().toString(36).slice(2);
 }
 
+// Generate next quote number from settings
+async function generateQuoteNumber(): Promise<string> {
+  const settingsRef = doc(firestoreDb, "settings", "settings");
+  const snap = await getDoc(settingsRef);
+  
+  let nextSeq = 1;
+  if (snap.exists()) {
+    const data = snap.data();
+    nextSeq = (data.nextSequence || 1);
+  }
+  
+  // Update the sequence for next time
+  await setDoc(settingsRef, { nextSequence: nextSeq + 1 }, { merge: true });
+  
+  // Return formatted quote number: Q-0001
+  return `Q-${String(nextSeq).padStart(4, '0')}`;
+}
+
 function createEmptyItem(): LineItem {
   return {
     id: createId(),
@@ -571,6 +589,12 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
         address: addressString || undefined,
       };
 
+      // Generate quote number for new quotes if not already set
+      let finalQuoteNumber = quoteNumber;
+      if (!isEdit && !finalQuoteNumber) {
+        finalQuoteNumber = await generateQuoteNumber();
+      }
+
       const payload: Partial<Quote> = {
         // id will be set when writing
         clientId: finalClientId,
@@ -595,7 +619,7 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
         signature: null,
         appointmentDate: safeDate,
         appointmentTime: safeTime,
-        quoteNumber: quoteNumber || undefined,
+        quoteNumber: finalQuoteNumber || undefined,
         dueTerms,
         dueDate,
         attachments,
@@ -610,15 +634,19 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
 
       if (isEdit && quoteIdParam) {
         const ref = doc(quotesCol, quoteIdParam);
-        await setDoc(ref, { ...payload, id: quoteIdParam }, { merge: true });
+        // Remove undefined values before saving
+        const cleanPayload = JSON.parse(JSON.stringify({ ...payload, id: quoteIdParam }));
+        await setDoc(ref, cleanPayload, { merge: true });
         alert("Quote updated.");
       } else {
         const newRef = doc(quotesCol, effectiveQuoteId);
-        await setDoc(newRef, {
+        // Remove undefined values before saving
+        const cleanPayload = JSON.parse(JSON.stringify({
           ...payload,
           id: effectiveQuoteId,
           createdAt: now,
-        });
+        }));
+        await setDoc(newRef, cleanPayload);
         alert("Quote created.");
       }
 

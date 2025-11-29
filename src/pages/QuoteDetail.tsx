@@ -38,6 +38,7 @@ export default function QuoteDetail() {
   const [loading, setLoading] = useState(true);
   const [quote, setQuote] = useState<SafeQuote | null>(null);
   const [converting, setConverting] = useState(false);
+  const [acknowledgeSaving, setAcknowledgeSaving] = useState(false);
 
   useEffect(() => {
     initInvoices();
@@ -59,27 +60,34 @@ export default function QuoteDetail() {
 
     setConverting(true);
     try {
-      // Generate invoice ID: inv-YYYYMMDD-####
-      const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-      const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-      const invoiceId = `inv-${dateStr}-${randomNum}`;
+      // Generate invoice number based on quote number
+      // If quote is Q-0001, invoice becomes I-0001
+      let invoiceNumber: string | undefined = undefined;
+      if (quote.quoteNumber && quote.quoteNumber.startsWith('Q-')) {
+        const quoteNum = quote.quoteNumber.substring(2); // Get the numeric part
+        invoiceNumber = `I-${quoteNum}`;
+      }
 
-      const invoice: Invoice = {
+      const invoiceId = crypto.randomUUID ? crypto.randomUUID() : `inv-${Date.now()}`;
+
+      const invoiceData: any = {
         id: invoiceId,
         clientId: quote.clientId || '',
         quoteId: quote.id,
         total: quote.total || 0,
         amountPaid: 0,
         status: 'unpaid',
-        dueDate: quote.dueDate, // Inherit due date from quote
-        notes: quote.notes,
-        attachments: quote.attachments || [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
 
-      await upsertInvoice(invoice);
+      // Only add optional fields if they have values
+      if (quote.dueDate) invoiceData.dueDate = quote.dueDate;
+      if (quote.notes) invoiceData.notes = quote.notes;
+      if (quote.attachments && quote.attachments.length > 0) invoiceData.attachments = quote.attachments;
+      if (invoiceNumber) invoiceData.invoiceNumber = invoiceNumber;
+
+      await upsertInvoice(invoiceData as Invoice);
       alert('Invoice created successfully!');
       navigate(`/invoices/${invoiceId}`);
     } catch (err) {
@@ -186,6 +194,13 @@ export default function QuoteDetail() {
       alert('Unable to generate PDF. Missing quote or client data.')
       return
     }
+    
+    // Check if jobsite readiness is acknowledged
+    if (!quote.jobsiteReadyAcknowledged) {
+      alert('Please acknowledge jobsite readiness before generating the PDF.')
+      return
+    }
+    
     try {
       // Convert SafeQuote client snapshot to full Client object for PDF
       const client = {
@@ -200,6 +215,35 @@ export default function QuoteDetail() {
     } catch (error) {
       console.error('Error generating PDF:', error)
       alert('Failed to generate PDF')
+    }
+  }
+
+  const handleToggleAcknowledgment = async () => {
+    if (!quote) return
+    
+    setAcknowledgeSaving(true)
+    try {
+      const newValue = !quote.jobsiteReadyAcknowledged
+      const timestamp = newValue ? Date.now() : undefined
+      
+      const { setDoc } = await import('firebase/firestore')
+      const quoteRef = doc(db, 'quotes', quote.id)
+      await setDoc(quoteRef, {
+        jobsiteReadyAcknowledged: newValue,
+        jobsiteReadyAcknowledgedAt: timestamp,
+        updatedAt: Date.now()
+      }, { merge: true })
+      
+      setQuote({
+        ...quote,
+        jobsiteReadyAcknowledged: newValue,
+        jobsiteReadyAcknowledgedAt: timestamp
+      })
+    } catch (error) {
+      console.error('Error updating acknowledgment:', error)
+      alert('Failed to update acknowledgment')
+    } finally {
+      setAcknowledgeSaving(false)
     }
   }
 
@@ -359,6 +403,47 @@ export default function QuoteDetail() {
         <div className="mt-2 whitespace-pre-line text-sm text-gray-300">
           {quote.notes || "No notes"}
         </div>
+      </div>
+
+      {/* JOBSITE READINESS ACKNOWLEDGMENT */}
+      <div className="card p-4">
+        <h2 className="text-lg font-semibold border-l-2 border-gold pl-2 mb-3">
+          Jobsite Readiness
+        </h2>
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-gray-200 mb-2">
+            Jobsite Readiness & Plumbing Requirement
+          </h3>
+          <p className="text-sm text-gray-400 leading-relaxed">
+            All plumbing fixtures must be operational before refinishing begins.
+            Faucets must shut off completely and drains must function properly.
+            If plumbing or jobsite conditions prevent work from starting or finishing as scheduled, additional fees may apply.
+          </p>
+        </div>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={quote.jobsiteReadyAcknowledged || false}
+            onChange={handleToggleAcknowledgment}
+            disabled={acknowledgeSaving}
+            className="w-5 h-5 rounded border-gray-600 text-[#e8d487] focus:ring-[#e8d487] focus:ring-offset-gray-900"
+          />
+          <div className="flex-1">
+            <div className="text-sm font-medium text-gray-200">
+              I confirm the jobsite is fully ready and all plumbing fixtures are operational.
+            </div>
+            {quote.jobsiteReadyAcknowledged && quote.jobsiteReadyAcknowledgedAt && (
+              <div className="text-xs text-gray-400 mt-1">
+                Acknowledged on: {new Date(quote.jobsiteReadyAcknowledgedAt).toLocaleString()}
+              </div>
+            )}
+          </div>
+        </label>
+        {!quote.jobsiteReadyAcknowledged && (
+          <div className="text-xs text-yellow-500 mt-2">
+            ⚠ This must be acknowledged before generating the PDF
+          </div>
+        )}
       </div>
 
       {/* TOTALS */}

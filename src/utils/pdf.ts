@@ -71,55 +71,59 @@ function addHeader(
 ) {
   const pageWidth = pdf.internal.pageSize.getWidth()
   const margin = 40
-  let yPos = 25
+  let yPos = 20
   
   // Logo on left
   if (logoBase64 && logoBase64.data) {
     try {
-      pdf.addImage(logoBase64.data, logoBase64.format, margin, yPos, 70, 70)
+      pdf.addImage(logoBase64.data, logoBase64.format, margin, yPos, 60, 60)
     } catch (err) {
       console.error('Error adding logo:', err)
     }
   }
   
-  // Company info next to logo - aligned vertically with logo center
-  let infoY = yPos + 20
-  const infoX = margin + 85
+  // Company name next to logo - vertically centered with logo
+  const infoX = margin + 75
+  let infoY = yPos + 32
   
-  pdf.setFontSize(16)
+  pdf.setFontSize(20)
   pdf.setTextColor(...COLORS.black)
   pdf.setFont('helvetica', 'bold')
   pdf.text(businessProfile.companyName, infoX, infoY)
-  infoY += 12
   
   if (businessProfile.tagline) {
-    pdf.setFontSize(9)
+    infoY += 14
+    pdf.setFontSize(12)
     pdf.setFont('helvetica', 'italic')
-    pdf.setTextColor(...COLORS.gold)
+    pdf.setTextColor(...COLORS.darkGold)
     pdf.text(businessProfile.tagline, infoX, infoY)
-    infoY += 11
   }
   
-  pdf.setFontSize(8)
-  pdf.setFont('helvetica', 'normal')
-  pdf.setTextColor(...COLORS.darkGray)
-  pdf.text(`${businessProfile.addressLine1}, ${businessProfile.city}, ${businessProfile.state} ${businessProfile.zip}`, infoX, infoY)
-  infoY += 9
-  pdf.text(`${businessProfile.phone} | ${businessProfile.email}`, infoX, infoY)
-  
-  // Document title on right
-  pdf.setFontSize(FONTS.title)
+  // Document title on right - centered
+  const rightX = pageWidth - margin
+  pdf.setFontSize(36)
   pdf.setTextColor(...COLORS.black)
   pdf.setFont('helvetica', 'bold')
-  pdf.text(title, pageWidth - margin, yPos + 35, { align: 'right' })
+  pdf.text(title, rightX, yPos + 20, { align: 'right' })
   
-  // Gold accent line
+  // Gold accent line under title
   pdf.setDrawColor(...COLORS.gold)
   pdf.setLineWidth(3)
-  pdf.line(pageWidth - margin - 100, yPos + 42, pageWidth - margin, yPos + 42)
+  pdf.line(rightX - 120, yPos + 27, rightX, yPos + 27)
+  
+  // Company contact info under the title on the right - centered alignment
+  let contactY = yPos + 42
+  pdf.setFontSize(9)
+  pdf.setFont('helvetica', 'normal')
+  pdf.setTextColor(...COLORS.darkGray)
+  pdf.text(`${businessProfile.addressLine1}, ${businessProfile.city}, ${businessProfile.state} ${businessProfile.zip}`, rightX, contactY, { align: 'right' })
+  contactY += 10
+  pdf.text(businessProfile.phone, rightX, contactY, { align: 'right' })
+  contactY += 10
+  pdf.text(businessProfile.email, rightX, contactY, { align: 'right' })
   
   // Separator line
-  const separatorY = yPos + 85
+  const separatorY = yPos + 75
   pdf.setDrawColor(...COLORS.border)
   pdf.setLineWidth(0.5)
   pdf.line(margin, separatorY, pageWidth - margin, separatorY)
@@ -201,6 +205,15 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(8)
   pdf.setTextColor(...COLORS.darkGray)
+  if (client.address) {
+    const addressLines = pdf.splitTextToSize(client.address, boxWidth - 24)
+    addressLines.forEach((line: string, i: number) => {
+      if (i < 2) {
+        pdf.text(line, margin + 12, contentY)
+        contentY += 10
+      }
+    })
+  }
   if (client.phone) {
     pdf.text(client.phone, margin + 12, contentY)
     contentY += 10
@@ -208,15 +221,6 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
   if (client.email) {
     pdf.text(client.email, margin + 12, contentY)
     contentY += 10
-  }
-  if (client.address) {
-    const addressLines = pdf.splitTextToSize(client.address, boxWidth - 24)
-    addressLines.forEach((line: string, i: number) => {
-      if (i < 3) {
-        pdf.text(line, margin + 12, contentY)
-        contentY += 10
-      }
-    })
   }
   
   // Quote Details box
@@ -248,9 +252,9 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
   contentY += 11
   
   pdf.setFont('helvetica', 'bold')
-  pdf.text('Valid Until:', labelX, contentY)
+  pdf.text('Payment:', labelX, contentY)
   pdf.setFont('helvetica', 'normal')
-  pdf.text(validUntil.toLocaleDateString(), valueX, contentY, { align: 'right' })
+  pdf.text('Due on completion', valueX, contentY, { align: 'right' })
   
   yPos += boxHeight + 20
   
@@ -273,8 +277,8 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
   pdf.rect(tableStartX, yPos, tableWidth, 20, 'F')
   
   const descColX = tableStartX + 12
-  const qtyColX = pageWidth - 240
-  const priceColX = pageWidth - 150
+  const qtyColX = pageWidth - 280
+  const priceColX = pageWidth - 180
   const totalColX = pageWidth - margin - 12
   
   pdf.setFontSize(9)
@@ -299,11 +303,11 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
       
       let tempY = yPos + 14
       if (item.serviceDescription?.trim()) {
-        const maxWidth = 250
+        const maxWidth = 200
         tempY += Math.ceil(pdf.splitTextToSize(item.serviceDescription, maxWidth).length) * 9
       }
       if (item.warning?.trim()) {
-        const maxWidth = 250
+        const maxWidth = 200
         tempY += Math.ceil(pdf.splitTextToSize(item.warning, maxWidth).length) * 9
       }
       const rowHeight = Math.max(tempY - yPos + 10, 35)
@@ -333,25 +337,25 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
       
       if (item.serviceDescription?.trim()) {
         pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(FONTS.small)
+        pdf.setFontSize(9)
         pdf.setTextColor(...COLORS.mediumGray)
-        const maxWidth = 250
+        const maxWidth = 200
         const descLines = pdf.splitTextToSize(item.serviceDescription, maxWidth)
         descLines.forEach((line: string) => {
           pdf.text(line, descColX + 5, contentY)
-          contentY += 9
+          contentY += 10
         })
       }
       
       if (item.warning?.trim()) {
         pdf.setFont('helvetica', 'italic')
-        pdf.setFontSize(FONTS.small)
+        pdf.setFontSize(9)
         pdf.setTextColor(200, 100, 0)
-        const maxWidth = 250
+        const maxWidth = 200
         const warnLines = pdf.splitTextToSize(`⚠ ${item.warning}`, maxWidth)
         warnLines.forEach((line: string) => {
           pdf.text(line, descColX + 5, contentY)
-          contentY += 9
+          contentY += 10
         })
       }
       
@@ -403,6 +407,7 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
   
   yPos += 48
   
+  
   if (quote.notes) {
     pdf.setFillColor(...COLORS.gold)
     pdf.rect(margin, yPos, pageWidth - (2 * margin), 18, 'F')
@@ -410,16 +415,47 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
     pdf.setTextColor(...COLORS.black)
     pdf.setFont('helvetica', 'bold')
     pdf.text('TERMS & CONDITIONS', margin + 10, yPos + 12)
-    yPos += 25
+    yPos += 30
     
     pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(FONTS.small)
+    pdf.setFontSize(10)
     pdf.setTextColor(...COLORS.mediumGray)
     const splitNotes = pdf.splitTextToSize(quote.notes, pageWidth - (2 * margin) - 20)
     splitNotes.forEach((line: string) => {
       pdf.text(line, margin + 10, yPos)
-      yPos += 10
+      yPos += 12
     })
+    yPos += 10
+  }
+  
+  // Jobsite Readiness Acknowledgment
+  if ((quote as any).jobsiteReadyAcknowledged && (quote as any).jobsiteReadyAcknowledgedAt) {
+    pdf.setFillColor(...COLORS.gold)
+    pdf.rect(margin, yPos, pageWidth - (2 * margin), 18, 'F')
+    pdf.setFontSize(9)
+    pdf.setTextColor(...COLORS.black)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('JOBSITE READINESS', margin + 10, yPos + 12)
+    yPos += 30
+    
+    // Plumbing requirement explanatory text
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(10)
+    pdf.setTextColor(...COLORS.mediumGray)
+    pdf.text('All plumbing fixtures must be operational before refinishing begins.', margin + 10, yPos)
+    yPos += 12
+    pdf.text('Faucets must shut off completely and drains must function properly.', margin + 10, yPos)
+    yPos += 12
+    pdf.text('If plumbing or jobsite conditions prevent work from starting or finishing as scheduled, additional fees may apply.', margin + 10, yPos)
+    yPos += 16
+
+    // Acknowledgment lines
+    pdf.text('Jobsite Readiness & Plumbing Condition Acknowledged', margin + 10, yPos)
+    yPos += 14
+    
+    const acknowledgedDate = new Date((quote as any).jobsiteReadyAcknowledgedAt).toLocaleString()
+    pdf.setFontSize(9)
+    pdf.text(`Acknowledged on: ${acknowledgedDate}`, margin + 10, yPos)
   }
   
   addFooter(pdf, businessProfile)
@@ -464,10 +500,12 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
   const labelX = margin + 12
   const valueX = margin + boxWidth - 12
   
+  const displayInvoiceNumber = invoice.invoiceNumber || invoice.id || 'N/A'
+  
   pdf.setFont('helvetica', 'bold')
   pdf.text('Invoice #:', labelX, contentY)
   pdf.setFont('helvetica', 'normal')
-  pdf.text(invoice.id || 'N/A', valueX, contentY, { align: 'right' })
+  pdf.text(displayInvoiceNumber, valueX, contentY, { align: 'right' })
   contentY += 11
   
   pdf.setFont('helvetica', 'bold')
@@ -500,12 +538,22 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(8)
   pdf.setTextColor(...COLORS.darkGray)
+  if (client.address) {
+    const addressLines = pdf.splitTextToSize(client.address, boxWidth - 24)
+    addressLines.forEach((line: string, i: number) => {
+      if (i < 2) {
+        pdf.text(line, rightBoxX + 12, contentY)
+        contentY += 10
+      }
+    })
+  }
   if (client.phone) {
     pdf.text(client.phone, rightBoxX + 12, contentY)
     contentY += 10
   }
   if (client.email) {
     pdf.text(client.email, rightBoxX + 12, contentY)
+    contentY += 10
   }
   
   yPos += boxHeight + 20
@@ -529,8 +577,8 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
   pdf.rect(tableStartX, yPos, tableWidth, 20, 'F')
   
   const descColX = tableStartX + 12
-  const qtyColX = pageWidth - 240
-  const priceColX = pageWidth - 150
+  const qtyColX = pageWidth - 280
+  const priceColX = pageWidth - 180
   const totalColX = pageWidth - margin - 12
   
   pdf.setFontSize(9)
@@ -554,8 +602,12 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
       
       let tempY = yPos + 14
       if (item.serviceDescription?.trim()) {
-        const maxWidth = 250
+        const maxWidth = 200
         tempY += Math.ceil(pdf.splitTextToSize(item.serviceDescription, maxWidth).length) * 9
+      }
+      if (item.warning?.trim()) {
+        const maxWidth = 200
+        tempY += Math.ceil(pdf.splitTextToSize(item.warning, maxWidth).length) * 9
       }
       const rowHeight = Math.max(tempY - yPos + 10, 35)
       
@@ -586,9 +638,21 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(FONTS.small)
         pdf.setTextColor(...COLORS.mediumGray)
-        const maxWidth = 250
+        const maxWidth = 200
         const lines = pdf.splitTextToSize(item.serviceDescription, maxWidth)
         lines.forEach((line: string) => {
+          pdf.text(line, descColX + 5, contentY)
+          contentY += 9
+        })
+      }
+      
+      if (item.warning?.trim()) {
+        pdf.setFont('helvetica', 'italic')
+        pdf.setFontSize(FONTS.small)
+        pdf.setTextColor(200, 100, 0)
+        const maxWidth = 200
+        const warnLines = pdf.splitTextToSize(`⚠ ${item.warning}`, maxWidth)
+        warnLines.forEach((line: string) => {
           pdf.text(line, descColX + 5, contentY)
           contentY += 9
         })
@@ -619,6 +683,14 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
     yPos += 12
   }
   
+  if ((invoice.discount || 0) > 0) {
+    pdf.setTextColor(200, 0, 0)
+    pdf.text('Discount:', totalsX, yPos)
+    pdf.text(`-${businessProfile.currencySymbol}${(invoice.discount || 0).toFixed(2)}`, pageWidth - margin - 12, yPos, { align: 'right' })
+    pdf.setTextColor(...COLORS.darkGray)
+    yPos += 12
+  }
+  
   yPos += 5
   pdf.setFillColor(...COLORS.gold)
   pdf.rect(totalsX - 10, yPos - 10, 210, 28, 'F')
@@ -633,8 +705,58 @@ export async function generateInvoicePDF(invoice: Invoice & { items?: any[]; sub
   pdf.setFontSize(16)
   pdf.text(`${businessProfile.currencySymbol}${invoice.total.toFixed(2)}`, pageWidth - margin - 12, yPos + 8, { align: 'right' })
   
+  yPos += 48
+  
+  // Notes/Terms section
+  if (invoice.notes) {
+    pdf.setFillColor(...COLORS.gold)
+    pdf.rect(margin, yPos, pageWidth - (2 * margin), 18, 'F')
+    pdf.setFontSize(9)
+    pdf.setTextColor(...COLORS.black)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('NOTES', margin + 10, yPos + 12)
+    yPos += 25
+    
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(FONTS.small)
+    pdf.setTextColor(...COLORS.mediumGray)
+    const splitNotes = pdf.splitTextToSize(invoice.notes, pageWidth - (2 * margin) - 20)
+    splitNotes.forEach((line: string) => {
+      pdf.text(line, margin + 10, yPos)
+      yPos += 10
+    })
+  }
+  
+  // Jobsite Readiness Acknowledgment (match quote ordering: after notes)
+  if ((invoice as any).jobsiteReadyAcknowledged && (invoice as any).jobsiteReadyAcknowledgedAt) {
+    pdf.setFillColor(...COLORS.gold)
+    pdf.rect(margin, yPos, pageWidth - (2 * margin), 18, 'F')
+    pdf.setFontSize(9)
+    pdf.setTextColor(...COLORS.black)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('JOBSITE READINESS', margin + 10, yPos + 12)
+    yPos += 30
+    
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(10)
+    pdf.setTextColor(...COLORS.mediumGray)
+    pdf.text('All plumbing fixtures must be operational before refinishing begins.', margin + 10, yPos)
+    yPos += 12
+    pdf.text('Faucets must shut off completely and drains must function properly.', margin + 10, yPos)
+    yPos += 12
+    pdf.text('If plumbing or jobsite conditions prevent work from starting or finishing as scheduled, additional fees may apply.', margin + 10, yPos)
+    yPos += 16
+    pdf.text('Jobsite Readiness & Plumbing Condition Acknowledged', margin + 10, yPos)
+    yPos += 14
+    const acknowledgedDate = new Date((invoice as any).jobsiteReadyAcknowledgedAt).toLocaleString()
+    pdf.setFontSize(9)
+    pdf.text(`Acknowledged on: ${acknowledgedDate}`, margin + 10, yPos)
+  }
+  
+  // (Moved) Jobsite Readiness acknowledgment now rendered above Notes section
+  
   addFooter(pdf, businessProfile)
-  pdf.save(`Invoice_${invoice.id || 'Unknown'}_${(client.name || 'Client').replace(/\s+/g, '_')}.pdf`)
+  pdf.save(`Invoice_${displayInvoiceNumber}_${(client.name || 'Client').replace(/\s+/g, '_')}.pdf`)
 }
 
 export async function generateContractPDF(contract: Contract, client: Client, businessProfile: BusinessProfile) {
@@ -730,6 +852,29 @@ export async function generateContractPDF(contract: Contract, client: Client, bu
       pdf.text(line, margin + 10, yPos)
       yPos += 10
     })
+  }
+  
+  // Jobsite Readiness acknowledgment (text-only)
+  if ((contract as any).jobsiteReadyAcknowledged && (contract as any).jobsiteReadyAcknowledgedAt) {
+    yPos += 14
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(FONTS.body)
+    pdf.setTextColor(...COLORS.mediumGray)
+    // Plumbing requirement explanatory text
+    pdf.text('All plumbing fixtures must be operational before refinishing begins.', margin + 10, yPos)
+    yPos += 12
+    pdf.text('Faucets must shut off completely and drains must function properly.', margin + 10, yPos)
+    yPos += 12
+    pdf.text('If plumbing or jobsite conditions prevent work from starting or finishing as scheduled, additional fees may apply.', margin + 10, yPos)
+    yPos += 16
+    
+    // Acknowledgment lines
+    pdf.text('Jobsite Readiness & Plumbing Condition Acknowledged', margin + 10, yPos)
+    yPos += 12
+    const acknowledgedDate = new Date((contract as any).jobsiteReadyAcknowledgedAt).toLocaleString()
+    pdf.setFontSize(9)
+    pdf.text(`Acknowledged on: ${acknowledgedDate}`, margin + 10, yPos)
+    yPos += 10
   }
   
   addFooter(pdf, businessProfile)

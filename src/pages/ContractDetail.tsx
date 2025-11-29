@@ -228,7 +228,14 @@ export default function ContractDetail() {
       return
     }
     try {
-      await generateContractPDF(contract, selectedClient, config.businessProfile)
+      // Include jobsite readiness acknowledgment from linked quote for PDF display
+      const relatedQuote = contract.quoteId ? quotes.find((q) => q.id === contract.quoteId) : undefined
+      const contractWithAck: any = {
+        ...contract,
+        jobsiteReadyAcknowledged: relatedQuote?.jobsiteReadyAcknowledged,
+        jobsiteReadyAcknowledgedAt: relatedQuote?.jobsiteReadyAcknowledgedAt,
+      }
+      await generateContractPDF(contractWithAck, selectedClient, config.businessProfile)
     } catch (error) {
       console.error('Error generating PDF:', error)
       alert('Failed to generate PDF')

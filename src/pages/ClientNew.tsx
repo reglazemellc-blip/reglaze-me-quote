@@ -17,6 +17,25 @@ export default function ClientNew() {
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
 
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const cleaned = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    if (cleaned.length <= 3) {
+      return cleaned;
+    } else if (cleaned.length <= 6) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    } else {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhone(formatted);
+  };
+
   async function handleSave() {
     if (!name.trim()) {
       alert("Name is required");
@@ -66,7 +85,9 @@ export default function ClientNew() {
           <input
             className="input mt-1"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={handlePhoneChange}
+            placeholder="(315) 555-5555"
+            maxLength={14}
           />
         </label>
 

@@ -230,7 +230,7 @@ export default function QuotesBoard() {
                     {q.clientName || 'Unnamed Client'}
                   </span>
                   <div className="text-[10px] text-gray-500">
-                    ID: {q.id}
+                    {q.quoteNumber || `ID: ${q.id.slice(0, 8)}`}
                   </div>
                 </div>
 
