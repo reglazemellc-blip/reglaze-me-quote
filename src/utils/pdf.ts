@@ -265,40 +265,44 @@ function wrapText(pdf: jsPDF, text: string, maxWidth: number): WrappedTextResult
 // ============================================================================
 
 async function loadLogoAsBase64(logoUrl: string): Promise<{ data: string; format: string } | null> {
-  if (logoUrl.startsWith('data:image/')) {
-    let format = 'PNG'
-    if (logoUrl.includes('image/jpeg') || logoUrl.includes('image/jpg')) {
-      format = 'JPEG'
-    }
-    return { data: logoUrl, format }
+  if (!logoUrl) return null;
+
+  // If URL is already a Firebase https download URL → use it directly
+  if (logoUrl.startsWith('https://firebasestorage.googleapis.com')) {
+    return { data: logoUrl, format: 'PNG' };
   }
 
+  // If it's already a base64 string
+  if (logoUrl.startsWith('data:image/')) {
+    let format = 'PNG';
+    if (logoUrl.includes('image/jpeg') || logoUrl.includes('image/jpg')) {
+      format = 'JPEG';
+    }
+    return { data: logoUrl, format };
+  }
+
+  // Otherwise, try to convert it
   return new Promise((resolve) => {
-    const img = new Image()
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = function () {
       try {
-        const canvas = document.createElement('canvas')
-        canvas.width = img.naturalWidth || img.width
-        canvas.height = img.naturalHeight || img.height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          resolve(null)
-          return
-        }
-        ctx.drawImage(img, 0, 0)
-        const dataUrl = canvas.toDataURL('image/png')
-        resolve({ data: dataUrl, format: 'PNG' })
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0);
+        resolve({ data: canvas.toDataURL('image/png'), format: 'PNG' });
       } catch (err) {
-        resolve(null)
+        resolve(null);
       }
-    }
-    img.onerror = () => resolve(null)
-    img.src = logoUrl
-    setTimeout(() => {
-      if (!img.complete) resolve(null)
-    }, 10000)
-  })
+    };
+    img.onerror = () => resolve(null);
+    img.src = logoUrl;
+  });
 }
+
 
 // ============================================================================
 // HELPER FUNCTIONS: PAGINATION
