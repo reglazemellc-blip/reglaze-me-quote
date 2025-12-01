@@ -39,6 +39,9 @@ export default function Header(): JSX.Element {
   const navCatalog = config?.labels?.navCatalog || 'Services'
   const navSettings = config?.labels?.navSettings || 'Settings'
 
+  // Load logo from businessProfile store with fallback
+  const logoSrc = config?.businessProfile?.logo || '/logo.png'
+
   return (
     <header
       className="
@@ -55,9 +58,10 @@ export default function Header(): JSX.Element {
         {/* LEFT — LOGO + TITLE */}
         <div className="flex items-center gap-4">
           <img
-            src="/logo.png"
+            src={logoSrc}
             alt="Logo"
-            className="w-12 h-12 rounded-xl object-cover shadow-[0_0_20px_rgba(255,215,0,0.25)]"
+            className="w-12 rounded-xl shadow-[0_0_20px_rgba(255,215,0,0.25)]"
+            style={{ maxHeight: '48px', objectFit: 'contain' }}
           />
           <Link
             to="/"

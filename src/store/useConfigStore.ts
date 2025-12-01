@@ -1,6 +1,6 @@
 /**
  * Config Store
- * 
+ *
  * Manages app configuration (labels, theme, business profile, services, contracts).
  * Syncs with Firestore for multi-device consistency.
  * Can be edited in Settings page for full app customization.
@@ -35,9 +35,15 @@ export type AppConfig = {
 type ConfigState = {
   config: AppConfig | null
   loading: boolean
+  // keep a top-level logo for any components that were already using it
+  logo: string | null
 
-  // Initialize config from Firestore
+  // Initialize config from Firestore/localStorage
   init: () => Promise<void>
+
+  // Business Profile specific methods
+  loadBusinessProfile: () => Promise<void>
+  setLogo: (base64String: string) => Promise<void>
 
   // Update entire config or partial sections
   update: (patch: Partial<AppConfig>) => Promise<void>
@@ -54,10 +60,12 @@ type ConfigState = {
 }
 
 const CONFIG_DOC_ID = 'app-config'
+const LOCAL_LOGO_KEY = 'businessProfile.logo'
 
 export const useConfigStore = create<ConfigState>((set, get) => ({
   config: null,
   loading: true,
+  logo: null,
 
   // ==================== INIT ====================
   init: async () => {
@@ -68,24 +76,8 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
     if (snap.exists()) {
       config = snap.data() as AppConfig
-      
-      // MIGRATION: Fix app name if it's missing LLC
-      let needsUpdate = false
-      if (config.labels?.appName === 'ReGlaze Me') {
-        config.labels.appName = 'ReGlaze Me LLC'
-        needsUpdate = true
-      }
-      if (config.businessProfile?.companyName === 'ReGlaze Me') {
-        config.businessProfile.companyName = 'ReGlaze Me LLC'
-        needsUpdate = true
-      }
-      
-      if (needsUpdate) {
-        config.updatedAt = Date.now()
-        await setDoc(ref, config)
-      }
     } else {
-      // Create default config
+      // Create default config on first run
       config = {
         id: CONFIG_DOC_ID,
         labels: defaultLabels,
@@ -98,19 +90,99 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       await setDoc(ref, config)
     }
 
+    // ── LOGO HYDRATION ─────────────────────────────
+    // 1) Prefer localStorage (most reliable across our tests)
+    const localLogo = localStorage.getItem(LOCAL_LOGO_KEY)
+
+    if (localLogo) {
+      config.businessProfile = {
+        ...config.businessProfile,
+        logo: localLogo,
+      }
+    } else if (config.businessProfile.logo) {
+      // 2) If Firestore has a logo, mirror it into localStorage
+      localStorage.setItem(LOCAL_LOGO_KEY, config.businessProfile.logo)
+    }
+
     // Apply theme to CSS variables
     applyTheme(config.theme)
 
-    // Load logo from localStorage if it exists (too large for Firestore)
-    const savedLogo = localStorage.getItem('businessProfile.logo')
-    if (savedLogo) {
-      config.businessProfile.logo = savedLogo
-    }
-
-    set({ config, loading: false })
+    set({
+      config,
+      loading: false,
+      logo: config.businessProfile.logo || null,
+    })
   },
 
-  // ==================== UPDATE ====================
+  // ==================== BUSINESS PROFILE ====================
+  loadBusinessProfile: async () => {
+    const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
+    const snap = await getDoc(ref)
+
+    if (!snap.exists()) return
+
+    let config = snap.data() as AppConfig
+
+    const localLogo = localStorage.getItem(LOCAL_LOGO_KEY)
+    if (localLogo) {
+      config = {
+        ...config,
+        businessProfile: {
+          ...config.businessProfile,
+          logo: localLogo,
+        },
+      }
+    }
+
+    set({
+      config,
+      logo: config.businessProfile.logo || null,
+    })
+  },
+
+  setLogo: async (base64String: string) => {
+    const current = get().config
+    if (!current) return
+
+    const updated: AppConfig = {
+      ...current,
+      businessProfile: {
+        ...current.businessProfile,
+        logo: base64String,
+      },
+      updatedAt: Date.now(),
+    }
+
+    const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
+
+    // Try to persist to Firestore, but even if it fails we still keep localStorage
+    try {
+      await setDoc(
+        ref,
+        {
+          updatedAt: updated.updatedAt,
+          'businessProfile.logo': base64String,
+        },
+        { merge: true },
+      )
+    } catch (error) {
+      console.error('Failed to save logo to Firestore, keeping local only:', error)
+    }
+
+    // Always keep a durable copy in localStorage
+    if (base64String) {
+      localStorage.setItem(LOCAL_LOGO_KEY, base64String)
+    } else {
+      localStorage.removeItem(LOCAL_LOGO_KEY)
+    }
+
+    set({
+      config: updated,
+      logo: base64String || null,
+    })
+  },
+
+  // ==================== UPDATE (WHOLE CONFIG) ====================
   update: async (patch) => {
     const current = get().config
     if (!current) return
@@ -124,12 +196,23 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
     await setDoc(ref, updated)
 
-    // Apply theme if it was updated
+    // If theme changed, re-apply it
     if (patch.theme) {
       applyTheme(updated.theme)
     }
 
-    set({ config: updated })
+    // If businessProfile.logo changed in this patch, keep logo/localStorage in sync
+    if (patch.businessProfile && 'logo' in patch.businessProfile) {
+      const newLogo = patch.businessProfile.logo || null
+      if (newLogo) {
+        localStorage.setItem(LOCAL_LOGO_KEY, newLogo)
+      } else {
+        localStorage.removeItem(LOCAL_LOGO_KEY)
+      }
+      set({ config: updated, logo: newLogo })
+    } else {
+      set({ config: updated })
+    }
   },
 
   // ==================== UPDATE SECTIONS ====================
@@ -163,7 +246,6 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     await setDoc(ref, updated)
 
     applyTheme(updated.theme)
-
     set({ config: updated })
   },
 
@@ -177,7 +259,7 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       updatedAt: Date.now(),
     }
 
-    // Sync company name to app name in labels
+    // Keep appName synced with companyName when it changes
     if (profile.companyName) {
       updated.labels = {
         ...updated.labels,
@@ -186,35 +268,37 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
     }
 
     const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
-    
+
     try {
-      // Update each field individually to avoid nested entity errors
       const updateData: any = {
         updatedAt: updated.updatedAt,
       }
-      
-      // Flatten businessProfile fields, but handle logo separately
+
+      // Flatten all businessProfile fields, including logo
       Object.keys(profile).forEach((key) => {
+        const value = profile[key as keyof BusinessProfile]
+        updateData[`businessProfile.${key}`] = value
+
+        // if we happen to be passed a new logo here, keep localStorage in sync
         if (key === 'logo') {
-          // Store logo in localStorage instead of Firestore (too large)
-          if (profile.logo) {
-            localStorage.setItem('businessProfile.logo', profile.logo)
+          if (typeof value === 'string' && value) {
+            localStorage.setItem(LOCAL_LOGO_KEY, value)
           } else {
-            // Clear logo from localStorage if it's empty
-            localStorage.removeItem('businessProfile.logo')
+            localStorage.removeItem(LOCAL_LOGO_KEY)
           }
-        } else {
-          updateData[`businessProfile.${key}`] = profile[key as keyof BusinessProfile]
         }
       })
-      
-      // Update labels if company name changed
+
       if (profile.companyName) {
         updateData['labels.appName'] = profile.companyName
       }
-      
+
       await setDoc(ref, updateData, { merge: true })
-      set({ config: updated })
+
+      set({
+        config: updated,
+        logo: updated.businessProfile.logo || null,
+      })
     } catch (error) {
       console.error('Failed to update business profile:', error)
       throw error
@@ -270,7 +354,13 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
     applyTheme(config.theme)
 
-    set({ config })
+    // Clear logo cache when resetting
+    localStorage.removeItem(LOCAL_LOGO_KEY)
+
+    set({
+      config,
+      logo: config.businessProfile.logo || null,
+    })
   },
 }))
 

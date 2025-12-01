@@ -77,14 +77,20 @@ export default function SettingsPage() {
 function BusinessTab({ config, updateBusinessProfile }: any) {
   const [profile, setProfile] = useState({ ...config.businessProfile })
   const [uploading, setUploading] = useState(false)
+  const { setLogo } = useConfigStore()
+
+  // Sync profile state with config when config.businessProfile changes
+  useEffect(() => {
+    setProfile({ ...config.businessProfile })
+  }, [config.businessProfile])
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+    // Validate file type - PNG/JPG only
+    if (!file.type.match(/^image\/(png|jpeg|jpg)$/i)) {
+      alert('Please select a PNG or JPG file only')
       return
     }
 
@@ -96,7 +102,7 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
 
     setUploading(true)
     try {
-      // Convert image to base64 for PDF compatibility
+      // Convert image to base64
       const base64Promise = new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onloadend = () => {
@@ -116,9 +122,13 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
       
       console.log('Logo converted to base64, size:', base64Data.length, 'characters')
       
-      // Store base64 for PDF compatibility
+      // Update store immediately with setLogo
+      await setLogo(base64Data)
+      
+      // Update preview instantly
       setProfile({ ...profile, logo: base64Data })
-      alert('Logo uploaded successfully! Click "Save Business Profile" to save changes.')
+      
+      alert('Logo uploaded and saved successfully!')
     } catch (error) {
       console.error('Upload error:', error)
       alert('Failed to upload logo: ' + (error instanceof Error ? error.message : String(error)))
@@ -197,7 +207,7 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
             <div className="mt-1">
               <input
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/jpg"
                 onChange={handleLogoUpload}
                 disabled={uploading}
                 className="block w-full text-sm text-gray-400

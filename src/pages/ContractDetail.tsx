@@ -22,17 +22,20 @@ export default function ContractDetail() {
   const { contracts, upsert, remove, addSignature, removeSignature, init: initContracts } = useContractsStore()
   const { clients, init: initClients } = useClientsStore()
   const { quotes, init: initQuotes } = useQuotesStore()
-  const { config } = useConfigStore()
+  const { config, init: initConfig } = useConfigStore()
+
 
   const [loading, setLoading] = useState(false)
   const [contract, setContract] = useState<Contract | null>(null)
 
   // Initialize stores
   useEffect(() => {
-    initContracts()
-    initClients()
-    initQuotes()
-  }, [initContracts, initClients, initQuotes])
+  initContracts()
+  initClients()
+  initQuotes()
+  initConfig()
+}, [initContracts, initClients, initQuotes, initConfig])
+
 
   // Form state
   const [clientId, setClientId] = useState('')

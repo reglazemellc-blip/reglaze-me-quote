@@ -33,7 +33,8 @@ export default function QuoteDetail() {
   const navigate = useNavigate();
 
   const { upsert: upsertInvoice, getByQuote, init: initInvoices } = useInvoicesStore();
-  const { config } = useConfigStore();
+  const { config, init: initConfig } = useConfigStore();
+
 
   const [loading, setLoading] = useState(true);
   const [quote, setQuote] = useState<SafeQuote | null>(null);
@@ -41,8 +42,10 @@ export default function QuoteDetail() {
   const [acknowledgeSaving, setAcknowledgeSaving] = useState(false);
 
   useEffect(() => {
-    initInvoices();
-  }, [initInvoices]);
+  initInvoices();
+  initConfig();
+}, [initInvoices, initConfig]);
+
 
   const handleConvertToInvoice = async () => {
     if (!quote) return;
@@ -219,6 +222,7 @@ export default function QuoteDetail() {
         email: quote.client.email || quote.clientEmail || '',
         address: quote.client.address || quote.clientAddress || '',
         createdAt: Date.now(),
+        updatedAt: Date.now(),
       }
       await generateQuotePDF(quote as any, client, config.businessProfile)
     } catch (error) {

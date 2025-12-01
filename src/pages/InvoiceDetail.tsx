@@ -19,17 +19,20 @@ export default function InvoiceDetail() {
   const { invoices, recordPayment, init: initInvoices } = useInvoicesStore()
   const { clients, init: initClients } = useClientsStore()
   const { quotes, init: initQuotes } = useQuotesStore()
-  const { config } = useConfigStore()
+  const { config, init: initConfig } = useConfigStore()
+
 
   const [paymentAmount, setPaymentAmount] = useState('')
   const [saving, setSaving] = useState(false)
 
   // Initialize stores
   useEffect(() => {
-    initInvoices()
-    initClients()
-    initQuotes()
-  }, [initInvoices, initClients, initQuotes])
+  initInvoices()
+  initClients()
+  initQuotes()
+  initConfig()
+}, [initInvoices, initClients, initQuotes, initConfig])
+
 
   const invoice = invoices.find((i) => i.id === id)
   const client = invoice ? clients.find((c) => c.id === invoice.clientId) : null
