@@ -269,8 +269,26 @@ async function loadLogoAsBase64(logoUrl: string): Promise<{ data: string; format
 
   // If URL is already a Firebase https download URL → use it directly
   if (logoUrl.startsWith('https://firebasestorage.googleapis.com')) {
-    return { data: logoUrl, format: 'PNG' };
+  try {
+  const response = await fetch(logoUrl)
+const blob = await response.blob()
+
+const reader = new FileReader()
+
+return await new Promise((resolve) => {
+  reader.onloadend = () => {
+    const base64 = reader.result as string
+    resolve({ data: base64, format: 'PNG' })
   }
+  reader.readAsDataURL(blob)
+})
+
+  } catch (err) {
+    console.error('Firebase logo fetch failed:', err)
+    return null
+  }
+}
+
 
   // If it's already a base64 string
   if (logoUrl.startsWith('data:image/')) {
@@ -334,22 +352,35 @@ function drawHeader(
   docType: string,
   logoData?: { data: string; format: string } | null
 ): number {
+
+  console.log("🔥 drawHeader received logoData:", logoData);
+
   const pageWidth = pdf.internal.pageSize.getWidth()
   const margin = LAYOUT.pageMargin
   let yPos = 20
 
-  // Logo on left
+
+  
+   // Logo on left
   if (logoData && logoData.data) {
     try {
-      pdf.addImage(logoData.data, logoData.format, margin, yPos, LAYOUT.logoSize, LAYOUT.logoSize)
+      pdf.addImage(
+        logoData.data,
+        logoData.format,
+        margin,         // x
+        yPos - 5,       // y FIXED (your header pushed down, hiding logo)
+        LAYOUT.logoSize,
+        LAYOUT.logoSize
+      )
     } catch (err) {
       console.error('Error adding logo:', err)
     }
   }
 
+
   // Company info next to logo
   const infoX = margin + LAYOUT.logoMarginRight
-  let infoY = yPos + 32
+  let infoY = yPos + 27
 
   pdf.setFontSize(FONTS.heading)
   pdf.setTextColor(...COLORS.black)
@@ -747,10 +778,15 @@ export async function exportElementToPDF(el: HTMLElement, fileName: string) {
 // ============================================================================
 
 export async function generateQuotePDF(quote: Quote, client: Client, businessProfile: BusinessProfile) {
+  console.log("🚨 PDF RECEIVED LOGO:", businessProfile.logo);
+
   let logoData: { data: string; format: string } | null = null
+  console.log("PDF LOGO URL:", businessProfile.logo)
+
   if (businessProfile.logo && businessProfile.logo.trim()) {
     logoData = await loadLogoAsBase64(businessProfile.logo)
   }
+
 
   const pdf = new jsPDF('p', 'pt', 'a4')
   const pageWidth = pdf.internal.pageSize.getWidth()
@@ -904,6 +940,8 @@ export async function generateInvoicePDF(
   businessProfile: BusinessProfile
 ) {
   let logoData: { data: string; format: string } | null = null
+  console.log("PDF LOGO URL:", businessProfile.logo)
+
   if (businessProfile.logo && businessProfile.logo.trim()) {
     logoData = await loadLogoAsBase64(businessProfile.logo)
   }
@@ -1007,8 +1045,9 @@ export async function generateInvoicePDF(
   yPos += LAYOUT.infoBoxHeight + LAYOUT.sectionGap
 
   // Services table
-  drawSectionTitle(pdf, 'SERVICES PROVIDED', margin, yPos, pageWidth - 2 * margin)
-  yPos += 2
+ drawSectionTitle(pdf, 'SERVICES PROVIDED:', margin, yPos, pageWidth - 2 * margin)
+yPos += 30
+
 
   const columns: TableColumnConfig = {
     descColX: margin + 12,
@@ -1074,6 +1113,8 @@ export async function generateContractPDF(contract: Contract, client: Client, bu
   }
 
   let logoData: { data: string; format: string } | null = null
+  console.log("PDF LOGO URL:", businessProfile.logo)
+
   if (businessProfile.logo && businessProfile.logo.trim()) {
     logoData = await loadLogoAsBase64(businessProfile.logo)
   }

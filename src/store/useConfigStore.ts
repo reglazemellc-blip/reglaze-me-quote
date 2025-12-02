@@ -90,19 +90,23 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       await setDoc(ref, config)
     }
 
-    // ── LOGO HYDRATION ─────────────────────────────
-    // 1) Prefer localStorage (most reliable across our tests)
-    const localLogo = localStorage.getItem(LOCAL_LOGO_KEY)
+  // ── LOGO HYDRATION ─────────────────────────────
+// 1) Prefer localStorage (most reliable across our tests)
+const localLogo = localStorage.getItem(LOCAL_LOGO_KEY)
 
-    if (localLogo) {
-      config.businessProfile = {
-        ...config.businessProfile,
-        logo: localLogo,
-      }
-    } else if (config.businessProfile.logo) {
-      // 2) If Firestore has a logo, mirror it into localStorage
-      localStorage.setItem(LOCAL_LOGO_KEY, config.businessProfile.logo)
-    }
+// If localStorage exists (even empty string), use it
+if (localLogo !== null) {
+  config.businessProfile = {
+    ...config.businessProfile,
+    logo: localLogo,
+  }
+}
+// Otherwise, fall back to Firestore (if it has a logo)
+else if (config.businessProfile.logo) {
+  localStorage.setItem(LOCAL_LOGO_KEY, config.businessProfile.logo)
+}
+
+
 
     // Apply theme to CSS variables
     applyTheme(config.theme)
