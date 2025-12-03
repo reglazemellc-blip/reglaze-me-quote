@@ -54,7 +54,8 @@ export default function Header(): JSX.Element {
         borderColor: 'var(--color-border)'
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap">
+
         {/* LEFT — LOGO + TITLE */}
         <div className="flex items-center gap-4">
           <img
@@ -76,7 +77,7 @@ export default function Header(): JSX.Element {
         <nav className="flex items-center gap-6 text-sm">
   <IconLink to="/" label={navDashboard} svg={HomeIcon} />
   <IconLink to="/clients" label={navClients} svg={UsersIcon} />
-  <IconLink to="/quotes/new" label={navQuotes} svg={DocumentIcon} />
+  <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
   <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
   <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
   <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />

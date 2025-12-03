@@ -688,7 +688,8 @@ export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
         {/* CLIENT SECTION */}
         <div className="card p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold border-l-2 border-[#e8d487] pl-2">
+            <h2 className="text-lg font-semibold pl-2">
+
               {labels?.quoteClientLabel || 'Client'}
             </h2>
 

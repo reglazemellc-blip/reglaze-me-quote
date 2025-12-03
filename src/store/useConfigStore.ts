@@ -7,7 +7,8 @@
  */
 
 import { create } from 'zustand'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc, collection } from 'firebase/firestore'
+
 import { db as firestoreDb } from '../firebase'
 import {
   defaultLabels,
@@ -30,6 +31,7 @@ export type AppConfig = {
   services: Service[]
   contractTemplates: ContractTemplate[]
   updatedAt: number
+  nextSequence: number
 }
 
 type ConfigState = {
@@ -86,6 +88,7 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
         services: defaultServices,
         contractTemplates: defaultContractTemplates,
         updatedAt: Date.now(),
+        nextSequence: 1,
       }
       await setDoc(ref, config)
     }
@@ -335,11 +338,37 @@ else if (config.businessProfile.logo) {
       updatedAt: Date.now(),
     }
 
-    const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
-    await setDoc(ref, updated)
+     const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
+  await setDoc(ref, updated)
 
-    set({ config: updated })
-  },
+  // NEW: also persist each template in a subcollection under this config doc
+  const templatesCol = collection(firestoreDb, 'config', CONFIG_DOC_ID, 'contractTemplates')
+  for (const tmpl of templates) {
+    if (!tmpl || !tmpl.id) continue
+    const tmplRef = doc(templatesCol, tmpl.id)
+    await setDoc(tmplRef, tmpl)
+  }
+
+  set({ config: updated })
+},
+
+loadContractTemplates: async () => {
+  const templatesCol = collection(firestoreDb, 'config', CONFIG_DOC_ID, 'contractTemplates')
+  const tmplSnap = await getDoc(doc(firestoreDb, 'config', CONFIG_DOC_ID))
+
+
+  const loaded = tmplSnap.data()?.contractTemplates || []
+
+
+
+
+  const current = get().config
+  if (!current) return
+
+  const updated = { ...current, contractTemplates: loaded }
+  set({ config: updated })
+},
+
 
   // ==================== RESET ====================
   resetToDefaults: async () => {
@@ -351,6 +380,7 @@ else if (config.businessProfile.logo) {
       services: defaultServices,
       contractTemplates: defaultContractTemplates,
       updatedAt: Date.now(),
+      nextSequence: 1,
     }
 
     const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)

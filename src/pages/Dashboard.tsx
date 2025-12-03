@@ -403,7 +403,8 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+
           {/* IMPORTANT: this is the only behavior change */}
           <button
             onClick={() =>
@@ -424,7 +425,8 @@ export default function Dashboard() {
       </div>
 
       {/* MAIN KPI ROW — 4 BOXES */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+
         <div className={box} onClick={() => navigate("/quotes")}>
           <DocumentIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
           <div className={label}>{(labels?.quotesTitle || 'QUOTES').toUpperCase()}</div>

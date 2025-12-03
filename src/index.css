@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+  background-color: #050505;
+  overflow-x: hidden;
+}
+
+header {
+  padding-left: 0 !important;
+}
+
+
+
 /* ----------------------------------------
    BLACK DIAMOND GOLD — GLOBAL BUTTON STYLES
 ----------------------------------------- */

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useSettingsStore } from '@store/useSettingsStore'
 import { useConfigStore } from '@store/useConfigStore'
-import type { BusinessProfile, AppLabels, Theme } from '@config/index'
+import type { BusinessProfile, AppLabels, Theme, ContractTemplate } from '../config'
+
+
 import { storage } from '../firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
@@ -376,13 +378,14 @@ function ThemeTab({ config, updateTheme }: any) {
             <div className="flex gap-2 items-center">
               <input
                 type="color"
-                value={value}
+                value={(value as string) ?? ''}
+
                 onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
                 className="w-12 h-12 rounded border border-[#2a2414] cursor-pointer"
               />
               <input
                 type="text"
-                value={value}
+                value={(value as string) ?? ''}
                 onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
                 className="input flex-1"
               />
@@ -547,10 +550,13 @@ function ContractsTab({ config, updateContractTemplates }: any) {
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-[#e8d487]">Contract Templates</h2>
       <p className="text-xs text-gray-500">Edit contract terms, scope, and warranty</p>
+<button onClick={() => setTemplates([...templates, { id: Date.now(), name: `Template ${templates.length + 1}`, terms: '', scope: '', warranty: '' }])} className="btn-gold mb-2">Add New Template</button>
+      <div className="space-y-6">
 
-      <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
-        {templates.map((template: any, idx: number) => (
-          <div key={idx} className="border border-[#2a2414] rounded-lg p-4 space-y-3">
+        
+           {templates.map((template: ContractTemplate, idx: number) => (
+  <div key={template.id} className="border border-[#2a2414] rounded-lg p-4 space-y-3">
+
             <input
               className="input font-semibold"
               placeholder="Template name"
@@ -566,7 +572,7 @@ function ContractsTab({ config, updateContractTemplates }: any) {
               <div className="text-xs text-gray-400 mb-1">Terms & Conditions</div>
               <textarea
                 className="input h-32 font-mono text-xs"
-                value={template.terms}
+                value={template.terms ?? ''}
                 onChange={(e) => {
                   const updated = [...templates]
                   updated[idx].terms = e.target.value
@@ -579,7 +585,8 @@ function ContractsTab({ config, updateContractTemplates }: any) {
               <div className="text-xs text-gray-400 mb-1">Scope of Work</div>
               <textarea
                 className="input h-32 font-mono text-xs"
-                value={template.scope}
+                value={template.scope ?? ''}
+
                 onChange={(e) => {
                   const updated = [...templates]
                   updated[idx].scope = e.target.value
@@ -592,14 +599,17 @@ function ContractsTab({ config, updateContractTemplates }: any) {
               <div className="text-xs text-gray-400 mb-1">Warranty</div>
               <textarea
                 className="input h-32 font-mono text-xs"
-                value={template.warranty}
+                value={template.warranty ?? ''}
                 onChange={(e) => {
                   const updated = [...templates]
+                  
                   updated[idx].warranty = e.target.value
                   setTemplates(updated)
                 }}
               />
             </div>
+            <button onClick={() => setTemplates(templates.filter((_, i) => i !== idx))} className="btn-red text-xs">Delete Template</button>
+
           </div>
         ))}
       </div>

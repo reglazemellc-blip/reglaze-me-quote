@@ -379,7 +379,8 @@ export default function RemindersPage() {
                   className="py-3 flex flex-col md:flex-row md:items-center gap-2 md:gap-4 transition-all"
                 >
                   {/* LEFT */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-full">
+
                     <div className="flex items-center gap-2 text-xs">
                       <Link
                         to={`/clients/${clientId}`}
