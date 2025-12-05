@@ -11,9 +11,9 @@ export default function SearchBar({ placeholder, value = "", onChange }: Props) 
     <div className="relative w-full">
       {/* ICON */}
       <Search
-        size={16}
-        className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e8d487]/70 pointer-events-none"
-      />
+  size={16}
+  className="absolute left-4 top-1/2 -translate-y-1/2 text-[#e8d487]/70"
+/>
 
       {/* INPUT */}
       <input

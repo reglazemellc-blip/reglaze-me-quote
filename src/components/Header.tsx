@@ -24,6 +24,13 @@ useEffect(() => {
   if (mobileOpen) window.scrollTo({ top: 0, behavior: 'smooth' });
 }, [mobileOpen]);
 
+useEffect(() => {
+  if (mobileOpen) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+}, [mobileOpen]);
 
   useEffect(() => {
     init()
@@ -51,12 +58,13 @@ useEffect(() => {
   const logoSrc = config?.businessProfile?.logo || '/logo.png'
 
   return (
+  <>
     <header
       className="
         border-b 
         backdrop-blur-lg
         shadow-[0_0_25px_rgba(255,215,0,0.08)]
-        z-30
+        z-[3000]
       "
       style={{
         backgroundColor: 'var(--color-surface)',
@@ -65,11 +73,10 @@ useEffect(() => {
     >
       <div className="max-w-7xl mx-auto px-4 py-1 flex items-center justify-between flex-wrap">
 
-
+        {/* MOBILE MENU BUTTON */}
         <button className="md:hidden p-2 text-[#e8d487]" onClick={() => setMobileOpen(!mobileOpen)}>
-  ☰
-</button>
-
+          ☰
+        </button>
 
         {/* LEFT — LOGO + TITLE */}
         <div className="flex items-center gap-4">
@@ -90,24 +97,18 @@ useEffect(() => {
 
         {/* CENTER NAV */}
         <nav className="hidden md:flex items-center gap-6 text-sm">
-
-  <IconLink to="/" label={navDashboard} svg={HomeIcon} />
-  <IconLink to="/clients" label={navClients} svg={UsersIcon} />
-  <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
-  <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
-  <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
-  <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
-  <IconLink to="/settings" label={navSettings} svg={CogIcon} />
-</nav>
-
+          <IconLink to="/" label={navDashboard} svg={HomeIcon} />
+          <IconLink to="/clients" label={navClients} svg={UsersIcon} />
+          <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
+          <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
+          <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
+          <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
+          <IconLink to="/settings" label={navSettings} svg={CogIcon} />
+        </nav>
 
         {/* RIGHT ACTION BUTTONS */}
         <div className="flex items-center gap-2">
-          <button
-            className="header-icon-btn"
-            title="Export PDF"
-            onClick={handleExport}
-          >
+          <button className="header-icon-btn" title="Export PDF" onClick={handleExport}>
             {DownloadIcon()}
           </button>
 
@@ -128,9 +129,6 @@ useEffect(() => {
           </button>
         </div>
       </div>
-     
-
-
 
       {/* GOLD DIVIDER */}
       <div
@@ -139,38 +137,72 @@ useEffect(() => {
           background: 'linear-gradient(90deg,#ffd700 0%,#b8860b 100%)'
         }}
       />
-<AnimatePresence initial={false} mode="wait">
-
-
-
-      {mobileOpen ? (
-
-        <motion.div key="mobile-menu" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-
-
-
-          onClick={() => setMobileOpen(false)}
-          className="relative md:hidden w-full px-4 py-4 flex flex-col gap-3 border-t border-[#d4af37]/30 shadow-lg bg-[var(--color-surface)] z-50"
-
-        >
-          <IconLink to="/" label={navDashboard} svg={HomeIcon} />
-          <IconLink to="/clients" label={navClients} svg={UsersIcon} />
-          <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
-          <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
-          <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
-          <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
-          <IconLink to="/settings" label={navSettings} svg={CogIcon} />
-                
-
-           </motion.div>
-        ) : null}
-
-      </AnimatePresence>
-
-
-      {open && <ThemeEditor onClose={() => setOpen(false)} />}
     </header>
-  )
+
+    {/* MOBILE MENU OUTSIDE HEADER FIXES ALL STACKING ISSUES */}
+    {/* MOBILE MENU + BACKDROP */}
+<AnimatePresence initial={false} mode="wait">
+  {mobileOpen ? (
+    <>
+      {/* BACKDROP */}
+      <motion.div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[4000] pointer-events-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setMobileOpen(false)}
+      />
+
+      {/* MOBILE MENU */}
+      <motion.div
+        key="mobile-menu"
+        className="fixed top-0 left-0 h-full w-full px-6 py-8 flex flex-col gap-4 
+                   bg-[var(--color-surface)] z-[5000] pointer-events-auto"
+        initial={{ opacity: 0, x: 80 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 80 }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
+      >
+        <div className="flex flex-col gap-4">
+  <div onClick={() => setMobileOpen(false)}>
+    <IconLink to="/" label={navDashboard} svg={HomeIcon} />
+  </div>
+
+  <div onClick={() => setMobileOpen(false)}>
+    <IconLink to="/clients" label={navClients} svg={UsersIcon} />
+  </div>
+
+  <div onClick={() => setMobileOpen(false)}>
+    <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
+  </div>
+
+  <div onClick={() => setMobileOpen(false)}>
+    <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
+  </div>
+
+  <div onClick={() => setMobileOpen(false)}>
+    <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
+  </div>
+
+  <div onClick={() => setMobileOpen(false)}>
+    <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
+  </div>
+
+  <div onClick={() => setMobileOpen(false)}>
+    <IconLink to="/settings" label={navSettings} svg={CogIcon} />
+  </div>
+</div>
+
+      </motion.div>
+    </>
+  ) : null}
+</AnimatePresence>
+
+
+    {open && <ThemeEditor onClose={() => setOpen(false)} />}
+  </>
+);
+
 }
 
 

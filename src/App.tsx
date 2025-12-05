@@ -50,62 +50,67 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-full bg-background page-enter">
-      <Header />
+  <>
+    {/* Header stays global, above page transitions */}
+    <Header />
 
+   
+
+    {/* Page transition wrapper */}
+    <div className="min-h-full bg-background page-enter">
       <main className="max-w-6xl mx-auto px-4 py-6">
         <Routes location={location}>
-          {/* Dashboard */}
-          <Route path="/" element={<Dashboard />} />
+  {/* Dashboard */}
+  <Route path="/" element={<Dashboard />} />
 
-          {/* Clients */}
-          <Route path="/clients" element={<Clients />} />
-          <Route path="/clients/new" element={<ClientNew />} />
-          <Route path="/clients/:id" element={<ClientDetail />} />
+  {/* Clients */}
+  <Route path="/clients" element={<Clients />} />
+  <Route path="/clients/new" element={<ClientNew />} />
+  <Route path="/clients/:id" element={<ClientDetail />} />
 
-          {/* Quotes */}
-          <Route path="/quotes" element={<QuotesBoard />} />
-          <Route path="/quotes/new" element={<QuoteEditor mode="create" />} />
-          <Route path="/quotes/:id" element={<QuoteDetail />} />
-          <Route path="/quotes/:id/edit" element={<QuoteEditor mode="edit" />} />
-          <Route path="/quotes/:id/print" element={<QuotePrint />} />
+  {/* Quotes */}
+  <Route path="/quotes" element={<QuotesBoard />} />
+  <Route path="/quotes/:id" element={<QuoteDetail />} />
+  <Route path="/quotes/:id/edit" element={<QuoteEditor mode="edit" />} />
 
-          {/* Services */}
-          <Route path="/services" element={<ServicesList />} />
-          <Route path="/services/new" element={<ServiceForm />} />
-          <Route path="/services/:id/edit" element={<ServiceForm />} />
+  {/* Invoices */}
+  <Route path="/invoices" element={<InvoicesPage />} />
+  <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
-          {/* Invoices */}
-          <Route path="/invoices" element={<InvoicesPage />} />
-          <Route path="/invoices/:id" element={<InvoiceDetail />} />
+  {/* Contracts */}
+  <Route path="/contracts" element={<ContractsPage />} />
+  <Route path="/contracts/:id" element={<ContractDetail />} />
 
-          {/* Contracts */}
-          <Route path="/contracts" element={<ContractsPage />} />
-          <Route path="/contracts/:id" element={<ContractDetail />} />
+  {/* Services / Catalog */}
+  <Route path="/services" element={<ServicesList />} />
+  <Route path="/services/new" element={<ServiceForm />} />
+  <Route path="/services/:id" element={<ServiceForm />} />
 
-          {/* Catalog + Settings */}
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/settings" element={<SettingsPage />} />
+  {/* Settings */}
+<Route path="/settings" element={<SettingsPage />} />
 
-          {/* Reminders */}
-          <Route path="/reminders" element={<RemindersPage />} />
 
-          {/* Test UI */}
-          <Route path="/test" element={<TestUI />} />
+  {/* Catalog */}
+  <Route path="/catalog" element={<Catalog />} />
 
-          {/* Catch-all */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+  {/* Reminders */}
+  <Route path="/reminders" element={<RemindersPage />} />
+
+  {/* PDF View */}
+  <Route path="/print" element={<QuotePrint />} />
+
+  {/* Test UI */}
+  <Route path="/test" element={<TestUI />} />
+
+  {/* Not Found */}
+  <Route path="*" element={<NotFound />} />
+</Routes>
+
       </main>
-
-      <OfflineToast />
-      <GoldToast />
-
-      <footer className="text-center text-xs text-gray-500 py-6">
-        Copyright {config?.businessProfile?.companyName || 'ReGlaze Me LLC'}
-      </footer>
     </div>
-  );
+  </>
+);
+
 }
 
 function NotFound() {
