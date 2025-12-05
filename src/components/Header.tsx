@@ -11,6 +11,9 @@ type IconLinkProps = {
   label: string
   svg: () => JSX.Element
 }
+import { motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
+
 
 export default function Header(): JSX.Element {
   const { settings, init } = useSettingsStore()
@@ -136,11 +139,19 @@ useEffect(() => {
           background: 'linear-gradient(90deg,#ffd700 0%,#b8860b 100%)'
         }}
       />
+<AnimatePresence initial={false} mode="wait">
 
-      {mobileOpen && (
-        <div
+
+
+      {mobileOpen ? (
+
+        <motion.div key="mobile-menu" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+
+
+
           onClick={() => setMobileOpen(false)}
-          className="relative md:hidden w-full px-4 py-4 flex flex-col gap-3 border-t border-[#d4af37]/30 shadow-lg transition-all duration-300 transform translate-y-1 opacity-90 bg-[var(--color-surface)] z-50"
+          className="relative md:hidden w-full px-4 py-4 flex flex-col gap-3 border-t border-[#d4af37]/30 shadow-lg bg-[var(--color-surface)] z-50"
+
         >
           <IconLink to="/" label={navDashboard} svg={HomeIcon} />
           <IconLink to="/clients" label={navClients} svg={UsersIcon} />
@@ -149,8 +160,13 @@ useEffect(() => {
           <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
           <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
           <IconLink to="/settings" label={navSettings} svg={CogIcon} />
-        </div>
-      )}
+                
+
+           </motion.div>
+        ) : null}
+
+      </AnimatePresence>
+
 
       {open && <ThemeEditor onClose={() => setOpen(false)} />}
     </header>
