@@ -155,42 +155,50 @@ useEffect(() => {
 
       {/* MOBILE MENU */}
       <motion.div
+      variants={{ open: { transition: { staggerChildren: 0.08 } } }}
+
         key="mobile-menu"
         className="fixed top-0 left-0 h-full w-full px-6 py-8 flex flex-col gap-4 
                    bg-[var(--color-surface)] z-[5000] pointer-events-auto"
-        initial={{ opacity: 0, x: 80 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 80 }}
-        transition={{ duration: 0.25, ease: 'easeOut' }}
+        initial={{ opacity: 0, x: 80, y: -10 }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        exit={{ opacity: 0, x: 80, y: -10 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+
       >
         <div className="flex flex-col gap-4">
-  <div onClick={() => setMobileOpen(false)}>
+ <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
+
+
     <IconLink to="/" label={navDashboard} svg={HomeIcon} />
-  </div>
+  </motion.div>
 
-  <div onClick={() => setMobileOpen(false)}>
+
+ <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
+
     <IconLink to="/clients" label={navClients} svg={UsersIcon} />
-  </div>
+  </motion.div>
 
-  <div onClick={() => setMobileOpen(false)}>
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
+
     <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
-  </div>
+  </motion.div>
 
-  <div onClick={() => setMobileOpen(false)}>
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
     <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
-  </div>
+  </motion.div>
 
-  <div onClick={() => setMobileOpen(false)}>
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
     <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
-  </div>
+  </motion.div>
 
-  <div onClick={() => setMobileOpen(false)}>
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
     <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
-  </div>
+  </motion.div>
 
-  <div onClick={() => setMobileOpen(false)}>
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
     <IconLink to="/settings" label={navSettings} svg={CogIcon} />
-  </div>
+  </motion.div>
 </div>
 
       </motion.div>
