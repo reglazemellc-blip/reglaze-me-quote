@@ -16,6 +16,11 @@ export default function Header(): JSX.Element {
   const { settings, init } = useSettingsStore()
   const { config } = useConfigStore()
   const [open, setOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+useEffect(() => {
+  if (mobileOpen) window.scrollTo({ top: 0, behavior: 'smooth' });
+}, [mobileOpen]);
+
 
   useEffect(() => {
     init()
@@ -48,13 +53,20 @@ export default function Header(): JSX.Element {
         border-b 
         backdrop-blur-lg
         shadow-[0_0_25px_rgba(255,215,0,0.08)]
+        z-30
       "
       style={{
         backgroundColor: 'var(--color-surface)',
         borderColor: 'var(--color-border)'
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap">
+      <div className="max-w-7xl mx-auto px-4 py-1 flex items-center justify-between flex-wrap">
+
+
+        <button className="md:hidden p-2 text-[#e8d487]" onClick={() => setMobileOpen(!mobileOpen)}>
+  ☰
+</button>
+
 
         {/* LEFT — LOGO + TITLE */}
         <div className="flex items-center gap-4">
@@ -74,7 +86,8 @@ export default function Header(): JSX.Element {
         </div>
 
         {/* CENTER NAV */}
-        <nav className="flex items-center gap-6 text-sm">
+        <nav className="hidden md:flex items-center gap-6 text-sm">
+
   <IconLink to="/" label={navDashboard} svg={HomeIcon} />
   <IconLink to="/clients" label={navClients} svg={UsersIcon} />
   <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
@@ -112,6 +125,9 @@ export default function Header(): JSX.Element {
           </button>
         </div>
       </div>
+     
+
+
 
       {/* GOLD DIVIDER */}
       <div
@@ -121,10 +137,26 @@ export default function Header(): JSX.Element {
         }}
       />
 
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="relative md:hidden w-full px-4 py-4 flex flex-col gap-3 border-t border-[#d4af37]/30 shadow-lg transition-all duration-300 transform translate-y-1 opacity-90 bg-[var(--color-surface)] z-50"
+        >
+          <IconLink to="/" label={navDashboard} svg={HomeIcon} />
+          <IconLink to="/clients" label={navClients} svg={UsersIcon} />
+          <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
+          <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
+          <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
+          <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
+          <IconLink to="/settings" label={navSettings} svg={CogIcon} />
+        </div>
+      )}
+
       {open && <ThemeEditor onClose={() => setOpen(false)} />}
     </header>
   )
 }
+
 
 /* --------------------------------------------------
    NAV LINK COMPONENT
@@ -145,7 +177,8 @@ function IconLink({ to, label, svg: Svg }: IconLinkProps): JSX.Element {
       }
     >
       <Svg />
-      <span className="hidden sm:inline">{label}</span>
+      <span className="inline">{label}</span>
+
     </NavLink>
   )
 }
