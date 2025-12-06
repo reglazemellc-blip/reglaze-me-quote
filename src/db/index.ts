@@ -51,6 +51,7 @@ export type Reminder = {
 
 export type Client = {
   id: string;
+  tenantId: string
   name: string;
 
   phone?: string;
@@ -114,6 +115,7 @@ export type QuoteClientSnapshot = {
 
 export type Quote = {
   id: string;
+  tenantId: string
 
   // link to client doc
   clientId: string;

@@ -152,6 +152,20 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
 
   return (
     <div className="space-y-4">
+      {/* TENANT SELECTOR */}
+<div className="flex flex-col gap-1">
+  <span className="text-xs text-gray-400">Active Tenant</span>
+  <select
+    className="input"
+    value={useConfigStore.getState().activeTenantId}
+    onChange={(e) => useConfigStore.getState().setActiveTenantId(e.target.value)}
+  >
+    <option value="default">Default Tenant</option>
+    <option value="demo">Demo Tenant</option>
+    <option value="clientA">Client A</option>
+  </select>
+</div>
+
       <h2 className="text-lg font-semibold text-[#e8d487]">Business Information</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

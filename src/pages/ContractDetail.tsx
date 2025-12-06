@@ -30,6 +30,7 @@ const editId = isNew ? null : id;
 
 
   const [loading, setLoading] = useState(false)
+    const [saveState, setSaveState] = useState<'idle'|'saving'|'saved'>('idle')
   const [contract, setContract] = useState<Contract | null>(null)
 
   // Initialize stores
@@ -342,6 +343,62 @@ useEffect(() => {
     }
   }
 
+    // -------------------------------
+  // AUTO-SAVE DEBOUNCER (Mode B)
+  // -------------------------------
+  const autoSaveTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  const triggerAutoSave = () => {
+    if (autoSaveTimeout.current) {
+      clearTimeout(autoSaveTimeout.current)
+    }
+
+    // Debounce 1.2s
+    autoSaveTimeout.current = setTimeout(() => {
+      handleAutoSave()
+    }, 1200)
+  }
+
+  // Auto-save handler (Mode B saves content fields ONLY)
+  const handleAutoSave = () => {
+    if (isNew || !contract?.id) return // Do not autosave unsaved contracts
+      setSaveState('saving')
+
+
+    // Collect ONLY editable contract fields (Mode B)
+        const partial: Partial<Contract> & { id: string } = {
+
+      id: contract.id,
+      terms,
+      scope,
+      warranty,
+      notes,
+      startDate,
+      endDate,
+      totalAmount: totalAmount ? parseFloat(totalAmount) : undefined,
+      dueTerms,
+      status,
+      propertyAddress: [propertyStreet, [propertyCity, propertyState, propertyZip].filter(Boolean).join(', ')].filter(Boolean).join('\n'),
+      updatedAt: Date.now(),
+    }
+
+        // Remove undefined fields to satisfy upsert() strict typing
+    Object.keys(partial).forEach((key) => {
+      if (partial[key as keyof Contract] === undefined) {
+        delete partial[key as keyof Contract]
+      }
+    })
+
+
+    // Do NOT show success toasts on auto-save
+      upsert(partial as Contract).then(() => setSaveState('saved')).catch(() => {
+
+
+      useToastStore.getState().show("Auto-save failed")
+    })
+  }
+
+ 
   const selectedClient = clients.find((c) => c.id === clientId)
 
   return (
@@ -390,6 +447,13 @@ useEffect(() => {
           >
             {loading ? 'Saving...' : labels?.actionSave || 'Save'}
           </button>
+          {saveState === 'saving' && (
+  <span className="text-xs text-gray-500 mt-2">Saving…</span>
+)}
+{saveState === 'saved' && (
+  <span className="text-xs text-gray-500 mt-2">Saved</span>
+)}
+
         </div>
       </div>
 
@@ -461,7 +525,7 @@ useEffect(() => {
             <label className="block text-xs text-gray-500 mb-2">Status</label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as ContractStatus)}
+              onChange={(e) => { setStatus(e.target.value as ContractStatus); triggerAutoSave(); }}
               className="input-field"
             >
               <option value="draft">Draft</option>
@@ -484,7 +548,7 @@ useEffect(() => {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => { setStartDate(e.target.value); triggerAutoSave(); }}
               className="input-field"
             />
           </div>
@@ -494,7 +558,7 @@ useEffect(() => {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => { setEndDate(e.target.value); triggerAutoSave(); }}
               className="input-field"
             />
           </div>
@@ -506,7 +570,7 @@ useEffect(() => {
             <input
               type="text"
               value={propertyStreet}
-              onChange={(e) => setPropertyStreet(e.target.value)}
+              onChange={(e) => { setPropertyStreet(e.target.value); triggerAutoSave(); }}
               placeholder="123 Main St"
               className="input-field"
             />
@@ -518,7 +582,7 @@ useEffect(() => {
               <input
                 type="text"
                 value={propertyCity}
-                onChange={(e) => setPropertyCity(e.target.value)}
+                onChange={(e) => { setPropertyCity(e.target.value); triggerAutoSave(); }}
                 placeholder="City"
                 className="input-field"
               />
@@ -529,7 +593,7 @@ useEffect(() => {
               <input
                 type="text"
                 value={propertyState}
-                onChange={(e) => setPropertyState(e.target.value.toUpperCase())}
+                onChange={(e) => { setPropertyState(e.target.value.toUpperCase()); triggerAutoSave(); }}
                 placeholder="ST"
                 maxLength={2}
                 className="input-field uppercase"
@@ -541,7 +605,7 @@ useEffect(() => {
               <input
                 type="text"
                 value={propertyZip}
-                onChange={(e) => setPropertyZip(e.target.value)}
+                onChange={(e) => { setPropertyZip(e.target.value); triggerAutoSave(); }}
                 placeholder="12345"
                 maxLength={10}
                 className="input-field"
@@ -555,7 +619,7 @@ useEffect(() => {
           <input
             type="number"
             value={totalAmount}
-            onChange={(e) => setTotalAmount(e.target.value)}
+            onChange={(e) => { setTotalAmount(e.target.value); triggerAutoSave(); }}
             placeholder="0.00"
             step="0.01"
             className="input-field"
@@ -566,7 +630,7 @@ useEffect(() => {
           <label className="block text-xs text-gray-500 mb-2">Payment Terms</label>
           <select
             value={dueTerms}
-            onChange={(e) => setDueTerms(e.target.value)}
+            onChange={(e) => { setDueTerms(e.target.value); triggerAutoSave(); }}
             className="input-field"
           >
             <option value="due_upon_completion">Due Upon Completion</option>
@@ -585,7 +649,8 @@ useEffect(() => {
           <label className="block text-xs text-gray-500 mb-2">Terms & Conditions</label>
           <textarea
             value={terms}
-            onChange={(e) => setTerms(e.target.value)}
+            onChange={(e) => { setTerms(e.target.value); triggerAutoSave(); }}
+
             rows={8}
             className="input-field font-mono text-xs"
           />
@@ -595,7 +660,7 @@ useEffect(() => {
           <label className="block text-xs text-gray-500 mb-2">Scope of Work</label>
           <textarea
             value={scope}
-            onChange={(e) => setScope(e.target.value)}
+            onChange={(e) => { setScope(e.target.value); triggerAutoSave(); }}
             rows={8}
             className="input-field font-mono text-xs"
           />
@@ -605,7 +670,7 @@ useEffect(() => {
           <label className="block text-xs text-gray-500 mb-2">Warranty</label>
           <textarea
             value={warranty}
-            onChange={(e) => setWarranty(e.target.value)}
+            onChange={(e) => { setWarranty(e.target.value); triggerAutoSave(); }}
             rows={5}
             className="input-field font-mono text-xs"
           />
@@ -615,7 +680,7 @@ useEffect(() => {
           <label className="block text-xs text-gray-500 mb-2">Notes</label>
           <textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(e) => { setNotes(e.target.value); triggerAutoSave(); }}
             rows={3}
             placeholder="Internal notes..."
             className="input-field"

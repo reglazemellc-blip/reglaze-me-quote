@@ -3,6 +3,7 @@
 // -------------------------------------------------------------
 
 import { create } from "zustand";
+import { useConfigStore } from "@store/useConfigStore";
 import { collection, doc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import type { Quote } from "@db/index";
@@ -23,7 +24,11 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
 
   init: async () => {
     const snap = await getDocs(quotesCol);
-    const quotes = snap.docs.map((d) => ({ ...(d.data() as Quote), id: d.id }));
+    const tenantId = useConfigStore.getState().activeTenantId;
+const quotes = snap.docs
+  .map((d) => ({ ...(d.data() as Quote), id: d.id }))
+  .filter((q) => q.tenantId === tenantId);
+
     set({ quotes, loading: false });
   },
 
@@ -32,7 +37,8 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
 
     const ref = doc(quotesCol, q.id);
 
-    await setDoc(ref, q, { merge: true });
+    await setDoc(ref, { ...q, tenantId: useConfigStore.getState().activeTenantId }, { merge: true });
+
 
     const snap = await getDocs(quotesCol);
     const quotes = snap.docs.map((d) => ({ ...(d.data() as Quote), id: d.id }));

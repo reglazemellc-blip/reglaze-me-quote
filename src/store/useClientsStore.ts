@@ -3,6 +3,8 @@
 // -------------------------------------------------------------
 
 import { create } from 'zustand'
+import { useConfigStore } from '@store/useConfigStore'
+
 import {
   collection,
   doc,
@@ -67,14 +69,17 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
   // LOAD ALL CLIENTS
   // -------------------------------------------------
   init: async () => {
-    const snap = await getDocs(clientsCol)
+    const tenantId = useConfigStore.getState().activeTenantId
+const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
+
 
     const clients: Client[] = snap.docs.map((d) => ({
       ...(d.data() as Client),
       id: d.id,
-
+tenantId: d.data().tenantId ?? '',
+photos: d.data().photos ?? [],
       // guaranteed defaults so nothing crashes
-      photos: d.data().photos ?? [],
+      
       attachments: d.data().attachments ?? [],
       conversations: d.data().conversations ?? [],
       reminders: d.data().reminders ?? [],
@@ -92,6 +97,7 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
     const clean: Client = {
       // required
       id: c.id!,
+      tenantId: c.tenantId ?? useConfigStore.getState().activeTenantId,
       name: c.name ?? '',
       phone: c.phone ?? '',
       email: c.email ?? '',

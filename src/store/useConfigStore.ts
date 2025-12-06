@@ -39,6 +39,8 @@ type ConfigState = {
   loading: boolean
   // keep a top-level logo for any components that were already using it
   logo: string | null
+    activeTenantId: string
+
 
   // Initialize config from Firestore/localStorage
   init: () => Promise<void>
@@ -46,6 +48,7 @@ type ConfigState = {
   // Business Profile specific methods
   loadBusinessProfile: () => Promise<void>
   setLogo: (base64String: string) => Promise<void>
+  setActiveTenantId: (tenantId: string) => void
 
   // Update entire config or partial sections
   update: (patch: Partial<AppConfig>) => Promise<void>
@@ -68,6 +71,8 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   config: null,
   loading: true,
   logo: null,
+    activeTenantId: 'default',
+
 
   // ==================== INIT ====================
   init: async () => {
@@ -119,6 +124,10 @@ else if (config.businessProfile.logo) {
       loading: false,
       logo: config.businessProfile.logo || null,
     })
+  },
+
+    setActiveTenantId: (id: string) => {
+    set({ activeTenantId: id })
   },
 
   // ==================== BUSINESS PROFILE ====================
