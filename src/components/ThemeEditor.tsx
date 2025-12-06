@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useSettingsStore } from '@store/useSettingsStore'
+import { useToastStore } from '@store/useToastStore'
 
 type ThemeEditorProps = {
   onClose: () => void
@@ -23,13 +24,13 @@ export default function ThemeEditor({
       className="
         fixed inset-0 z-50
         bg-black/50 backdrop-blur
-        flex items-center justify-center
+        overflow-y-auto flex justify-center items-start pt-10
         p-5
       "
     >
       <div
         className="
-         w-full max-w-2xl p-7 rounded-2xl relative
+         w-full max-w-[760px] max-h-[85vh] overflow-y-auto px-7 pt-7 pb-12 rounded-2xl relative
           bg-[#151515]
           border border-[#242424]
           shadow-[0_0_30px_rgba(255,215,0,0.20)]
@@ -55,7 +56,7 @@ export default function ThemeEditor({
         </h2>
 
         {/* COLOR CUSTOMIZATION */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-7">
           <ColorField
             label="Primary"
             value={theme.primary}
@@ -84,7 +85,7 @@ export default function ThemeEditor({
         </div>
 
         {/* COMPANY INFO EDITORS */}
-        <div className="mt-9 grid grid-cols-1 md:grid-cols-2 gap-7">
+        <div className="mt-9 grid grid-cols-1 md:grid-cols-2 gap-10">
           <LineEditor
             title="Company Left"
             lines={left}
@@ -101,58 +102,59 @@ export default function ThemeEditor({
         </div>
 
         {/* IMPORT / EXPORT JSON */}
-        <div className="mt-9 flex items-center gap-4">
-          <button
-            className="
-              px-4 py-2 rounded-xl shadow-sm
-              border border-[#505050]
-              text-[#e8d487]/80
-              hover:text-[#fff1a8]
-              hover:border-[#b8860b]
-              transition-all
-            "
-            onClick={async () => {
-              const blob = await exportJSON()
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'reglaze-data.json'
-              a.click()
-              URL.revokeObjectURL(url)
-            }}
-          >
-            Export JSON
-          </button>
+        <div className="mt-12 flex items-center gap-5 justify-center">
+  <button
+    className="
+      px-5 py-3 rounded-xl shadow-sm 
+      border border-[#505050]
+      text-[#e8d487]/80
+      hover:text-[#fff1a8]
+      hover:border-[#b8860b]
+      transition-all
+    "
+    onClick={async () => {
+      const blob = await exportJSON()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'reglaze-data.json'
+      a.click()
+      URL.revokeObjectURL(url)
+    }}
+  >
+    Export JSON
+  </button>
 
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              const text = await file.text()
-              await importJSON(JSON.parse(text))
-              alert('Import successful.')
+  <input
+    ref={fileRef}
+    type="file"
+    accept="application/json"
+    className="hidden"
+    onChange={async (e) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const text = await file.text()
+      await importJSON(JSON.parse(text))
+      useToastStore.getState().show("Import successful.");
 
-            }}
-          />
+    }}
+  />
 
-          <button
-            className="
-              px-5 py-2 rounded-xl
-              border border-[#505050]
-              text-[#e8d487]/80
-              hover:text-[#fff1a8]
-              hover:border-[#b8860b]
-              transition-all
-            "
-            onClick={() => fileRef.current?.click()}
-          >
-            Import JSON
-          </button>
-        </div>
+  <button
+    className="
+      px-5 py-3 rounded-xl
+      border border-[#505050]
+      text-[#e8d487]/80
+      hover:text-[#fff1a8]
+      hover:border-[#b8860b]
+      transition-all
+    "
+    onClick={() => fileRef.current?.click()}
+  >
+    Import JSON
+  </button>
+</div>
+
       </div>
     </div>
   )
@@ -169,37 +171,42 @@ type ColorFieldProps = {
 
 function ColorField({ label, value, onChange }: ColorFieldProps): JSX.Element {
   return (
-    <label
+    <div
       className="
-        flex items-center gap-4
         bg-[#0f0f0f]
         border border-[#2a2a2a]
         rounded-xl p-4
+        flex flex-col gap-3
       "
     >
-      <span className="w-28 text-[#fff1a8] font-medium">{label}</span>
+      {/* Label */}
+      <span className="text-[#fff1a8] font-medium">{label}</span>
 
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-11 h-11 rounded-md border border-[#444] cursor-pointer"
-      />
+      {/* Row: Color Picker + Hex Input */}
+      <div className="flex items-center gap-4">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-11 h-11 rounded-md border border-[#444] cursor-pointer"
+        />
 
-      <input
-        className="
-          flex-1 px-3 py-[10px] rounded-lg
-          bg-[#1b1b1b]
-          border border-[#2a2a2a]
-          text-[#e8d487] placeholder:text-[#a08f55]/60
-          focus:outline-none
-        "
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </label>
+        <input
+          className="
+            flex-1 px-4 py-[12px] rounded-lg
+            bg-[#1b1b1b]
+            border border-[#2a2a2a]
+            text-[#e8d487] placeholder:text-[#a08f55]/60
+            focus:outline-none
+          "
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </div>
   )
 }
+
 
 /* --------------------------------------------------
    LINE EDITOR
@@ -222,32 +229,33 @@ function LineEditor({
       className="
         bg-[#0f0f0f]
         border border-[#2a2a2a]
-        p-5 rounded-xl
+        p-7 rounded-xl
         text-[#e8d487]
       "
     >
-      <div className="font-semibold text-[#fff1a8] mb-4">{title}</div>
+      <div className="font-semibold text-[#fff1a8] mb-6">{title}</div>
 
       {lines.map((line, i) => (
         <input
-          key={i}
-          value={line}
-          onChange={(e) => {
-            const next = [...lines]
-            next[i] = e.target.value
-            setLines(next)
-          }}
-          className="
-            w-full mb-1 px-3 py-[10px] rounded-lg
-            bg-[#1b1b1b]
-            border border-[#2a2a2a]
-            text-[#e8d487]
-            focus:outline-none
-          "
-        />
+  key={i}
+  value={line}
+  onChange={(e) => {
+    const next = [...lines]
+    next[i] = e.target.value
+    setLines(next)
+  }}
+  className="
+    w-full mb-4 px-4 py-[14px] rounded-lg
+    bg-[#1b1b1b]
+    border border-[#2a2a2a]
+    text-[#e8d487]
+    focus:outline-none
+  "
+/>
+
       ))}
 
-      <div className="flex items-center gap-3 mt-4">
+      <div className="flex items-center gap-4 mt-6">
         <button
           className="
            px-3 py-2 rounded-lg font-semibold text-[0.95rem]
@@ -267,7 +275,7 @@ function LineEditor({
 
         <button
           className="
-            px-4 py-2 rounded-lg
+            px-5 py-3 rounded-lg
             border border-[#444]
             text-[#e8d487]/70
             hover:text-[#fff1a8]

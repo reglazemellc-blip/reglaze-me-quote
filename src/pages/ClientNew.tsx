@@ -6,6 +6,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClientsStore } from "@store/useClientsStore";
 import { nanoid } from "nanoid";
+import { useToastStore } from '@store/useToastStore'
+
 
 export default function ClientNew() {
   const navigate = useNavigate();
@@ -38,7 +40,7 @@ export default function ClientNew() {
 
   async function handleSave() {
     if (!name.trim()) {
-      alert("Name is required");
+      useToastStore.getState().show("Name is required");
       return;
     }
 

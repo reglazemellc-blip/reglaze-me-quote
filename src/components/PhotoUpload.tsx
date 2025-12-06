@@ -8,6 +8,8 @@ import {
 
 import { storage } from "../firebase";
 import type { Attachment } from "@db/index";
+import { useToastStore } from "@store/useToastStore";
+
 
 function createId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -37,7 +39,8 @@ export default function PhotoUpload({
     if (!files) return;
 
     if (!quoteId) {
-      alert("Please save or create the quote first.");
+      useToastStore.getState().show("Please save or create the quote first.");
+
       return;
     }
 
@@ -74,7 +77,8 @@ export default function PhotoUpload({
       }
     } catch (err) {
       console.error("Upload failed:", err);
-      alert("Failed to upload photos.");
+      useToastStore.getState().show("Failed to upload photos.");
+
     } finally {
       setUploading(false);
       if (inputRef.current) {
@@ -94,7 +98,8 @@ export default function PhotoUpload({
       }
     } catch (err) {
       console.error("Delete failed:", err);
-      alert("Failed to delete photo from storage.");
+      useToastStore.getState().show("Failed to delete photo from storage.");
+
     } finally {
       setAttachments((prev) => prev.filter((x) => x.id !== att.id));
     }

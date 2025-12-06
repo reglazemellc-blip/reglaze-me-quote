@@ -7,6 +7,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useClientsStore } from "@store/useClientsStore";
 import type { Client } from "@db/index";
+import { useToastStore } from "@store/useToastStore";
+
 
 type Mode = "create" | "edit";
 
@@ -195,7 +197,8 @@ export default function ClientDrawer({
 
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
-      alert("Client name is required.");
+      useToastStore.getState().show("Client name is required.");
+
       return;
     }
 

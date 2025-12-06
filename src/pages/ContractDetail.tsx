@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { ArrowLeft, FileText, Trash2 } from 'lucide-react'
 import SignaturePad from 'signature_pad'
 import { useContractsStore } from '@store/useContractsStore'
@@ -13,11 +13,15 @@ import { useQuotesStore } from '@store/useQuotesStore'
 import { useConfigStore } from '@store/useConfigStore'
 import { generateContractPDF } from '@utils/pdf'
 import type { Contract, ContractStatus } from '@db/index'
+import { useToastStore } from '@store/useToastStore'
 
 export default function ContractDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const isNew = id === 'new'
+const location = useLocation();
+const isNew = id === 'new';
+const editId = isNew ? null : id;
+
 
   const { contracts, upsert, remove, addSignature, removeSignature, init: initContracts } = useContractsStore()
   const { clients, init: initClients } = useClientsStore()
@@ -73,9 +77,9 @@ export default function ContractDetail() {
   // Load existing contract
   useEffect(() => {
     console.log('Contract Detail - URL id:', id, 'isNew:', isNew, 'contracts length:', contracts.length)
-    if (!isNew && id) {
-      const existing = contracts.find((c) => c.id === id)
-      console.log('Found existing contract:', existing?.id)
+   if (!isNew && editId) {
+  const existing = contracts.find((c) => c.id === editId)
+
       if (existing) {
         setContract(existing)
         setClientId(existing.clientId)
@@ -110,15 +114,39 @@ export default function ContractDetail() {
     }
   }, [id, isNew, contracts])
 
-  // Load template when changed
-  useEffect(() => {
-    const template = templates.find((t) => t.id === templateId)
-    if (template && isNew) {
-      setTerms(template.terms)
-      setScope(template.scope)
-      setWarranty(template.warranty)
-    }
-  }, [templateId, templates, isNew])
+  // Reset all form fields when starting a brand-new contract
+useEffect(() => {
+  if (isNew) {
+    setContract(null);
+    setClientId('');
+    setQuoteId('');
+    setTemplateId('reglazing');
+    setTerms('');
+    setScope('');
+    setWarranty('');
+    setStartDate('');
+    setEndDate('');
+    setPropertyStreet('');
+    setPropertyCity('');
+    setPropertyState('');
+    setPropertyZip('');
+    setNotes('');
+    setTotalAmount('');
+    setStatus('draft');
+    setDueTerms('due_upon_completion');
+  }
+}, [isNew]);
+
+// Load template when changed
+useEffect(() => {
+  const template = templates.find((t) => t.id === templateId)
+  if (template && isNew) {
+    setTerms(template.terms)
+    setScope(template.scope)
+    setWarranty(template.warranty)
+  }
+}, [templateId, templates, isNew])
+
 
   // Initialize signature pads
   useEffect(() => {
@@ -138,12 +166,12 @@ export default function ContractDetail() {
 
   const handleSave = async () => {
     if (!clientId) {
-      alert('Please select a client')
+      useToastStore.getState().show("Please select a client");
       return
     }
 
     if (!terms || !scope || !warranty) {
-      alert('Contract content is missing. Please wait for templates to load or enter contract text manually.')
+      useToastStore.getState().show("Contract content is missing. Please wait for templates to load or enter contract text manually.")
       return
     }
 
@@ -205,7 +233,7 @@ export default function ContractDetail() {
 
       console.log('Saving contract:', data)
       await upsert(data)
-      alert('Contract saved successfully')
+      useToastStore.getState().show("Contract saved successfully");
       // Navigate to the contract detail page
       if (isNew) {
         navigate(`/contracts/${contractId}`)
@@ -214,7 +242,7 @@ export default function ContractDetail() {
       }
     } catch (error: any) {
       console.error('Error saving contract:', error)
-      alert(`Failed to save contract: ${error?.message || 'Unknown error'}`)
+      useToastStore.getState().show(`Failed to save contract: ${error?.message || 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -226,11 +254,11 @@ export default function ContractDetail() {
     setLoading(true)
     try {
       await remove(id!)
-      alert('Contract deleted')
+      useToastStore.getState().show('Contract deleted')
       navigate('/contracts')
     } catch (error) {
       console.error('Error deleting contract:', error)
-      alert('Failed to delete contract')
+      useToastStore.getState().show('Failed to delete contract')
     } finally {
       setLoading(false)
     }
@@ -238,29 +266,29 @@ export default function ContractDetail() {
 
   const handleGeneratePDF = async () => {
     if (!contract || !selectedClient || !config) {
-      alert('Unable to generate PDF. Missing contract or client data.')
+      useToastStore.getState().show("Unable to generate PDF. Missing contract or client data.");
       return
     }
     try {
       await generateContractPDF(contract, selectedClient, config.businessProfile)
     } catch (error) {
       console.error('Error generating PDF:', error)
-      alert('Failed to generate PDF')
+      useToastStore.getState().show("Failed to generate PDF");
     }
   }
 
   const handleClientSignature = async () => {
     console.log('handleClientSignature - contract:', contract?.id, 'isNew:', isNew)
     if (isNew || !contract?.id) {
-      alert('Please save the contract first before adding signatures')
+      useToastStore.getState().show("Please save the contract first before adding signatures");
       return
     }
     if (!clientSigPad.current || clientSigPad.current.isEmpty()) {
-      alert('Please provide a signature')
+      useToastStore.getState().show("Please provide a signature");
       return
     }
     if (!clientName.trim()) {
-      alert('Please enter client name')
+      useToastStore.getState().show("Please enter client name");
       return
     }
 
@@ -279,21 +307,21 @@ export default function ContractDetail() {
       window.location.href = `/contracts/${contractId}`
     } catch (error) {
       console.error('Error saving signature:', error)
-      alert('Failed to save signature')
+      useToastStore.getState().show("Failed to save signature");
     }
   }
 
   const handleContractorSignature = async () => {
     if (isNew || !contract?.id) {
-      alert('Please save the contract first before adding signatures')
+      useToastStore.getState().show("Please save the contract first before adding signatures");
       return
     }
     if (!contractorSigPad.current || contractorSigPad.current.isEmpty()) {
-      alert('Please provide a signature')
+      useToastStore.getState().show("Please provide a signature");
       return
     }
     if (!contractorName.trim()) {
-      alert('Please enter contractor name')
+      useToastStore.getState().show("Please enter contractor name");
       return
     }
 
@@ -310,7 +338,7 @@ export default function ContractDetail() {
       window.location.href = `/contracts/${contractId}`
     } catch (error) {
       console.error('Error saving signature:', error)
-      alert('Failed to save signature')
+      useToastStore.getState().show("Failed to save signature");
     }
   }
 
@@ -636,7 +664,7 @@ export default function ContractDetail() {
                 <button
                   onClick={async () => {
                     if (!contract?.id) {
-                      alert('Cannot remove signature from unsaved contract')
+                      useToastStore.getState().show('Cannot remove signature from unsaved contract')
                       return
                     }
                     if (confirm('Remove client signature?')) {
@@ -647,7 +675,7 @@ export default function ContractDetail() {
                         window.location.href = `/contracts/${contract.id}`
                       } catch (error) {
                         console.error('Error removing signature:', error)
-                        alert('Failed to remove signature')
+                        useToastStore.getState().show('Failed to remove signature')
                       }
                     }
                   }}
@@ -726,7 +754,7 @@ export default function ContractDetail() {
                 <button
                   onClick={async () => {
                     if (!contract?.id) {
-                      alert('Cannot remove signature from unsaved contract')
+                      useToastStore.getState().show('Cannot remove signature from unsaved contract')
                       return
                     }
                     if (confirm('Remove contractor signature?')) {
@@ -737,7 +765,7 @@ export default function ContractDetail() {
                         window.location.href = `/contracts/${contract.id}`
                       } catch (error) {
                         console.error('Error removing signature:', error)
-                        alert('Failed to remove signature')
+                        useToastStore.getState().show('Failed to remove signature')
                       }
                     }
                   }}

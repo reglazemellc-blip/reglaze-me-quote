@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useServicesStore, Service } from "@store/useServicesStore";
+import { useToastStore } from "@store/useToastStore";
 
 export default function ServiceForm() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export default function ServiceForm() {
 
       const svc = await getById(id);
       if (!svc) {
-        alert("Service not found.");
+        useToastStore.getState().show("Service not found.");
         navigate("/services");
         return;
       }
@@ -59,7 +60,7 @@ export default function ServiceForm() {
   // --------------------
   const handleSave = async () => {
     if (!name.trim()) {
-      alert("Service name is required.");
+      useToastStore.getState().show("Service name is required.");
       return;
     }
 
@@ -77,7 +78,7 @@ export default function ServiceForm() {
 
     await upsert(payload);
 
-    alert(isEdit ? "Service updated." : "Service created.");
+    useToastStore.getState().show(isEdit ? "Service updated." : "Service created.");
     navigate("/services");
   };
 

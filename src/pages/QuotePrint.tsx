@@ -10,6 +10,7 @@ import type {
   QuoteClientSnapshot,
   Attachment,
 } from "@db/index";
+import { useToastStore } from "@store/useToastStore";
 
 // Minimal safe type so we don't fight TS
 type SafeQuote = Partial<Quote> & {
@@ -36,7 +37,7 @@ export default function QuotePrint() {
       try {
         const snap = await getDoc(doc(db, "quotes", quoteId));
         if (!snap.exists()) {
-          alert("Quote not found");
+          useToastStore.getState().show("Quote not found");
           navigate("/quotes");
           return;
         }

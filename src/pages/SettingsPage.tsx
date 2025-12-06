@@ -6,6 +6,7 @@ import type { BusinessProfile, AppLabels, Theme, ContractTemplate } from '../con
 
 import { storage } from '../firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { useToastStore } from '@store/useToastStore'
 
 type Tab = 'business' | 'theme' | 'labels' | 'services' | 'contracts' | 'data'
 
@@ -92,13 +93,13 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
 
     // Validate file type - PNG/JPG only
     if (!file.type.match(/^image\/(png|jpeg|jpg)$/i)) {
-      alert('Please select a PNG or JPG file only')
+      useToastStore.getState().show('Please select a PNG or JPG file only')
       return
     }
 
     // Validate file size (max 2MB for base64 storage)
     if (file.size > 2 * 1024 * 1024) {
-      alert('Image size must be less than 2MB. Please compress or resize your image.')
+      useToastStore.getState().show('Image size must be less than 2MB. Please compress or resize your image.')
       return
     }
 
@@ -130,10 +131,10 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
       // Update preview instantly
       setProfile({ ...profile, logo: base64Data })
       
-      alert('Logo uploaded and saved successfully!')
+      useToastStore.getState().show('Logo uploaded and saved successfully!')
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Failed to upload logo: ' + (error instanceof Error ? error.message : String(error)))
+      useToastStore.getState().show('Failed to upload logo: ' + (error instanceof Error ? error.message : String(error)))
     } finally {
       setUploading(false)
     }
@@ -142,10 +143,10 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
   const handleSave = async () => {
     try {
       await updateBusinessProfile(profile)
-      alert('Business profile saved!')
+      useToastStore.getState().show('Business profile saved!')
     } catch (err) {
       console.error('Save error:', err)
-      alert('Failed to save: ' + String(err))
+      useToastStore.getState().show('Failed to save: ' + String(err))
     }
   }
 
@@ -359,10 +360,10 @@ function ThemeTab({ config, updateTheme }: any) {
   const handleSave = async () => {
     try {
       await updateTheme(theme)
-      alert('Theme saved! Colors will update immediately.')
+      useToastStore.getState().show('Theme saved! Colors will update immediately.')
     } catch (err) {
       console.error('Save error:', err)
-      alert('Failed to save: ' + String(err))
+      useToastStore.getState().show('Failed to save: ' + String(err))
     }
   }
 
@@ -409,10 +410,10 @@ function LabelsTab({ config, updateLabels }: any) {
   const handleSave = async () => {
     try {
       await updateLabels(labels)
-      alert('Labels saved! Text will update across the app.')
+      useToastStore.getState().show('Labels saved! Text will update across the app.')
     } catch (err) {
       console.error('Save error:', err)
-      alert('Failed to save: ' + String(err))
+      useToastStore.getState().show('Failed to save: ' + String(err))
     }
   }
 
@@ -459,10 +460,10 @@ function ServicesTab({ config, updateServices }: any) {
   const handleSave = async () => {
     try {
       await updateServices(services)
-      alert('Services saved!')
+      useToastStore.getState().show('Services saved!')
     } catch (err) {
       console.error('Save error:', err)
-      alert('Failed to save: ' + String(err))
+      useToastStore.getState().show('Failed to save: ' + String(err))
     }
   }
 
@@ -539,10 +540,10 @@ function ContractsTab({ config, updateContractTemplates }: any) {
   const handleSave = async () => {
     try {
       await updateContractTemplates(templates)
-      alert('Contract templates saved!')
+      useToastStore.getState().show('Contract templates saved!')
     } catch (err) {
       console.error('Save error:', err)
-      alert('Failed to save: ' + String(err))
+      useToastStore.getState().show('Failed to save: ' + String(err))
     }
   }
 
@@ -641,10 +642,10 @@ function DataTab({ exportJSON, importJSON, resetToDefaults }: any) {
       const text = await file.text()
       const data = JSON.parse(text)
       await importJSON(data)
-      alert('Data imported successfully!')
+      useToastStore.getState().show('Data imported successfully!')
       window.location.reload()
     } catch (err) {
-      alert('Failed to import data')
+      useToastStore.getState().show('Failed to import data')
       console.error(err)
     }
   }
@@ -652,7 +653,7 @@ function DataTab({ exportJSON, importJSON, resetToDefaults }: any) {
   const handleReset = async () => {
     if (!confirm('Reset ALL settings to defaults? This cannot be undone.')) return
     await resetToDefaults()
-    alert('Settings reset to defaults!')
+    useToastStore.getState().show('Settings reset to defaults!')
     window.location.reload()
   }
 

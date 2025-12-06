@@ -14,6 +14,7 @@ import type {
   Attachment,
   Invoice,
 } from "@db/index";
+import { useToastStore } from "@store/useToastStore";
 
 // -------------------------------------------------------------
 // FIX: SafeQuote overrides strict Quote fields and allows missing data
@@ -96,11 +97,11 @@ export default function QuoteDetail() {
       if (quote.waterShutoffElected) invoiceData.waterShutoffElected = quote.waterShutoffElected;
 
       await upsertInvoice(invoiceData as Invoice);
-      alert('Invoice created successfully!');
+      useToastStore.getState().show("Invoice created successfully!");
       navigate(`/invoices/${invoiceId}`);
     } catch (err) {
       console.error('Convert error:', err);
-      alert('Failed to create invoice');
+      useToastStore.getState().show("Failed to create invoice");
     } finally {
       setConverting(false);
     }
@@ -114,7 +115,7 @@ export default function QuoteDetail() {
         const snap = await getDoc(doc(db, "quotes", quoteId));
 
         if (!snap.exists()) {
-          alert("Quote not found");
+          useToastStore.getState().show("Quote not found");
           navigate("/quotes");
           return;
         }
@@ -203,13 +204,13 @@ export default function QuoteDetail() {
 
   const handleGeneratePDF = async () => {
     if (!quote || !config) {
-      alert('Unable to generate PDF. Missing quote or client data.')
+      useToastStore.getState().show("Unable to generate PDF. Missing quote or client data.")
       return
     }
     
     // Check if jobsite readiness is acknowledged
     if (!quote.jobsiteReadyAcknowledged) {
-      alert('Please acknowledge jobsite readiness before generating the PDF.')
+      useToastStore.getState().show("Please acknowledge jobsite readiness before generating the PDF.")
       return
     }
     
@@ -227,7 +228,7 @@ export default function QuoteDetail() {
       await generateQuotePDF(quote as any, client, config.businessProfile)
     } catch (error) {
       console.error('Error generating PDF:', error)
-      alert('Failed to generate PDF')
+      useToastStore.getState().show("Failed to generate PDF")
     }
   }
 
@@ -255,7 +256,7 @@ export default function QuoteDetail() {
       })
     } catch (error) {
       console.error('Error updating acknowledgment:', error)
-      alert('Failed to update acknowledgment')
+      useToastStore.getState().show("Failed to update acknowledgment")
     } finally {
       setAcknowledgeSaving(false)
     }
@@ -266,7 +267,7 @@ export default function QuoteDetail() {
     
     // Check if locked (PDF has been generated)
     if (quote.pdfUrl) {
-      alert('Water shutoff election is locked after PDF generation.')
+      useToastStore.getState().show("Water shutoff election is locked after PDF generation.")
       return
     }
     
@@ -288,7 +289,7 @@ export default function QuoteDetail() {
       })
     } catch (error) {
       console.error('Error updating water shutoff election:', error)
-      alert('Failed to update water shutoff election')
+      useToastStore.getState().show("Failed to update water shutoff election")
     } finally {
       setAcknowledgeSaving(false)
     }

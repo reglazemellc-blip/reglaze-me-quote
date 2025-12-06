@@ -39,6 +39,7 @@ import {
 import ClientDrawer from "@components/ClientDrawer";
 import PhotoUpload from "@components/PhotoUpload";
 import ClientAutocomplete from "@components/ClientAutocomplete";
+import { useToastStore } from "@store/useToastStore";
 
 
 // -------------------------------------------------------------
@@ -258,7 +259,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
           const snap = await getDoc(ref);
 
           if (!snap.exists()) {
-            alert("Quote not found.");
+            useToastStore.getState().show("Quote not found.");
             navigate("/quotes");
             return;
           }
@@ -463,7 +464,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   // -------------------------------------------------------------
   const handleSaveClient = async () => {
     if (!clientName.trim()) {
-      alert("Client name is required.");
+      useToastStore.getState().show("Client name is required.");
       return;
     }
 
@@ -515,7 +516,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
 
     setClientId(finalId);
     await initClients();
-    alert("Client saved.");
+    useToastStore.getState().show("Client saved.");
   };
 
   // -------------------------------------------------------------
@@ -523,7 +524,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   // -------------------------------------------------------------
   const handleSave = async () => {
     if (!clientName.trim()) {
-      alert("Please enter a client name.");
+      useToastStore.getState().show("Please enter a client name.");
       return;
     }
 
@@ -638,7 +639,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         // Remove undefined values before saving
         const cleanPayload = JSON.parse(JSON.stringify({ ...payload, id: quoteIdParam }));
         await setDoc(ref, cleanPayload, { merge: true });
-        alert("Quote updated.");
+        useToastStore.getState().show("Quote updated.");
       } else {
         const newRef = doc(quotesCol, effectiveQuoteId);
         // Remove undefined values before saving
@@ -648,13 +649,13 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
           createdAt: now,
         }));
         await setDoc(newRef, cleanPayload);
-        alert("Quote created.");
+        useToastStore.getState().show("Quote created.");
       }
 
       navigate("/quotes");
     } catch (err) {
       console.error(err);
-      alert("Failed to save quote.");
+      useToastStore.getState().show("Failed to save quote.");
     } finally {
       setSaving(false);
     }

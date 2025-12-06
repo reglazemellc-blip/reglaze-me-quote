@@ -28,12 +28,17 @@ import TestUI from "@pages/TestUI";
 import Header from "@components/Header";
 import OfflineToast from "@components/OfflineToast";
 import GoldToast from "@components/GoldToast";
+import Toast from "@components/Toast";
+import { useToastStore } from "@store/useToastStore";
+
 
 import { useConfigStore } from "@store/useConfigStore";
 
 export default function App() {
   const location = useLocation();
   const { init: initConfig, loading: configLoading, config } = useConfigStore();
+  const { message, hide } = useToastStore();
+
 
   // Initialize config on app mount
   useEffect(() => {
@@ -87,6 +92,8 @@ export default function App() {
   <Route path="/services" element={<ServicesList />} />
   <Route path="/services/new" element={<ServiceForm />} />
   <Route path="/services/:id" element={<ServiceForm />} />
+    <Route path="/services/:id/edit" element={<ServiceForm />} />
+
 
   {/* Settings */}
 <Route path="/settings" element={<SettingsPage />} />
@@ -109,6 +116,8 @@ export default function App() {
 </Routes>
 
       </main>
+      {message && <Toast message={message} onClose={hide} />}
+
     </div>
   </>
 );

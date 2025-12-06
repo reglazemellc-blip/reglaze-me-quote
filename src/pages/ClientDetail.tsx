@@ -24,6 +24,8 @@ import type { Attachment, AttachmentType } from "@db/index";
 import { useClientsStore } from "@store/useClientsStore";
 import { useContractsStore } from "@store/useContractsStore";
 import ClientDrawer from "@components/ClientDrawer";
+import { useToastStore } from '@store/useToastStore'
+
 
 // -------------------------------------------------------------
 // Helpers
@@ -181,7 +183,8 @@ export default function ClientDetail() {
         setQuotes(qList);
       } catch (err) {
         console.error(err);
-        alert("Failed to load client.");
+        useToastStore.getState().show("Import successful.");
+
       } finally {
         setLoading(false);
         setLoadingQuotes(false);
@@ -206,7 +209,8 @@ export default function ClientDetail() {
       navigate("/clients");
     } catch (err) {
       console.error(err);
-      alert("Failed to delete client.");
+      useToastStore.getState().show("Import successful.");
+
     }
   }
 
@@ -255,7 +259,8 @@ export default function ClientDetail() {
       }));
     } catch (err) {
       console.error(err);
-      alert("Failed to upload photo.");
+      useToastStore.getState().show("Import successful.");
+
     } finally {
       setUploadingPhotos(false);
       if (photoInputRef.current) {
@@ -294,7 +299,8 @@ export default function ClientDetail() {
       }));
     } catch (err) {
       console.error("Failed to update Firestore after delete:", err);
-      alert("Failed to delete photo.");
+       useToastStore.getState().show("Failed to update Firestore after delete.");
+
     }
   }
 
@@ -428,7 +434,7 @@ export default function ClientDetail() {
       }));
     } catch (err) {
       console.error(err);
-      alert("Failed to upload file.");
+      useToastStore.getState().show("Failed to upload file.");
     } finally {
       setConvUploading(false);
       e.target.value = "";

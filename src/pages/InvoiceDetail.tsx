@@ -11,6 +11,7 @@ import { useClientsStore } from '@store/useClientsStore'
 import { useQuotesStore } from '@store/useQuotesStore'
 import { useConfigStore } from '@store/useConfigStore'
 import { generateInvoicePDF } from '@utils/pdf'
+import { useToastStore } from '@store/useToastStore'
 
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
@@ -53,14 +54,14 @@ export default function InvoiceDetail() {
 
   const handleGeneratePDF = async () => {
     if (!invoice || !client || !config) {
-      alert('Unable to generate PDF. Missing invoice or client data.')
+      useToastStore.getState().show("Unable to generate PDF. Missing invoice or client data.")
       return
     }
     
     // Get quote data for items
     const relatedQuote = quote
     if (!relatedQuote) {
-      alert('Unable to generate PDF. Invoice must be linked to a quote with line items.')
+      useToastStore.getState().show("Unable to generate PDF. Invoice must be linked to a quote with line items.")
       return
     }
     
@@ -85,14 +86,14 @@ export default function InvoiceDetail() {
       await generateInvoicePDF(invoiceWithItems as any, client, config.businessProfile)
     } catch (error) {
       console.error('Error generating PDF:', error)
-      alert('Failed to generate PDF')
+      useToastStore.getState().show("Failed to generate PDF")
     }
   }
 
   const handleRecordPayment = async () => {
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) {
-      alert('Please enter a valid payment amount')
+      useToastStore.getState().show("Please enter a valid payment amount")
       return
     }
 
@@ -107,10 +108,10 @@ export default function InvoiceDetail() {
     try {
       await recordPayment(invoice.id, amount)
       setPaymentAmount('')
-      alert('Payment recorded successfully')
+      useToastStore.getState().show("Payment recorded successfully")
     } catch (error) {
       console.error('Error recording payment:', error)
-      alert('Failed to record payment')
+      useToastStore.getState().show("Failed to record payment")
     } finally {
       setSaving(false)
     }

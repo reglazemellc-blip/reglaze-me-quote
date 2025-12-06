@@ -68,12 +68,13 @@ export default function ContractsPage() {
           </p>
         </div>
         <button
-          onClick={() => navigate('/contracts/new')}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          {labels?.contractNewButton || 'New Contract'}
-        </button>
+  onClick={() => navigate('/contracts/new', { state: { mode: 'create' } })}
+  className="btn-primary flex items-center gap-2"
+>
+  <Plus className="w-4 h-4" />
+  {labels?.contractNewButton || 'New Contract'}
+</button>
+
       </div>
 
       {/* FILTERS */}
@@ -101,51 +102,86 @@ export default function ContractsPage() {
           No contracts found
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((contract) => (
-            <button
-              key={contract.id}
-              onClick={() => navigate(`/contracts/${contract.id}`)}
-              className="
-                w-full card p-4 flex justify-between items-center
-                hover:bg-black/60 transition text-left
-              "
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-[#e8d487]">{contract.id}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(contract.status)}`}>
-                    {labels?.[`status${contract.status.charAt(0).toUpperCase() + contract.status.slice(1)}` as keyof typeof labels] || contract.status}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-400">
-                  {getClientName(contract.clientId)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  Created {formatDate(contract.createdAt)}
-                </div>
-              </div>
+       <div className="space-y-3">
+  {filtered.map((contract) => (
+    <div
+      key={contract.id}
+      onClick={() =>
+        navigate(`/contracts/${contract.id}`, {
+          state: { mode: 'edit', id: contract.id }
+        })
+      }
+      className="
+        w-full card p-4 flex justify-between items-center cursor-pointer
+        hover:bg-black/60 transition
+      "
+    >
+      <div className="space-y-1">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-[#e8d487]">{contract.id}</span>
+        
+<span
+  className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(
+    contract.status
+  )}`}
+>
+  {labels?.[
+    `status${
+      contract.status.charAt(0).toUpperCase() + contract.status.slice(1)
+    }` as keyof typeof labels
+  ] || contract.status}
+</span>
 
-              <div className="text-right space-y-1">
-                {contract.startDate && (
-                  <div className="text-sm text-gray-400">
-                    Start: {contract.startDate}
-                  </div>
-                )}
-                {contract.totalAmount && (
-                  <div className="text-lg font-semibold text-[#e8d487]">
-                    ${contract.totalAmount.toFixed(2)}
-                  </div>
-                )}
-                <div className="text-xs text-gray-500">
-                  {contract.clientSignature && contract.contractorSignature ? '✓ Fully Signed' : 
-                   contract.clientSignature || contract.contractorSignature ? '✓ Partially Signed' : 
-                   'Unsigned'}
-                </div>
-              </div>
-            </button>
-          ))}
         </div>
+
+        <div className="text-sm text-gray-400">
+          {getClientName(contract.clientId)}
+        </div>
+
+        <div className="text-xs text-gray-500">
+          Created {formatDate(contract.createdAt)}
+        </div>
+      </div>
+
+      <div className="text-right space-y-1">
+        {contract.startDate && (
+          <div className="text-sm text-gray-400">
+            Start: {contract.startDate}
+          </div>
+        )}
+
+        {contract.totalAmount && (
+          <div className="text-lg font-semibold text-[#e8d487]">
+            ${contract.totalAmount.toFixed(2)}
+          </div>
+        )}
+
+        <div className="text-xs text-gray-500">
+          {contract.clientSignature && contract.contractorSignature
+            ? "✓ Fully Signed"
+            : contract.clientSignature || contract.contractorSignature
+            ? "✓ Partially Signed"
+            : "Unsigned"}
+        </div>
+
+        {/* DELETE BUTTON */}
+       <button
+  onClick={(e) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to delete this contract?")) {
+      useContractsStore.getState().remove(contract.id);
+    }
+  }}
+  className="text-red-400 text-xs underline hover:text-red-300"
+>
+  Delete
+</button>
+
+      </div>
+    </div>
+  ))}
+</div>
+
       )}
     </div>
   )
