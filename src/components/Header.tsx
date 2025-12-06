@@ -61,34 +61,38 @@ useEffect(() => {
   <>
     <header
       className="
-        border-b 
+        border-b-[0.5px]
         backdrop-blur-lg
         shadow-[0_0_25px_rgba(255,215,0,0.08)]
-        z-[3000]
+        z-[3000] leading-none
+
       "
       style={{
         backgroundColor: 'var(--color-surface)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
         borderColor: 'var(--color-border)'
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 py-1 flex items-center justify-between flex-wrap">
+      <div className="max-w-7xl mx-auto px-5 py-2 flex items-center justify-between flex-nowrap gap-4">
+
+
 
         {/* MOBILE MENU BUTTON */}
-        <button className="md:hidden p-2 text-[#e8d487]" onClick={() => setMobileOpen(!mobileOpen)}>
+        <button className="md:hidden p-3 pl-4 text-[#d6c26e] leading-none" onClick={() => setMobileOpen(!mobileOpen)}>
           ☰
         </button>
 
         {/* LEFT — LOGO + TITLE */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <img
             src={logoSrc}
             alt="Logo"
-            className="w-12 rounded-xl shadow-[0_0_20px_rgba(255,215,0,0.25)]"
+            className="w-11 rounded-xl shadow-[0_0_20px_rgba(255,215,0,0.18)]"
             style={{ maxHeight: '48px', objectFit: 'contain' }}
           />
           <Link
             to="/"
-            className="text-xl font-semibold tracking-wide"
+            className="text-xl font-semibold"
             style={{ color: 'var(--color-primary)' }}
           >
             {appName}
@@ -96,7 +100,7 @@ useEffect(() => {
         </div>
 
         {/* CENTER NAV */}
-        <nav className="hidden md:flex items-center gap-6 text-sm">
+        <nav className="hidden md:flex items-center gap-5 text-[0.9rem] leading-none">
           <IconLink to="/" label={navDashboard} svg={HomeIcon} />
           <IconLink to="/clients" label={navClients} svg={UsersIcon} />
           <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
@@ -107,8 +111,11 @@ useEffect(() => {
         </nav>
 
         {/* RIGHT ACTION BUTTONS */}
-        <div className="flex items-center gap-2">
-          <button className="header-icon-btn" title="Export PDF" onClick={handleExport}>
+        <div className="flex items-center gap-3 leading-none">
+
+          <button className="header-icon-btn !leading-none hover:bg-black/5" title="Export PDF" onClick={handleExport}>
+
+
             {DownloadIcon()}
           </button>
 
@@ -134,6 +141,8 @@ useEffect(() => {
       <div
         style={{
           height: '2px',
+          marginBottom: '4px',
+          marginTop: '2px',
           background: 'linear-gradient(90deg,#ffd700 0%,#b8860b 100%)'
         }}
       />

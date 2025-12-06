@@ -69,9 +69,11 @@ export default function App() {
   <Route path="/clients/:id" element={<ClientDetail />} />
 
   {/* Quotes */}
-  <Route path="/quotes" element={<QuotesBoard />} />
-  <Route path="/quotes/:id" element={<QuoteDetail />} />
-  <Route path="/quotes/:id/edit" element={<QuoteEditor mode="edit" />} />
+<Route path="/quotes" element={<QuotesBoard />} />
+<Route path="/quotes/new" element={<QuoteEditor mode="create" />} />
+<Route path="/quotes/:id" element={<QuoteDetail />} />
+<Route path="/quotes/:id/edit" element={<QuoteEditor />} />
+
 
   {/* Invoices */}
   <Route path="/invoices" element={<InvoicesPage />} />

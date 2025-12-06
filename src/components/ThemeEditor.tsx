@@ -22,17 +22,17 @@ export default function ThemeEditor({
     <div
       className="
         fixed inset-0 z-50
-        bg-black/60 backdrop-blur-sm
+        bg-black/50 backdrop-blur
         flex items-center justify-center
-        p-4
+        p-5
       "
     >
       <div
         className="
-          w-full max-w-2xl p-6 rounded-2xl relative
+         w-full max-w-2xl p-7 rounded-2xl relative
           bg-[#151515]
-          border border-[#2a2a2a]
-          shadow-[0_0_35px_rgba(255,215,0,0.25)]
+          border border-[#242424]
+          shadow-[0_0_30px_rgba(255,215,0,0.20)]
           text-[#e8d487]
         "
       >
@@ -40,8 +40,8 @@ export default function ThemeEditor({
         <button
           onClick={onClose}
           className="
-            absolute right-4 top-3 text-xl
-            text-[#e8d487]/70
+            absolute right-4 top-2.5 text-xl
+            text-[#e8d487]/85
             hover:text-[#fff1a8]
             transition-all
           "
@@ -49,12 +49,13 @@ export default function ThemeEditor({
           ✕
         </button>
 
-        <h2 className="text-xl font-semibold text-[#fff1a8] mb-6">
+        <h2 className="text-xl font-semibold text-[#f7e89c] mt-1 mb-8">
+
           Admin Edit Mode
         </h2>
 
         {/* COLOR CUSTOMIZATION */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <ColorField
             label="Primary"
             value={theme.primary}
@@ -83,7 +84,7 @@ export default function ThemeEditor({
         </div>
 
         {/* COMPANY INFO EDITORS */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="mt-9 grid grid-cols-1 md:grid-cols-2 gap-7">
           <LineEditor
             title="Company Left"
             lines={left}
@@ -100,11 +101,11 @@ export default function ThemeEditor({
         </div>
 
         {/* IMPORT / EXPORT JSON */}
-        <div className="mt-8 flex items-center gap-3">
+        <div className="mt-9 flex items-center gap-4">
           <button
             className="
-              px-4 py-2 rounded-xl
-              border border-[#444]
+              px-4 py-2 rounded-xl shadow-sm
+              border border-[#505050]
               text-[#e8d487]/80
               hover:text-[#fff1a8]
               hover:border-[#b8860b]
@@ -133,14 +134,15 @@ export default function ThemeEditor({
               if (!file) return
               const text = await file.text()
               await importJSON(JSON.parse(text))
-              alert('Data imported')
+              alert('Import successful.')
+
             }}
           />
 
           <button
             className="
-              px-4 py-2 rounded-xl
-              border border-[#444]
+              px-5 py-2 rounded-xl
+              border border-[#505050]
               text-[#e8d487]/80
               hover:text-[#fff1a8]
               hover:border-[#b8860b]
@@ -169,27 +171,27 @@ function ColorField({ label, value, onChange }: ColorFieldProps): JSX.Element {
   return (
     <label
       className="
-        flex items-center gap-3
+        flex items-center gap-4
         bg-[#0f0f0f]
         border border-[#2a2a2a]
-        rounded-xl p-3
+        rounded-xl p-4
       "
     >
-      <span className="w-24 text-[#fff1a8] font-medium">{label}</span>
+      <span className="w-28 text-[#fff1a8] font-medium">{label}</span>
 
       <input
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-10 h-10 rounded-md border border-[#444] cursor-pointer"
+        className="w-11 h-11 rounded-md border border-[#444] cursor-pointer"
       />
 
       <input
         className="
-          flex-1 px-3 py-2 rounded-lg
+          flex-1 px-3 py-[10px] rounded-lg
           bg-[#1b1b1b]
           border border-[#2a2a2a]
-          text-[#e8d487]
+          text-[#e8d487] placeholder:text-[#a08f55]/60
           focus:outline-none
         "
         value={value}
@@ -220,11 +222,11 @@ function LineEditor({
       className="
         bg-[#0f0f0f]
         border border-[#2a2a2a]
-        p-4 rounded-xl
+        p-5 rounded-xl
         text-[#e8d487]
       "
     >
-      <div className="font-semibold text-[#fff1a8] mb-3">{title}</div>
+      <div className="font-semibold text-[#fff1a8] mb-4">{title}</div>
 
       {lines.map((line, i) => (
         <input
@@ -236,7 +238,7 @@ function LineEditor({
             setLines(next)
           }}
           className="
-            w-full mb-2 px-3 py-2 rounded-lg
+            w-full mb-1 px-3 py-[10px] rounded-lg
             bg-[#1b1b1b]
             border border-[#2a2a2a]
             text-[#e8d487]
@@ -245,10 +247,10 @@ function LineEditor({
         />
       ))}
 
-      <div className="flex items-center gap-3 mt-3">
+      <div className="flex items-center gap-3 mt-4">
         <button
           className="
-            px-3 py-2 rounded-lg font-semibold
+           px-3 py-2 rounded-lg font-semibold text-[0.95rem]
             bg-gradient-to-b from-[#ffd700] to-[#b8860b]
             text-black
             shadow-[0_0_12px_rgba(255,215,0,0.35)]
@@ -265,7 +267,7 @@ function LineEditor({
 
         <button
           className="
-            px-3 py-2 rounded-lg
+            px-4 py-2 rounded-lg
             border border-[#444]
             text-[#e8d487]/70
             hover:text-[#fff1a8]

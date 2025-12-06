@@ -158,7 +158,8 @@ type FlatService = {
 // -------------------------------------------------------------
 // MAIN COMPONENT
 // -------------------------------------------------------------
-export default function QuoteEditor({ mode }: { mode: "create" | "edit" }) {
+export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit" }) {
+
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
