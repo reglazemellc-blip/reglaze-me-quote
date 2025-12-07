@@ -9,6 +9,8 @@ import { create } from 'zustand'
 import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore'
 import { db as firestoreDb } from '../firebase'
 import type { Invoice, InvoiceStatus } from '@db/index'
+import { useConfigStore } from '@store/useConfigStore'
+
 
 type InvoicesState = {
   invoices: Invoice[]
@@ -40,16 +42,24 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
   loading: true,
 
   // ==================== INIT ====================
-  init: async () => {
-    const snap = await getDocs(invoicesCol)
-    const invoices = snap.docs.map((d) => ({ ...(d.data() as Invoice), id: d.id }))
-    set({ invoices, loading: false })
-  },
+ init: async () => {
+  const snap = await getDocs(invoicesCol)
+  const tenantId = useConfigStore.getState().activeTenantId
+  const invoices = snap.docs
+    .map((d) => ({ ...(d.data() as Invoice), id: d.id, tenantId: (d.data() as any).tenantId ?? '' }))
+    .filter((inv) => inv.tenantId === tenantId)
+  set({ invoices, loading: false })
+},
 
   // ==================== UPSERT ====================
-  upsert: async (invoice) => {
-    const ref = doc(invoicesCol, invoice.id)
-    await setDoc(ref, invoice, { merge: true })
+ upsert: async (invoice) => {
+  const ref = doc(invoicesCol, invoice.id)
+  await setDoc(
+    ref,
+    { ...invoice, tenantId: useConfigStore.getState().activeTenantId },
+    { merge: true }
+  )
+
 
     // Reload
     const snap = await getDocs(invoicesCol)
