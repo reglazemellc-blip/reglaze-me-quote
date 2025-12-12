@@ -187,6 +187,8 @@ export type Invoice = {
 
   createdAt: number;
   updatedAt: number;
+  tenantId: string;
+
 };
 
 export type ContractStatus = "draft" | "sent" | "signed" | "completed" | "canceled";

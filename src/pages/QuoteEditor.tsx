@@ -483,7 +483,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
       const newRef = doc(clientsCol);
       finalId = newRef.id;
 
-      const newClient: Client = {
+          const newClient: Client = {
         id: finalId,
         name: clientName.trim(),
         phone: clientPhone || undefined,
@@ -496,7 +496,9 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         reminders: [],
         createdAt: now,
         updatedAt: now,
+        tenantId: useConfigStore.getState().activeTenantId,
       };
+
 
       await setDoc(newRef, newClient);
     } else {
@@ -547,7 +549,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         const newRef = doc(clientsCol);
         finalClientId = newRef.id;
 
-        const newClient: Client = {
+               const newClient: Client = {
           id: finalClientId,
           name: clientName.trim(),
           phone: clientPhone || undefined,
@@ -560,9 +562,12 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
           reminders: [],
           createdAt: now,
           updatedAt: now,
+          tenantId: useConfigStore.getState().activeTenantId,
         };
 
-        await setDoc(newRef, newClient);
+
+        await setDoc(newRef, { ...newClient, tenantId: useConfigStore.getState().activeTenantId });
+
         await initClients();
       }
 
@@ -597,7 +602,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         finalQuoteNumber = await generateQuoteNumber();
       }
 
-      const payload: Partial<Quote> = {
+           const payload: Partial<Quote> = {
         // id will be set when writing
         clientId: finalClientId,
         clientName: clientName.trim(),
@@ -605,6 +610,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         clientEmail,
         clientAddress: addressString || undefined,
         client: clientSnapshot,
+        tenantId: useConfigStore.getState().activeTenantId,
 
         items: items.map((it) => ({
           ...it,
@@ -632,12 +638,13 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         updatedAt: now,
       };
 
+
       const quotesCol = collection(firestoreDb, "quotes");
 
       if (isEdit && quoteIdParam) {
         const ref = doc(quotesCol, quoteIdParam);
         // Remove undefined values before saving
-        const cleanPayload = JSON.parse(JSON.stringify({ ...payload, id: quoteIdParam }));
+        const cleanPayload = JSON.parse(JSON.stringify({ ...payload, id: quoteIdParam, tenantId: useConfigStore.getState().activeTenantId }));
         await setDoc(ref, cleanPayload, { merge: true });
         useToastStore.getState().show("Quote updated.");
       } else {
@@ -724,7 +731,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   onChange={(c) => {
     if (!c) {
       setClientId("");
-      setClientName("");
+      setClientName(clientName);
       setClientPhone("");
       setClientEmail("");
       setClientStreet("");

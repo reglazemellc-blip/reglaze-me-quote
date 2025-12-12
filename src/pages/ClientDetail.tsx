@@ -23,6 +23,7 @@ import {
 import type { Attachment, AttachmentType } from "@db/index";
 import { useClientsStore } from "@store/useClientsStore";
 import { useContractsStore } from "@store/useContractsStore";
+import { useConfigStore } from "@store/useConfigStore";
 import ClientDrawer from "@components/ClientDrawer";
 import { useToastStore } from '@store/useToastStore'
 
@@ -160,12 +161,18 @@ export default function ClientDetail() {
         });
 
         // ----- quotes for this client -----
-        const qSnap = await getDocs(
-          query(collection(db, "quotes"), where("clientId", "==", clientId))
-        );
+       const qSnap = await getDocs(
+  query(
+    collection(db, "quotes"),
+    where("clientId", "==", clientId),
+    where("tenantId", "==", useConfigStore.getState().activeTenantId)
+  )
+);
+
 
         const qList: QuoteSummary[] = qSnap.docs.map((d) => {
           const qd = d.data() as any;
+
           return {
             id: d.id,
             quoteNumber: qd.quoteNumber ?? null,
@@ -247,11 +254,16 @@ export default function ClientDetail() {
       }
 
       const updatedAttachments = [...existing, ...additions];
+const refDoc = doc(db, "clients", client.id);
 
-      const refDoc = doc(db, "clients", client.id);
-      await updateDoc(refDoc, {
-        attachments: updatedAttachments,
-      });
+await updateDoc(refDoc, {
+  attachments: updatedAttachments,
+  tenantId: client.tenantId ?? useConfigStore.getState().activeTenantId,
+});
+
+
+
+
 
       setClient((prev: any) => ({
         ...prev,
@@ -819,6 +831,13 @@ export default function ClientDetail() {
                           <div>${q.total.toFixed(2)}</div>
                         )}
                       </div>
+                      <button
+  className="text-[11px] text-red-400 ml-3"
+  onClick={() => navigate(`/invoices/${q.id}?delete=1`)}
+>
+  Delete
+</button>
+
                     </div>
                   ))}
                 </div>

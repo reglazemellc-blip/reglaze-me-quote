@@ -12,6 +12,8 @@ import { create } from 'zustand'
 import { doc, setDoc, getDoc, collection } from 'firebase/firestore'
 
 import { db as firestoreDb } from '../firebase'
+import { listenToAuthChanges } from '../auth'
+
 import {
   defaultLabels,
   defaultTheme,
@@ -126,6 +128,10 @@ else if (config.businessProfile.logo) {
       loading: false,
       logo: config.businessProfile.logo || null,
     })
+        listenToAuthChanges((user) => {
+      set({ activeTenantId: user ? user.uid : 'default' })
+    })
+
   },
 
     setActiveTenantId: (id: string) => {

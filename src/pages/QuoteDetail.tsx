@@ -218,6 +218,7 @@ export default function QuoteDetail() {
       // Convert SafeQuote client snapshot to full Client object for PDF
       const client = {
         id: quote.client.id || quote.clientId || '',
+        tenantId: useConfigStore.getState().activeTenantId,
         name: quote.client.name || quote.clientName || '',
         phone: quote.client.phone || quote.clientPhone || '',
         email: quote.client.email || quote.clientEmail || '',
@@ -243,10 +244,12 @@ export default function QuoteDetail() {
       const { setDoc } = await import('firebase/firestore')
       const quoteRef = doc(db, 'quotes', quote.id)
       await setDoc(quoteRef, {
-        jobsiteReadyAcknowledged: newValue,
-        jobsiteReadyAcknowledgedAt: timestamp,
-        updatedAt: Date.now()
-      }, { merge: true })
+  tenantId: useConfigStore.getState().activeTenantId,
+  jobsiteReadyAcknowledged: newValue,
+  jobsiteReadyAcknowledgedAt: timestamp,
+  updatedAt: Date.now()
+}, { merge: true })
+
       
       setQuote({
         ...quote,

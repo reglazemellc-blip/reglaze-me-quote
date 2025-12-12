@@ -33,10 +33,13 @@ import { useToastStore } from "@store/useToastStore";
 
 
 import { useConfigStore } from "@store/useConfigStore";
+import Login from "./pages/Login";
+
 
 export default function App() {
   const location = useLocation();
-  const { init: initConfig, loading: configLoading, config } = useConfigStore();
+  const { init: initConfig, loading: configLoading, config, activeTenantId } = useConfigStore();
+
   const { message, hide } = useToastStore();
 
 
@@ -46,7 +49,7 @@ export default function App() {
   }, [initConfig]);
 
   // Show loading state while config initializes
-  if (configLoading) {
+    if (configLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-[var(--color-primary)] text-lg">Loading...</div>
@@ -54,8 +57,15 @@ export default function App() {
     );
   }
 
+  // Redirect to login if no tenant (not authenticated)
+  if (!activeTenantId || activeTenantId === "default") {
+
+    return <Login />;
+  }
+
   return (
-  <>
+    <>
+
     {/* Header stays global, above page transitions */}
     <Header />
 

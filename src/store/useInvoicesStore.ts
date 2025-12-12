@@ -62,19 +62,29 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
 
 
     // Reload
-    const snap = await getDocs(invoicesCol)
-    const invoices = snap.docs.map((d) => ({ ...(d.data() as Invoice), id: d.id }))
+    const tenantId = useConfigStore.getState().activeTenantId
+const snap = await getDocs(invoicesCol)
+
+    const invoices = snap.docs
+  .map((d) => ({ ...(d.data() as Invoice), id: d.id }))
+  .filter((inv) => inv.tenantId === tenantId)
+
     set({ invoices })
   },
 
   // ==================== REMOVE ====================
-  remove: async (id) => {
-    await deleteDoc(doc(invoicesCol, id))
+ remove: async (id) => {
+  await deleteDoc(doc(invoicesCol, id))
 
-    const snap = await getDocs(invoicesCol)
-    const invoices = snap.docs.map((d) => ({ ...(d.data() as Invoice), id: d.id }))
-    set({ invoices })
-  },
+  const tenantId = useConfigStore.getState().activeTenantId
+  const snap = await getDocs(invoicesCol)
+  const invoices = snap.docs
+    .map((d) => ({ ...(d.data() as Invoice), id: d.id }))
+    .filter((inv) => inv.tenantId === tenantId)
+
+  set({ invoices })
+},
+
 
   // ==================== RECORD PAYMENT ====================
   recordPayment: async (id, amount) => {

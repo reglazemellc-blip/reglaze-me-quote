@@ -1,7 +1,20 @@
+// 🔥 TEMP DEBUG — MUST BE AT VERY TOP
+// @ts-ignore
+window.firebaseAuthLoaded = "YES - FIREBASE FILE RAN";
+console.log("🔥 FIREBASE FILE LOADED");
+
+
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getAuth, signInAnonymously } from "firebase/auth";
+import { 
+  getAuth, 
+  setPersistence, 
+  browserLocalPersistence, 
+  signInAnonymously 
+} from "firebase/auth";
+
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyAgwFECmmUXjyaZc2r6554IsffPBFmmsXY",
@@ -19,15 +32,16 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// ⭐ Auto login anonymous user
-signInAnonymously(auth).catch((err) => {
-  console.error("Anonymous login failed:", err);
-});
+// ⭐ Enable persistent auth so user keeps the same UID after refresh
+setPersistence(auth, browserLocalPersistence)
+  .then(() => signInAnonymously(auth))
+  .catch((err) => {
+    console.error("Auth persistence or anonymous login failed:", err);
+  });
 
 export const db = getFirestore(app);
+
 export const storage = getStorage(app);
 
 // TEMP DEBUG — confirm firebase.ts was loaded
 // @ts-ignore
-window.firebaseAuthLoaded = "YES - FIREBASE FILE RAN";
-console.log("🔥 FIREBASE FILE LOADED");

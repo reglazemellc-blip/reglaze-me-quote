@@ -117,7 +117,9 @@ photos: d.data().photos ?? [],
     await setDoc(doc(clientsCol, clean.id), clean)
 
     // reload clients
-    const snap = await getDocs(clientsCol)
+    const tenantId = useConfigStore.getState().activeTenantId
+const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
+
     const clients: Client[] = snap.docs.map((d) => ({
       ...(d.data() as Client),
       id: d.id,
@@ -144,7 +146,8 @@ photos: d.data().photos ?? [],
     await Promise.all(deletes)
 
     // reload
-    const snap = await getDocs(clientsCol)
+    const tenantId = useConfigStore.getState().activeTenantId
+const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
     const clients: Client[] = snap.docs.map((d) => ({
       ...(d.data() as Client),
       id: d.id,
@@ -192,9 +195,11 @@ photos: d.data().photos ?? [],
     const updatedReminders: Reminder[] = [...current, reminder]
 
     await updateDoc(doc(clientsCol, clientId), {
-      reminders: updatedReminders,
-      updatedAt: now,
-    })
+  reminders: updatedReminders,
+  updatedAt: now,
+  tenantId: useConfigStore.getState().activeTenantId,
+})
+
 
     // update local state
     const updatedClients = state.clients.map((c) =>
@@ -231,9 +236,11 @@ photos: d.data().photos ?? [],
 
     const now = Date.now()
     await updateDoc(doc(clientsCol, clientId), {
-      reminders: updatedReminders,
-      updatedAt: now,
-    })
+  reminders: updatedReminders,
+  updatedAt: now,
+  tenantId: useConfigStore.getState().activeTenantId,
+})
+
 
     const updatedClients = state.clients.map((c) =>
       c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
@@ -257,9 +264,11 @@ photos: d.data().photos ?? [],
     const now = Date.now()
 
     await updateDoc(doc(clientsCol, clientId), {
-      reminders: updatedReminders,
-      updatedAt: now,
-    })
+  reminders: updatedReminders,
+  updatedAt: now,
+  tenantId: useConfigStore.getState().activeTenantId,
+})
+
 
     const updatedClients = state.clients.map((c) =>
       c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c

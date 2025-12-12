@@ -178,7 +178,19 @@ export default function InvoiceDetail() {
               View Quote
             </button>
           )}
-        </div>
+          <button
+    onClick={async () => {
+      if (!window.confirm("Delete this invoice permanently?")) return;
+      await useInvoicesStore.getState().remove(invoice.id);
+      useToastStore.getState().show("Invoice deleted");
+      navigate("/invoices");
+    }}
+    className="btn-danger flex items-center gap-2"
+  >
+    Delete
+  </button>
+</div>
+
       </div>
 
       {/* CLIENT INFO */}
