@@ -68,36 +68,94 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
   // -------------------------------------------------
   // LOAD ALL CLIENTS
   // -------------------------------------------------
-  init: async () => {
-    const tenantId = useConfigStore.getState().activeTenantId
-const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
+// -------------------------------------------------
+// LOAD ALL CLIENTS (WAIT FOR TENANT)
+// -------------------------------------------------
+// -------------------------------------------------
+// LOAD ALL CLIENTS (WAIT FOR TENANT, THEN LOAD)
+// -------------------------------------------------
+init: async () => {
+  let tenantId = useConfigStore.getState().activeTenantId
+
+  // ⏳ HARD WAIT for tenantId (cold reload safe)
+  if (!tenantId) {
+    await new Promise<void>((resolve) => {
+      const unsub = useConfigStore.subscribe((state) => {
+        if (state.activeTenantId) {
+          tenantId = state.activeTenantId
+          unsub()
+          resolve()
+        }
+      })
+    })
+  }
+
+    // ✅ Use tenantId resolved by hard wait
+  if (!tenantId) {
+  console.warn('[clients.init] tenantId missing — waiting to retry')
+
+  // retry once tenant becomes available
+  useConfigStore.subscribe((state) => {
+    if (state.activeTenantId) {
+      get().init()
+    }
+  })
+
+  return
+}
 
 
-    const clients: Client[] = snap.docs.map((d) => ({
-      ...(d.data() as Client),
-      id: d.id,
-tenantId: d.data().tenantId ?? '',
-photos: d.data().photos ?? [],
-      // guaranteed defaults so nothing crashes
-      
-      attachments: d.data().attachments ?? [],
-      conversations: d.data().conversations ?? [],
-      reminders: d.data().reminders ?? [],
-    }))
 
-    set({ clients, loading: false })
-  },
+
+  const snap = await getDocs(
+    query(clientsCol, where('tenantId', '==', tenantId))
+  )
+
+  const clients: Client[] = snap.docs.map((d) => ({
+    ...(d.data() as Client),
+    id: d.id,
+    tenantId: d.data().tenantId ?? '',
+    photos: d.data().photos ?? [],
+    attachments: d.data().attachments ?? [],
+    conversations: d.data().conversations ?? [],
+    reminders: d.data().reminders ?? [],
+  }))
+
+  set({ clients, loading: false })
+},
+
+
 
   // -------------------------------------------------
   // CREATE / UPDATE CLIENT
   // -------------------------------------------------
-  upsert: async (c) => {
+    upsert: async (c) => {
+    let tenantId = useConfigStore.getState().activeTenantId
+
+    // ⏳ HARD WAIT for tenantId (write-safe)
+    if (!tenantId) {
+      await new Promise<void>((resolve) => {
+        const unsub = useConfigStore.subscribe((state) => {
+          if (state.activeTenantId) {
+            tenantId = state.activeTenantId
+            unsub()
+            resolve()
+          }
+        })
+      })
+    }
+
+    if (!tenantId) {
+      console.warn('[clients.upsert] aborted — tenantId missing')
+      throw new Error('tenantId missing during client upsert')
+    }
+
     const now = Date.now()
 
     const clean: Client = {
       // required
       id: c.id!,
-      tenantId: c.tenantId ?? useConfigStore.getState().activeTenantId,
+      tenantId,
       name: c.name ?? '',
       phone: c.phone ?? '',
       email: c.email ?? '',
@@ -117,7 +175,8 @@ photos: d.data().photos ?? [],
     await setDoc(doc(clientsCol, clean.id), clean)
 
     // reload clients
-    const tenantId = useConfigStore.getState().activeTenantId
+    // tenantId already resolved above
+
 const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
 
     const clients: Client[] = snap.docs.map((d) => ({

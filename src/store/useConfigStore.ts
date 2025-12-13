@@ -68,6 +68,19 @@ type ConfigState = {
   resetToDefaults: () => Promise<void>
 }
 
+function getStableTenantId() {
+  const KEY = 'app:tenantId'
+  let tenantId = localStorage.getItem(KEY)
+
+  if (!tenantId) {
+    tenantId = crypto.randomUUID()
+    localStorage.setItem(KEY, tenantId)
+  }
+
+  return tenantId
+}
+
+
 const CONFIG_DOC_ID = 'app-config'
 const LOCAL_LOGO_KEY = 'businessProfile.logo'
 
@@ -129,7 +142,8 @@ else if (config.businessProfile.logo) {
       logo: config.businessProfile.logo || null,
     })
         listenToAuthChanges((user) => {
-      set({ activeTenantId: user ? user.uid : 'default' })
+          set({ activeTenantId: getStableTenantId() })
+
     })
 
   },
