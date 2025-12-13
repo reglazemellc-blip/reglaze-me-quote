@@ -60,6 +60,7 @@ type QuoteSummary = {
 // Component
 // -------------------------------------------------------------
 export default function ClientDetail() {
+  
   const { id } = useParams();
   const clientId = id ?? "";
 
@@ -492,18 +493,23 @@ await updateDoc(refDoc, {
             <button
               className="btn-outline-gold px-4 py-1.5 text-xs md:text-sm"
               onClick={() => setDrawerOpen(true)}
+
             >
               Edit Client
             </button>
             <button
               className="btn-gold px-4 py-1.5 text-xs md:text-sm"
               onClick={() => navigate(`/quotes/new?clientId=${client.id}`)}
+
+
             >
               New Quote
             </button>
             <button
               className="px-4 py-1.5 text-xs md:text-sm rounded-lg border border-red-500/70 text-red-400 hover:bg-red-500 hover:text-black transition"
               onClick={handleDeleteClient}
+
+
             >
               Delete
             </button>
@@ -544,6 +550,8 @@ await updateDoc(refDoc, {
                     type="button"
                     className="text-[11px] text-[#e8d487] underline"
                     onClick={() => photoInputRef.current?.click()}
+
+
                   >
                     Add Photos
                   </button>
@@ -555,6 +563,8 @@ await updateDoc(refDoc, {
                   multiple
                   className="hidden"
                   onChange={handlePhotoUpload}
+
+
                 />
 
                 {uploadingPhotos && (
@@ -654,6 +664,8 @@ await updateDoc(refDoc, {
                 <button
                   className="btn-gold text-xs px-3 py-1.5"
                   onClick={addConversation}
+
+
                 >
                   Add Conversation
                 </button>
@@ -736,12 +748,16 @@ await updateDoc(refDoc, {
                         <button
                           className="text-[11px] text-gray-300"
                           onClick={() => startEditConversation(c)}
+
+
                         >
                           ✎ Edit
                         </button>
                         <button
                           className="text-[11px] text-red-400"
                           onClick={() => deleteConversation(c)}
+
+
                         >
                           Delete
                         </button>
@@ -768,6 +784,8 @@ await updateDoc(refDoc, {
                       <input
                         type="file"
                         onChange={(e) => uploadConversationFile(e, c)}
+
+
                         className="text-[11px]"
                       />
                     </div>
@@ -803,6 +821,8 @@ await updateDoc(refDoc, {
                 <button
                   className="btn-gold text-xs px-3 py-1.5"
                   onClick={() => navigate(`/quotes/new?clientId=${client.id}`)}
+
+
                 >
                   New Quote
                 </button>
