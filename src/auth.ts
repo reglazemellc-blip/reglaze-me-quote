@@ -15,6 +15,14 @@ export function logout() {
   return signOut(auth);
 }
 
-export function listenToAuthChanges(callback: (user: User | null) => void) {
-  return onAuthStateChanged(auth, callback);
-}
+export function listenToAuthChanges(callback: 
+  (user: User | null) => void) {
+  return onAuthStateChanged(auth, (user) => {
+  if (user && user.isAnonymous) {
+    callback(null);
+    return;
+  }
+
+  callback(user);
+});
+  }

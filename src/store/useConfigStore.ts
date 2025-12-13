@@ -141,10 +141,25 @@ else if (config.businessProfile.logo) {
       loading: false,
       logo: config.businessProfile.logo || null,
     })
-        listenToAuthChanges((user) => {
-          set({ activeTenantId: getStableTenantId() })
+        listenToAuthChanges(async (user) => {
+  const tenantId = getStableTenantId()
+  set({ activeTenantId: tenantId })
 
+  // 🚫 No real login → do nothing (demo mode)
+  if (!user) return
+
+  // 🔒 Claim tenant ONCE for this user
+  const claimRef = doc(firestoreDb, 'tenantClaims', user.uid)
+  const snap = await getDoc(claimRef)
+
+  if (!snap.exists()) {
+    await setDoc(claimRef, {
+      tenantId,
+      claimedAt: Date.now(),
     })
+  }
+})
+
 
   },
 

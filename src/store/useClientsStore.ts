@@ -4,6 +4,8 @@
 
 import { create } from 'zustand'
 import { useConfigStore } from '@store/useConfigStore'
+import { auth } from '../firebase'
+
 
 import {
   collection,
@@ -75,6 +77,11 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
 // LOAD ALL CLIENTS (WAIT FOR TENANT, THEN LOAD)
 // -------------------------------------------------
 init: async () => {
+  if (!auth.currentUser) {
+  set({ loading: false })
+  return
+}
+
   let tenantId = useConfigStore.getState().activeTenantId
 
   // ⏳ HARD WAIT for tenantId (cold reload safe)

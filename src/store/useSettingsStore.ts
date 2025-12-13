@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { auth } from '../firebase'
 import { db, getOrInitSettings, type Settings } from '@db/index'
 
 type SettingsState = {
@@ -17,7 +18,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   // Load settings from Dexie (local DB)
   init: async () => {
-    const s = await getOrInitSettings()
+    if (!auth.currentUser) {
+  set({ loading: false })
+  return
+}
+
+const s = await getOrInitSettings()
+
     applyTheme(s)
     set({ settings: s, loading: false })
   },
