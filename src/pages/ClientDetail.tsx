@@ -490,6 +490,26 @@ await updateDoc(refDoc, {
           </div>
 
           <div className="flex flex-wrap gap-2 justify-start md:justify-end">
+            <select
+              className="input text-xs md:text-sm"
+              value={client.status ?? 'new'}
+              onChange={async (e) => {
+                const next = e.target.value
+                setClient((prev: any) => ({ ...prev, status: next }))
+
+                await updateDoc(doc(db, 'clients', client.id), {
+                  status: next,
+                  updatedAt: Date.now(),
+    })
+  }}
+        >
+                <option value="new">New</option>
+                <option value="contacted">Contacted</option>
+                <option value="quoted">Quoted</option>
+                <option value="waiting">Waiting</option>
+                <option value="closed">Closed</option>
+              </select>
+
             <button
               className="btn-outline-gold px-4 py-1.5 text-xs md:text-sm"
               onClick={() => setDrawerOpen(true)}
@@ -497,6 +517,7 @@ await updateDoc(refDoc, {
             >
               Edit Client
             </button>
+
             <button
               className="btn-gold px-4 py-1.5 text-xs md:text-sm"
               onClick={() => navigate(`/quotes/new?clientId=${client.id}`)}

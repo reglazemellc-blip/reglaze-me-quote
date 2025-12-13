@@ -242,6 +242,10 @@ export default function Clients() {
                   <div className="text-lg font-semibold text-[#f5f3da]">
                     {c.name}
                   </div>
+                  <div className="mt-1 text-[11px] uppercase tracking-wide text-gray-400">
+                  {c.status ?? 'new'}
+                </div>
+
 
                   <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
                     {c.phone && <div>{c.phone}</div>}

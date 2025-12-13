@@ -66,6 +66,8 @@ export type Client = {
   zip?: string;
 
   notes?: string;
+  status?: 'new' | 'contacted' | 'quoted' | 'waiting' | 'closed'
+
 
   // legacy
   photos?: string[];

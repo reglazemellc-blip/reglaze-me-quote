@@ -126,6 +126,8 @@ init: async () => {
     attachments: d.data().attachments ?? [],
     conversations: d.data().conversations ?? [],
     reminders: d.data().reminders ?? [],
+    status: (d.data() as any).status ?? 'new',
+
   }))
 
   set({ clients, loading: false })
@@ -168,6 +170,8 @@ init: async () => {
       email: c.email ?? '',
       address: c.address ?? '',
       notes: c.notes ?? '',
+      status: (c as any).status ?? 'new',
+
 
       // NEW FIELDS - safe defaults
       photos: c.photos ?? [],
@@ -193,6 +197,8 @@ const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
       attachments: d.data().attachments ?? [],
       conversations: d.data().conversations ?? [],
       reminders: d.data().reminders ?? [],
+      status: (d.data() as any).status ?? 'new',
+
     }))
 
     set({ clients })
@@ -221,6 +227,8 @@ const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
       attachments: d.data().attachments ?? [],
       conversations: d.data().conversations ?? [],
       reminders: d.data().reminders ?? [],
+      status: (d.data() as any).status ?? 'new',
+
     }))
 
     set({ clients })
