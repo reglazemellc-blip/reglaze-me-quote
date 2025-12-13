@@ -36,7 +36,10 @@ export default function Clients() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("recent_activity");
 
-const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+  contacted: true,
+})
+
 const toggleStatus = (status: string) => {
   setCollapsed((prev) => ({
     ...prev,
@@ -244,7 +247,8 @@ const toggleStatus = (status: string) => {
         {/* CLIENT LIST ------------------------------------------- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(groupedByStatus).map(([status, clients]) => (
-  <div key={status} className="col-span-full space-y-3">
+  <div key={status} className="col-span-full space-y-4 mt-6 pt-4 border-t border-[#2a2414]">
+
     <button
   type="button"
   onClick={() => toggleStatus(status)}
@@ -278,6 +282,27 @@ const toggleStatus = (status: string) => {
               <div className="text-lg font-semibold text-[#f5f3da]">
                 {c.name}
               </div>
+
+              <div className="mt-1 text-[11px] text-gray-500">
+  Last activity: {Math.max(
+    c.createdAt ?? 0,
+    ...quotes
+      .filter((q) => q.clientId === c.id)
+      .map((q) => q.updatedAt ?? q.createdAt ?? 0)
+  )
+    ? `${Math.floor(
+        (Date.now() -
+          Math.max(
+            c.createdAt ?? 0,
+            ...quotes
+              .filter((q) => q.clientId === c.id)
+              .map((q) => q.updatedAt ?? q.createdAt ?? 0)
+          )) /
+          (1000 * 60 * 60 * 24)
+      )}d ago`
+    : "No activity yet"}
+</div>
+
 
               <div className="mt-1 text-[11px] uppercase tracking-wide text-gray-400">
                 {c.status ?? "new"}

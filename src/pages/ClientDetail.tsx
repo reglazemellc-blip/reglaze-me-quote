@@ -10,7 +10,9 @@ import {
   getDocs,
   query,
   where,
+  arrayUnion,
 } from "firebase/firestore";
+
 
 import { db, storage } from "../firebase";
 import {
@@ -124,15 +126,10 @@ export default function ClientDetail() {
           ? data.attachments
           : [];
 
-        const normalized: Attachment[] = rawAttachments.map((a) => ({
-          id: String(a.id ?? createId()),
-          name: String(a.name ?? "Attachment"),
-          url: String(a.url ?? ""),
-          type: (a.type as AttachmentType) || "photo",
-          createdAt: Number(a.createdAt ?? Date.now()),
-          path: String(a.path ?? ""),
-          conversationId: a.conversationId ?? undefined,
-        }));
+                const normalized: Attachment[] = rawAttachments.filter(
+          (a) => a && a.url
+        );
+
 
         // Legacy photos[] → attachments
         const legacyPhotos: string[] = Array.isArray(data.photos)
@@ -191,7 +188,8 @@ export default function ClientDetail() {
         setQuotes(qList);
       } catch (err) {
         console.error(err);
-        useToastStore.getState().show("Import successful.");
+        useToastStore.getState().show("Photo upload failed. Check console.");
+
 
       } finally {
         setLoading(false);
@@ -217,7 +215,8 @@ export default function ClientDetail() {
       navigate("/clients");
     } catch (err) {
       console.error(err);
-      useToastStore.getState().show("Import successful.");
+      useToastStore.getState().show("Operation failed. See console.");
+
 
     }
   }
@@ -238,7 +237,11 @@ export default function ClientDetail() {
       const additions: Attachment[] = [];
 
       for (const file of files) {
-        const path = `clients/${client.id}/attachments/${Date.now()}_${file.name}`;
+        const tenantId =
+  client.tenantId ?? useConfigStore.getState().activeTenantId;
+
+const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}_${file.name}`;
+
         const storageRef = ref(storage, path);
 
         await uploadBytes(storageRef, file);
@@ -254,22 +257,20 @@ export default function ClientDetail() {
         });
       }
 
-      const updatedAttachments = [...existing, ...additions];
-const refDoc = doc(db, "clients", client.id);
+           const refDoc = doc(db, "clients", client.id);
 
-await updateDoc(refDoc, {
-  attachments: updatedAttachments,
-  tenantId: client.tenantId ?? useConfigStore.getState().activeTenantId,
-});
+      for (const att of additions) {
+        await updateDoc(refDoc, {
+          attachments: arrayUnion(att),
+          tenantId: client.tenantId ?? useConfigStore.getState().activeTenantId,
+        });
+      }
 
-
-
-
-
-      setClient((prev: any) => ({
+           setClient((prev: any) => ({
         ...prev,
-        attachments: updatedAttachments,
+        attachments: [...(prev.attachments || []), ...additions],
       }));
+
     } catch (err) {
       console.error(err);
       useToastStore.getState().show("Import successful.");
