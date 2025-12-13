@@ -27,12 +27,22 @@ export default function Clients() {
   const { clients, init } = useClientsStore();
   const { quotes } = useQuotesStore();
   const { config } = useConfigStore();
+  
+
 
   const labels = config?.labels;
 
   const [term, setTerm] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("recent_activity");
+
+const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+const toggleStatus = (status: string) => {
+  setCollapsed((prev) => ({
+    ...prev,
+    [status]: !prev[status],
+  }))
+}
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -108,6 +118,9 @@ export default function Clients() {
   // -------------------------------------------------------------
   const sorted = useMemo(() => {
     const arr = [...filtered];
+     
+
+
 
     switch (sortMode) {
       case "newest":
@@ -130,6 +143,14 @@ export default function Clients() {
         return arr.sort((a, b) => lastActivity(b) - lastActivity(a));
     }
   }, [filtered, sortMode, quotes]);
+   const groupedByStatus = useMemo(() => {
+  return sorted.reduce<Record<string, typeof sorted>>((acc, client) => {
+    const status = client.status ?? "new"
+    if (!acc[status]) acc[status] = []
+    acc[status].push(client)
+    return acc
+  }, {})
+}, [sorted])
 
   // -------------------------------------------------------------
   // UI
@@ -222,63 +243,69 @@ export default function Clients() {
 
         {/* CLIENT LIST ------------------------------------------- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {sorted.map((c) => (
-            <Link
-              key={c.id}
-              to={`/clients/${c.id}`}
-              className="
-                block 
-                bg-black/40 
-                border border-[#2a2414]
-                rounded-xl
-                p-4
-                hover:bg-black/60 
-                transition 
-                shadow
-              "
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="text-lg font-semibold text-[#f5f3da]">
-                    {c.name}
-                  </div>
-                  <div className="mt-1 text-[11px] uppercase tracking-wide text-gray-400">
-                  {c.status ?? 'new'}
-                </div>
+          {Object.entries(groupedByStatus).map(([status, clients]) => (
+  <div key={status} className="col-span-full space-y-3">
+    <button
+  type="button"
+  onClick={() => toggleStatus(status)}
+  className="flex items-center justify-between w-full px-3 py-2 rounded-md bg-black/30 border border-[#2a2414] text-sm font-semibold uppercase tracking-wide text-[#e8d487] hover:bg-black/50"
+
+>
+   <span>
+    {status} ({clients.length})
+  </span>
+
+  <span className="ml-3 text-lg font-bold" style={{ color: "#e8d487" }}>
 
 
-                  <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
-                    {c.phone && <div>{c.phone}</div>}
-                    {c.email && <div>{c.email}</div>}
-                    {formatAddress(c) && (
-                      <div className="whitespace-pre-line text-gray-400">
-                        {formatAddress(c)}
-                      </div>
-                    )}
-                  </div>
-                </div>
+    {collapsed[status] ? "▸" : "▾"}
 
-                <span
-                  className="
-                    text-[11px]
-                    px-2 py-1
-                    rounded-full 
-                    border border-[#e8d487]/70 
-                    text-[#e8d487]
-                    whitespace-nowrap
-                  "
-                >
-                  {quoteCount(c.id)} quotes
-                </span>
+  </span>
+</button>
+
+
+    {!collapsed[status] && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {clients.map((c) => (
+
+        <Link
+          key={c.id}
+          to={`/clients/${c.id}`}
+          className="block bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/60 transition shadow"
+        >
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-lg font-semibold text-[#f5f3da]">
+                {c.name}
               </div>
-            </Link>
-          ))}
 
-          {!sorted.length && (
-            <div className="col-span-full text-center text-gray-500 py-10">
-              No clients found.
+              <div className="mt-1 text-[11px] uppercase tracking-wide text-gray-400">
+                {c.status ?? "new"}
+              </div>
+
+              <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
+                {c.phone && <div>{c.phone}</div>}
+                {c.email && <div>{c.email}</div>}
+                {c.address && (
+                  <div className="whitespace-pre-line text-gray-400">
+                    {c.address}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+
+            <span className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap">
+              {quoteCount(c.id)} quotes
+            </span>
+          </div>
+        </Link>
+         ))}
+  </div>
+)}
+
+  </div>
+))}
+
         </div>
       </div>
 
