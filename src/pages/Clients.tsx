@@ -7,6 +7,9 @@ import { useQuotesStore } from "@store/useQuotesStore";
 import { useConfigStore } from "@store/useConfigStore";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase";
+
 
 import SearchBar from "@components/SearchBar";
 import ClientDrawer from "@components/ClientDrawer";
@@ -36,7 +39,10 @@ export default function Clients() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("recent_activity");
 
-const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+  const [clientQuotes, setClientQuotes] = useState<any[]>([]);
+  const [clientInvoices, setClientInvoices] = useState<any[]>([]);
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
   contacted: true,
 })
 
@@ -47,17 +53,53 @@ const toggleStatus = (status: string) => {
   }))
 }
 
-  const navigate = useNavigate();
+  const navigate = useNavigate(); 
   const location = useLocation();
 
   // -------------------------------------------------------------
-  // Load Clients on Mount
-  // -------------------------------------------------------------
-  useEffect(() => {
-    init();
-  }, [init]);
+// Load Clients on Mount
+// -------------------------------------------------------------
+useEffect(() => {
+  init();
 
-  // -------------------------------------------------------------
+  async function loadFinancials() {
+    const tenantId = useConfigStore.getState().activeTenantId;
+    if (!tenantId) return;
+
+    const qSnap = await getDocs(
+      query(
+        collection(db, "quotes"),
+        where("tenantId", "==", tenantId)
+      )
+    );
+
+    const iSnap = await getDocs(
+      query(
+        collection(db, "invoices"),
+        where("tenantId", "==", tenantId)
+      )
+    );
+
+    setClientQuotes(
+      qSnap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as any),
+      }))
+    );
+
+    setClientInvoices(
+      iSnap.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as any),
+      }))
+    );
+  }
+
+  loadFinancials();
+}, [init]);
+
+
+   // -------------------------------------------------------------
   // Auto-open Drawer if coming from Dashboard
   // -------------------------------------------------------------
   useEffect(() => {
@@ -67,6 +109,52 @@ const toggleStatus = (status: string) => {
       navigate("/clients", { replace: true });
     }
   }, [location.state, navigate]);
+
+    // -------------------------------------------------------------
+  // Load client financials (quotes + invoices) — READ ONLY
+  // -------------------------------------------------------------
+  useEffect(() => {
+    async function loadClientFinancials() {
+      const tenantId = useConfigStore.getState().activeTenantId;
+      if (!tenantId) return;
+
+      try {
+        const qSnap = await getDocs(
+          query(
+            collection(db, "quotes"),
+            where("tenantId", "==", tenantId)
+          )
+        );
+
+        setClientQuotes(
+          qSnap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as any),
+          }))
+        );
+
+        const iSnap = await getDocs(
+          query(
+            collection(db, "invoices"),
+            where("tenantId", "==", tenantId)
+          )
+        );
+
+        setClientInvoices(
+          iSnap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as any),
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load client financials", err);
+      }
+    }
+
+    loadClientFinancials();
+  }, []);
+
+
 
   // -------------------------------------------------------------
   // Helper: Format Address
@@ -81,13 +169,14 @@ const toggleStatus = (status: string) => {
   // Quote Count per Client
   // -------------------------------------------------------------
   const quoteCount = (clientId: string) =>
-    quotes.filter((q) => q.clientId === clientId).length;
+    clientQuotes.filter((q) => q.clientId === clientId).length;
+
 
   // -------------------------------------------------------------
   // Compute last activity (quote or conversation)
   // -------------------------------------------------------------
   const lastActivity = (c: any) => {
-    const lastQuote = quotes
+    const lastQuote = clientQuotes
       .filter((q) => q.clientId === c.id)
       .sort((a, b) => (b.updatedAt ?? b.createdAt ?? 0) - (a.updatedAt ?? a.createdAt ?? 0))[0];
 
@@ -286,7 +375,7 @@ const toggleStatus = (status: string) => {
               <div className="mt-1 text-[11px] text-gray-500">
   Last activity: {Math.max(
     c.createdAt ?? 0,
-    ...quotes
+    ...clientQuotes
       .filter((q) => q.clientId === c.id)
       .map((q) => q.updatedAt ?? q.createdAt ?? 0)
   )
@@ -294,7 +383,7 @@ const toggleStatus = (status: string) => {
         (Date.now() -
           Math.max(
             c.createdAt ?? 0,
-            ...quotes
+            ...clientQuotes
               .filter((q) => q.clientId === c.id)
               .map((q) => q.updatedAt ?? q.createdAt ?? 0)
           )) /
@@ -303,10 +392,29 @@ const toggleStatus = (status: string) => {
     : "No activity yet"}
 </div>
 
+{c.status === "quoted" &&
+  quoteCount(c.id) > 0 && (
+    <div className="mt-2 text-[14px] leading-relaxed text-gray-200">
+      Quoted · {clientInvoices.some((i) => i.clientId === c.id) ? <span className="text-[#e8d487] font-medium">Invoiced</span> : "No invoice"} ·{" "}
+      {(() => {
+        const lastQuoteTime = Math.max(
+          0,
+          ...clientQuotes
+            .filter((q) => q.clientId === c.id)
+            .map((q) => q.updatedAt ?? q.createdAt ?? 0)
+        );
 
-              <div className="mt-1 text-[11px] uppercase tracking-wide text-gray-400">
-                {c.status ?? "new"}
-              </div>
+        if (!lastQuoteTime) return "—";
+
+        const days = Math.floor(
+          (Date.now() - lastQuoteTime) / (1000 * 60 * 60 * 24)
+        );
+
+        return `${days}d ago`;
+      })()}
+    </div>
+)}
+          
 
               <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
                 {c.phone && <div>{c.phone}</div>}

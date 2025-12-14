@@ -46,14 +46,17 @@ export default function QuotesBoard() {
       .map((c) => c.name)
   }, [term, clients])
 
-  /* SORT BY DATE: Recent quotes first */
-  const sorted = useMemo(() => {
-    return [...quotes].sort((a, b) => {
-      const at = a.updatedAt ?? a.createdAt ?? 0
-      const bt = b.updatedAt ?? b.createdAt ?? 0
-      return bt - at
-    })
-  }, [quotes])
+  
+/* SORT BY DATE: Recent quotes first */
+const sorted = useMemo(() => {
+  return [...quotes].sort((a, b) => {
+    const at = a.updatedAt ?? a.createdAt ?? 0;
+    const bt = b.updatedAt ?? b.createdAt ?? 0;
+    return bt - at;
+  });
+}, [quotes]);
+
+
 
   /* FILTERING */
   const filtered = useMemo(() => {

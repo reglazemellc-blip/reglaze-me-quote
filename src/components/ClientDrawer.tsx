@@ -221,6 +221,7 @@ export default function ClientDrawer({
           email: email.trim() || undefined,
           address: addressString || undefined,
           notes: notes.trim() || "",
+          status: client.status,
           photos: client.photos ?? [],
           attachments: client.attachments ?? [],
           conversations: client.conversations ?? [],

@@ -87,6 +87,8 @@ export default function ClientDetail() {
   // Quotes for this client
   const [quotes, setQuotes] = useState<QuoteSummary[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(true);
+    const [invoices, setInvoices] = useState<any[]>([]);
+
 
   // Contracts for this client
   const { contracts, init: initContracts } = useContractsStore();
@@ -186,6 +188,36 @@ export default function ClientDetail() {
         });
 
         setQuotes(qList);
+                // ----- invoices for this client -----
+        const iSnap = await getDocs(
+          query(
+            collection(db, "invoices"),
+            where("clientId", "==", clientId),
+            where(
+              "tenantId",
+              "==",
+              useConfigStore.getState().activeTenantId
+            )
+          )
+        );
+
+        const iList = iSnap.docs.map((d) => {
+          const idata = d.data() as any;
+          return {
+            id: d.id,
+            status: idata.status ?? "draft",
+            total:
+              typeof idata.total === "number"
+                ? idata.total
+                : typeof idata.amount === "number"
+                ? idata.amount
+                : 0,
+            createdAt: idata.createdAt ?? 0,
+          };
+        });
+
+        setInvoices(iList);
+
       } catch (err) {
         console.error(err);
         useToastStore.getState().show("Photo upload failed. Check console.");
@@ -885,6 +917,42 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                 </div>
               )}
             </div>
+
+                        {/* INVOICES */}
+            <div className="card p-5 md:p-6">
+              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 mb-2">
+                Invoices
+              </h2>
+
+              {invoices.length === 0 ? (
+                <p className="text-xs text-gray-400">
+                  No invoices for this client.
+                </p>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {invoices.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
+                    >
+                      <Link
+                        to={`/invoices/${inv.id}`}
+                        className="text-[#e8d487] underline break-all"
+                      >
+                        {inv.id}
+                      </Link>
+                      <div className="text-[11px] text-gray-400 text-right ml-3">
+                        <div>{inv.status}</div>
+                        {typeof inv.total === "number" && (
+                          <div>${inv.total.toFixed(2)}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
 
             {/* CONTRACTS */}
             <div className="card p-5 md:p-6">
