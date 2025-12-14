@@ -25,23 +25,16 @@ import type {
   Reminder,
 } from '@db/index'
 
-type ClientsState = {
-  clients: Client[]
+type InvoicesState = {
+  invoices: any[]
   loading: boolean
 
   init: () => Promise<void>
   upsert: (c: Partial<Client>) => Promise<Client>
   remove: (id: string) => Promise<void>
-  search: (term: string) => Client[]
 
-  // NEW: Reminder helpers (kept simple & safe)
-  addReminder: (input: {
-    clientId: string
-    remindAt: number
-    note?: string
-    quoteId?: string
-    snoozeDays?: number
-  }) => Promise<Reminder | null>
+
+  
 
   updateReminder: (input: {
     clientId: string
@@ -63,8 +56,8 @@ function createId() {
   return `${Date.now()}_${Math.random().toString(36).slice(2)}`
 }
 
-export const useClientsStore = create<ClientsState>((set, get) => ({
-  clients: [],
+export const useInvoicesStore = create<InvoicesState>((set, get) => ({
+      invoices: [] as any[],
   loading: true,
 
   // -------------------------------------------------
@@ -78,9 +71,9 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
 // -------------------------------------------------
 init: async () => {
   if (!auth.currentUser) {
-  set({ loading: false })
-  return
-}
+    set({ loading: false })
+    return
+  }
 
   let tenantId = useConfigStore.getState().activeTenantId
 
@@ -130,10 +123,10 @@ init: async () => {
 
   }))
 
-  set({ clients, loading: false })
+  set({ invoices: clients, loading: false })
+
 },
-
-
+  
 
   // -------------------------------------------------
   // CREATE / UPDATE CLIENT
@@ -201,7 +194,8 @@ const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
 
     }))
 
-    set({ clients })
+    set({ invoices: clients })
+
 
     return clean
   },
@@ -231,123 +225,45 @@ const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
 
     }))
 
-    set({ clients })
-  },
+     set({ invoices: clients })
+  
+    },
+  
+   
+
 
   // -------------------------------------------------
-  // SEARCH CLIENTS
+  // ADD REMINDER
   // -------------------------------------------------
-  search: (term) => {
-    const q = term.toLowerCase()
-    return get().clients.filter((c) =>
-      [c.name, c.phone, c.email, c.address]
-        .filter(Boolean)
-        .some((v) => v!.toLowerCase().includes(q))
-    )
-  },
-
+ 
   // -------------------------------------------------
-  // REMINDERS — ADD
-  // -------------------------------------------------
-  addReminder: async ({ clientId, remindAt, note, quoteId, snoozeDays }) => {
-    const state = get()
-    const client = state.clients.find((c) => c.id === clientId)
-    if (!client) return null
-
-    const now = Date.now()
-    const reminder: Reminder = {
-      id: createId(),
-      clientId,
-      quoteId,
-      remindAt,
-      snoozeDays,
-      done: false,
-      note: note ?? '',
-    }
-
-    const current = client.reminders ?? []
-    const updatedReminders: Reminder[] = [...current, reminder]
-
-    await updateDoc(doc(clientsCol, clientId), {
-  reminders: updatedReminders,
-  updatedAt: now,
-  tenantId: useConfigStore.getState().activeTenantId,
-})
-
-
-    // update local state
-    const updatedClients = state.clients.map((c) =>
-      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
-    )
-
-    set({ clients: updatedClients })
-
-    return reminder
-  },
-
-  // -------------------------------------------------
-  // REMINDERS — UPDATE
+  // UPDATE REMINDER
   // -------------------------------------------------
   updateReminder: async ({ clientId, reminderId, patch }) => {
-    const state = get()
-    const client = state.clients.find((c) => c.id === clientId)
-    if (!client) return null
-
-    const current = client.reminders ?? []
-    let updatedReminder: Reminder | null = null
-
-    const updatedReminders: Reminder[] = current.map((r) => {
-      if (r.id !== reminderId) return r
-      const merged: Reminder = {
-        ...r,
-        ...patch,
-      }
-      updatedReminder = merged
-      return merged
-    })
-
-    if (!updatedReminder) return null
-
-    const now = Date.now()
-    await updateDoc(doc(clientsCol, clientId), {
-  reminders: updatedReminders,
-  updatedAt: now,
-  tenantId: useConfigStore.getState().activeTenantId,
-})
-
-
-    const updatedClients = state.clients.map((c) =>
-      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
+    const clientRef = doc(clientsCol, clientId)
+    const clientSnap = await getDocs(query(clientsCol, where('id', '==', clientId)))
+    if (clientSnap.empty) return null
+    const clientData = clientSnap.docs[0].data() as Client
+    const reminders = (clientData.reminders ?? []).map((reminder: Reminder) =>
+      reminder.id === reminderId ? { ...reminder, ...patch, updatedAt: Date.now() } : reminder
     )
-
-    set({ clients: updatedClients })
-
-    return updatedReminder
+    await updateDoc(clientRef, { reminders })
+    await get().init()
+    return reminders.find((r: Reminder) => r.id === reminderId) ?? null
   },
 
   // -------------------------------------------------
-  // REMINDERS — DELETE
+  // DELETE REMINDER
   // -------------------------------------------------
   deleteReminder: async ({ clientId, reminderId }) => {
-    const state = get()
-    const client = state.clients.find((c) => c.id === clientId)
-    if (!client) return
+    const clientRef = doc(clientsCol, clientId)
+    const clientSnap = await getDocs(query(clientsCol, where('id', '==', clientId)))
+    if (clientSnap.empty) return
+    const clientData = clientSnap.docs[0].data() as Client
+    const reminders = (clientData.reminders ?? []).filter((reminder: Reminder) => reminder.id !== reminderId)
+    await updateDoc(clientRef, { reminders })
+    await get().init()
+  }
 
-    const current = client.reminders ?? []
-    const updatedReminders = current.filter((r) => r.id !== reminderId)
-    const now = Date.now()
-
-    await updateDoc(doc(clientsCol, clientId), {
-  reminders: updatedReminders,
-  updatedAt: now,
-  tenantId: useConfigStore.getState().activeTenantId,
-})
-
-
-    const updatedClients = state.clients.map((c) =>
-      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
-    )
-
-    set({ clients: updatedClients })
-  },
-}))
+})); // <-- closes create<InvoicesState>((set, get) => ({
+  

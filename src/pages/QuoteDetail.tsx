@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { useInvoicesStore } from "@store/useInvoicesStore";
 import { useConfigStore } from "@store/useConfigStore";
 import { generateQuotePDF } from "@utils/pdf";
 
@@ -33,7 +32,7 @@ export default function QuoteDetail() {
   const quoteId = id ?? "";
   const navigate = useNavigate();
 
-  const { upsert: upsertInvoice, getByQuote, init: initInvoices } = useInvoicesStore();
+  
   const { config, init: initConfig } = useConfigStore();
 
 
@@ -42,10 +41,10 @@ export default function QuoteDetail() {
   const [converting, setConverting] = useState(false);
   const [acknowledgeSaving, setAcknowledgeSaving] = useState(false);
 
-  useEffect(() => {
-  initInvoices();
+ useEffect(() => {
   initConfig();
-}, [initInvoices, initConfig]);
+}, [initConfig]);
+
 
 
   const handleConvertToInvoice = async () => {

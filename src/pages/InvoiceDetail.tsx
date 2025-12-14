@@ -6,10 +6,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, FileText } from 'lucide-react'
-import { useInvoicesStore } from '@store/useInvoicesStore'
 import { useClientsStore } from '@store/useClientsStore'
 import { useQuotesStore } from '@store/useQuotesStore'
 import { useConfigStore } from '@store/useConfigStore'
+
 import { generateInvoicePDF } from '@utils/pdf'
 import { useToastStore } from '@store/useToastStore'
 
@@ -17,7 +17,7 @@ export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { invoices, recordPayment, init: initInvoices } = useInvoicesStore()
+  
   const { clients, init: initClients } = useClientsStore()
   const { quotes, init: initQuotes } = useQuotesStore()
   const { config, init: initConfig } = useConfigStore()
@@ -28,14 +28,13 @@ export default function InvoiceDetail() {
 
   // Initialize stores
   useEffect(() => {
-  initInvoices()
-  initClients()
+   initClients()
   initQuotes()
   initConfig()
-}, [initInvoices, initClients, initQuotes, initConfig])
+}, [initClients, initQuotes, initConfig])
 
 
-  const invoice = invoices.find((i) => i.id === id)
+  const invoice = null
   const client = invoice ? clients.find((c) => c.id === invoice.clientId) : null
   const quote = invoice ? quotes.find((q) => q.id === invoice.quoteId) : null
 
