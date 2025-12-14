@@ -18,15 +18,23 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <form onSubmit={handleLogin} className="card p-8 space-y-4 w-full max-w-sm">
-        <h1 className="text-xl text-center mb-2">Sign In</h1>
+      <form
+  onSubmit={handleLogin}
+  className="bg-neutral-900 border border-neutral-700 rounded-xl p-8 space-y-4 w-full max-w-sm"
+>
+
+        <h1 className="text-xl text-white text-center mb-2">
+  Sign In
+</h1>
+
 
         {error && <p className="text-red-500 text-center">{error}</p>}
 
         <input
           type="email"
           placeholder="Email"
-          className="input w-full"
+          className="input w-full text-white placeholder-gray-400 bg-neutral-800"
+
           value={email}
           onChange={e => setEmail(e.target.value)}
         />
