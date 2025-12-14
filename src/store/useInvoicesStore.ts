@@ -1,121 +1,353 @@
-/**
- * useInvoicesStore
- * 
- * Manages invoices with Firestore sync.
- * Invoices are created from quotes and track payment status.
- */
+// -------------------------------------------------------------
+// useClientsStore.ts  (UPGRADED FOR NEW DATABASE TYPES + REMINDERS)
+// -------------------------------------------------------------
 
 import { create } from 'zustand'
-import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore'
-import { db as firestoreDb } from '../firebase'
-import type { Invoice, InvoiceStatus } from '@db/index'
 import { useConfigStore } from '@store/useConfigStore'
+import { auth } from '../firebase'
 
 
-type InvoicesState = {
-  invoices: Invoice[]
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  query,
+  where,
+  updateDoc,
+} from 'firebase/firestore'
+import { db } from '../firebase'
+import type {
+  Client,
+  Attachment,
+  ConversationEntry,
+  Reminder,
+} from '@db/index'
+
+type ClientsState = {
+  clients: Client[]
   loading: boolean
 
-  // Load all invoices
   init: () => Promise<void>
-
-  // Create or update invoice
-  upsert: (invoice: Invoice) => Promise<void>
-
-  // Delete invoice
+  upsert: (c: Partial<Client>) => Promise<Client>
   remove: (id: string) => Promise<void>
+  search: (term: string) => Client[]
 
-  // Record payment
-  recordPayment: (id: string, amount: number) => Promise<void>
+  // NEW: Reminder helpers (kept simple & safe)
+  addReminder: (input: {
+    clientId: string
+    remindAt: number
+    note?: string
+    quoteId?: string
+    snoozeDays?: number
+  }) => Promise<Reminder | null>
 
-  // Get invoices by client
-  getByClient: (clientId: string) => Invoice[]
+  updateReminder: (input: {
+    clientId: string
+    reminderId: string
+    patch: Partial<Reminder>
+  }) => Promise<Reminder | null>
 
-  // Get invoice by quote
-  getByQuote: (quoteId: string) => Invoice | undefined
+  deleteReminder: (input: {
+    clientId: string
+    reminderId: string
+  }) => Promise<void>
 }
 
-const invoicesCol = collection(firestoreDb, 'invoices')
+const clientsCol = collection(db, 'clients')
+const quotesCol = collection(db, 'quotes')
 
-export const useInvoicesStore = create<InvoicesState>((set, get) => ({
-  invoices: [],
+// simple id helper (no dependency on crypto)
+function createId() {
+  return `${Date.now()}_${Math.random().toString(36).slice(2)}`
+}
+
+export const useClientsStore = create<ClientsState>((set, get) => ({
+  clients: [],
   loading: true,
 
-  // ==================== INIT ====================
- init: async () => {
-  const snap = await getDocs(invoicesCol)
-  const tenantId = useConfigStore.getState().activeTenantId
-  const invoices = snap.docs
-    .map((d) => ({ ...(d.data() as Invoice), id: d.id, tenantId: (d.data() as any).tenantId ?? '' }))
-    .filter((inv) => inv.tenantId === tenantId)
-  set({ invoices, loading: false })
-},
+  // -------------------------------------------------
+  // LOAD ALL CLIENTS
+  // -------------------------------------------------
+// -------------------------------------------------
+// LOAD ALL CLIENTS (WAIT FOR TENANT)
+// -------------------------------------------------
+// -------------------------------------------------
+// LOAD ALL CLIENTS (WAIT FOR TENANT, THEN LOAD)
+// -------------------------------------------------
+init: async () => {
+  if (!auth.currentUser) {
+  set({ loading: false })
+  return
+}
 
-  // ==================== UPSERT ====================
- upsert: async (invoice) => {
-  const ref = doc(invoicesCol, invoice.id)
-  await setDoc(
-    ref,
-    { ...invoice, tenantId: useConfigStore.getState().activeTenantId },
-    { merge: true }
+  let tenantId = useConfigStore.getState().activeTenantId
+
+  // ⏳ HARD WAIT for tenantId (cold reload safe)
+  if (!tenantId) {
+    await new Promise<void>((resolve) => {
+      const unsub = useConfigStore.subscribe((state) => {
+        if (state.activeTenantId) {
+          tenantId = state.activeTenantId
+          unsub()
+          resolve()
+        }
+      })
+    })
+  }
+
+    // ✅ Use tenantId resolved by hard wait
+  if (!tenantId) {
+  console.warn('[clients.init] tenantId missing — waiting to retry')
+
+  // retry once tenant becomes available
+  useConfigStore.subscribe((state) => {
+    if (state.activeTenantId) {
+      get().init()
+    }
+  })
+
+  return
+}
+
+
+
+
+  const snap = await getDocs(
+    query(clientsCol, where('tenantId', '==', tenantId))
   )
 
+  const clients: Client[] = snap.docs.map((d) => ({
+    ...(d.data() as Client),
+    id: d.id,
+    tenantId: d.data().tenantId ?? '',
+    photos: d.data().photos ?? [],
+    attachments: d.data().attachments ?? [],
+    conversations: d.data().conversations ?? [],
+    reminders: d.data().reminders ?? [],
+    status: (d.data() as any).status ?? 'new',
 
-    // Reload
-    const tenantId = useConfigStore.getState().activeTenantId
-const snap = await getDocs(invoicesCol)
+  }))
 
-    const invoices = snap.docs
-  .map((d) => ({ ...(d.data() as Invoice), id: d.id }))
-  .filter((inv) => inv.tenantId === tenantId)
-
-    set({ invoices })
-  },
-
-  // ==================== REMOVE ====================
- remove: async (id) => {
-  await deleteDoc(doc(invoicesCol, id))
-
-  const tenantId = useConfigStore.getState().activeTenantId
-  const snap = await getDocs(invoicesCol)
-  const invoices = snap.docs
-    .map((d) => ({ ...(d.data() as Invoice), id: d.id }))
-    .filter((inv) => inv.tenantId === tenantId)
-
-  set({ invoices })
+  set({ clients, loading: false })
 },
 
 
-  // ==================== RECORD PAYMENT ====================
-  recordPayment: async (id, amount) => {
-    const invoice = get().invoices.find((i) => i.id === id)
-    if (!invoice) return
 
-    const newAmountPaid = invoice.amountPaid + amount
-    let newStatus: InvoiceStatus = 'unpaid'
+  // -------------------------------------------------
+  // CREATE / UPDATE CLIENT
+  // -------------------------------------------------
+    upsert: async (c) => {
+    let tenantId = useConfigStore.getState().activeTenantId
 
-    if (newAmountPaid >= invoice.total) {
-      newStatus = 'paid'
-    } else if (newAmountPaid > 0) {
-      newStatus = 'partial'
+    // ⏳ HARD WAIT for tenantId (write-safe)
+    if (!tenantId) {
+      await new Promise<void>((resolve) => {
+        const unsub = useConfigStore.subscribe((state) => {
+          if (state.activeTenantId) {
+            tenantId = state.activeTenantId
+            unsub()
+            resolve()
+          }
+        })
+      })
     }
 
-    const updated: Invoice = {
-      ...invoice,
-      amountPaid: newAmountPaid,
-      status: newStatus,
-      updatedAt: Date.now(),
+    if (!tenantId) {
+      console.warn('[clients.upsert] aborted — tenantId missing')
+      throw new Error('tenantId missing during client upsert')
     }
 
-    await get().upsert(updated)
+    const now = Date.now()
+
+    const clean: Client = {
+      // required
+      id: c.id!,
+      tenantId,
+      name: c.name ?? '',
+      phone: c.phone ?? '',
+      email: c.email ?? '',
+      address: c.address ?? '',
+      notes: c.notes ?? '',
+      status: (c as any).status ?? 'new',
+
+
+      // NEW FIELDS - safe defaults
+      photos: c.photos ?? [],
+      attachments: c.attachments ?? [],
+      conversations: c.conversations ?? [],
+      reminders: c.reminders ?? [],
+
+      createdAt: c.createdAt ?? now,
+      updatedAt: now,
+    }
+
+    await setDoc(doc(clientsCol, clean.id), clean)
+
+    // reload clients
+    // tenantId already resolved above
+
+const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
+
+    const clients: Client[] = snap.docs.map((d) => ({
+      ...(d.data() as Client),
+      id: d.id,
+      photos: d.data().photos ?? [],
+      attachments: d.data().attachments ?? [],
+      conversations: d.data().conversations ?? [],
+      reminders: d.data().reminders ?? [],
+      status: (d.data() as any).status ?? 'new',
+
+    }))
+
+    set({ clients })
+
+    return clean
   },
 
-  // ==================== HELPERS ====================
-  getByClient: (clientId) => {
-    return get().invoices.filter((i) => i.clientId === clientId)
+  // -------------------------------------------------
+  // REMOVE CLIENT + THEIR QUOTES
+  // -------------------------------------------------
+  remove: async (id) => {
+    await deleteDoc(doc(clientsCol, id))
+
+    // delete quotes belonging to client
+    const qSnap = await getDocs(query(quotesCol, where('clientId', '==', id)))
+    const deletes = qSnap.docs.map((d) => deleteDoc(doc(quotesCol, d.id)))
+    await Promise.all(deletes)
+
+    // reload
+    const tenantId = useConfigStore.getState().activeTenantId
+const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
+    const clients: Client[] = snap.docs.map((d) => ({
+      ...(d.data() as Client),
+      id: d.id,
+      photos: d.data().photos ?? [],
+      attachments: d.data().attachments ?? [],
+      conversations: d.data().conversations ?? [],
+      reminders: d.data().reminders ?? [],
+      status: (d.data() as any).status ?? 'new',
+
+    }))
+
+    set({ clients })
   },
 
-  getByQuote: (quoteId) => {
-    return get().invoices.find((i) => i.quoteId === quoteId)
+  // -------------------------------------------------
+  // SEARCH CLIENTS
+  // -------------------------------------------------
+  search: (term) => {
+    const q = term.toLowerCase()
+    return get().clients.filter((c) =>
+      [c.name, c.phone, c.email, c.address]
+        .filter(Boolean)
+        .some((v) => v!.toLowerCase().includes(q))
+    )
+  },
+
+  // -------------------------------------------------
+  // REMINDERS — ADD
+  // -------------------------------------------------
+  addReminder: async ({ clientId, remindAt, note, quoteId, snoozeDays }) => {
+    const state = get()
+    const client = state.clients.find((c) => c.id === clientId)
+    if (!client) return null
+
+    const now = Date.now()
+    const reminder: Reminder = {
+      id: createId(),
+      clientId,
+      quoteId,
+      remindAt,
+      snoozeDays,
+      done: false,
+      note: note ?? '',
+    }
+
+    const current = client.reminders ?? []
+    const updatedReminders: Reminder[] = [...current, reminder]
+
+    await updateDoc(doc(clientsCol, clientId), {
+  reminders: updatedReminders,
+  updatedAt: now,
+  tenantId: useConfigStore.getState().activeTenantId,
+})
+
+
+    // update local state
+    const updatedClients = state.clients.map((c) =>
+      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
+    )
+
+    set({ clients: updatedClients })
+
+    return reminder
+  },
+
+  // -------------------------------------------------
+  // REMINDERS — UPDATE
+  // -------------------------------------------------
+  updateReminder: async ({ clientId, reminderId, patch }) => {
+    const state = get()
+    const client = state.clients.find((c) => c.id === clientId)
+    if (!client) return null
+
+    const current = client.reminders ?? []
+    let updatedReminder: Reminder | null = null
+
+    const updatedReminders: Reminder[] = current.map((r) => {
+      if (r.id !== reminderId) return r
+      const merged: Reminder = {
+        ...r,
+        ...patch,
+      }
+      updatedReminder = merged
+      return merged
+    })
+
+    if (!updatedReminder) return null
+
+    const now = Date.now()
+    await updateDoc(doc(clientsCol, clientId), {
+  reminders: updatedReminders,
+  updatedAt: now,
+  tenantId: useConfigStore.getState().activeTenantId,
+})
+
+
+    const updatedClients = state.clients.map((c) =>
+      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
+    )
+
+    set({ clients: updatedClients })
+
+    return updatedReminder
+  },
+
+  // -------------------------------------------------
+  // REMINDERS — DELETE
+  // -------------------------------------------------
+  deleteReminder: async ({ clientId, reminderId }) => {
+    const state = get()
+    const client = state.clients.find((c) => c.id === clientId)
+    if (!client) return
+
+    const current = client.reminders ?? []
+    const updatedReminders = current.filter((r) => r.id !== reminderId)
+    const now = Date.now()
+
+    await updateDoc(doc(clientsCol, clientId), {
+  reminders: updatedReminders,
+  updatedAt: now,
+  tenantId: useConfigStore.getState().activeTenantId,
+})
+
+
+    const updatedClients = state.clients.map((c) =>
+      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
+    )
+
+    set({ clients: updatedClients })
   },
 }))

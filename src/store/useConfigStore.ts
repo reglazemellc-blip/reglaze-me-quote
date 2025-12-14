@@ -88,7 +88,8 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   config: null,
   loading: true,
   logo: null,
-    activeTenantId: 'default',
+        activeTenantId: '',
+
 
 
   // ==================== INIT ====================
@@ -141,24 +142,29 @@ else if (config.businessProfile.logo) {
       loading: false,
       logo: config.businessProfile.logo || null,
     })
-        listenToAuthChanges(async (user) => {
-  const tenantId = getStableTenantId()
-  set({ activeTenantId: tenantId })
+       listenToAuthChanges(async (user) => {
+  // Not logged in → no tenant (prevents permission errors & drift)
+  if (!user) {
+    set({ activeTenantId: '' })
+    return
+  }
 
-  // 🚫 No real login → do nothing (demo mode)
-  if (!user) return
-
-  // 🔒 Claim tenant ONCE for this user
+  // Tenant must be consistent across all devices for this user
   const claimRef = doc(firestoreDb, 'tenantClaims', user.uid)
   const snap = await getDoc(claimRef)
 
-  if (!snap.exists()) {
-    await setDoc(claimRef, {
-      tenantId,
-      claimedAt: Date.now(),
-    })
+  if (snap.exists()) {
+    const claimedTenantId = (snap.data() as any)?.tenantId || ''
+    set({ activeTenantId: claimedTenantId })
+    return
   }
+
+  // First-time claim: generate once, store it, and use it everywhere
+  const tenantId = getStableTenantId()
+  await setDoc(claimRef, { tenantId, claimedAt: Date.now() })
+  set({ activeTenantId: tenantId })
 })
+
 
 
   },
