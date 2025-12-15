@@ -8,15 +8,16 @@ import { auth } from '../firebase'
 
 
 import {
-  collection,
   doc,
-  getDocs,
-  setDoc,
-  deleteDoc,
+  collection,
   query,
   where,
+  getDoc,        
+  getDocs,
   updateDoc,
+  setDoc,
 } from 'firebase/firestore'
+
 import { db } from '../firebase'
 import type {
   Client,
@@ -33,12 +34,12 @@ type InvoicesState = {
 
   init: () => Promise<void>
   getByQuote: (quoteId: string) => Invoice | undefined
-    upsertInvoice: (invoice: Partial<Invoice>) => Promise<Invoice>
-      recordPayment: (invoiceId: string, amount: number) => Promise<void>
+  upsertInvoice: (invoice: Partial<Invoice>) => Promise<Invoice>
+  recordPayment: (invoiceId: string, amount: number) => Promise<void>
 
-  upsert: (c: Partial<Client>) => Promise<Client>
   remove: (id: string) => Promise<void>
 }
+
 
 
 const clientsCol = collection(db, 'clients')
@@ -130,14 +131,62 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
   },
 
 
-    recordPayment: async () => {
-    throw new Error('Invoice payment recording not implemented yet')
-  },
+   recordPayment: async (id: string, amount: number) => {
+  if (amount <= 0) return
+
+  const tenantId = useConfigStore.getState().activeTenantId
+  if (!tenantId) {
+    throw new Error('tenantId missing during invoice payment')
+  }
+
+  const invoiceRef = doc(collection(db, 'invoices'), id)
+
+  // load current invoice
+  const snap = await getDoc(invoiceRef)
+  if (!snap.exists()) {
+    throw new Error('Invoice not found')
+  }
+
+  const data = snap.data() as any
+
+  const prevPaid = typeof data.amountPaid === 'number' ? data.amountPaid : 0
+  const total = typeof data.total === 'number' ? data.total : 0
+
+  const nextPaid = prevPaid + amount
+
+  let nextStatus: 'unpaid' | 'partial' | 'paid' = 'unpaid'
+  if (nextPaid >= total) {
+    nextStatus = 'paid'
+  } else if (nextPaid > 0) {
+    nextStatus = 'partial'
+  }
+
+  await updateDoc(invoiceRef, {
+    amountPaid: nextPaid,
+    status: nextStatus,
+    updatedAt: Date.now(),
+    tenantId,
+  })
+
+  // update local store copy
+  const invoices = get().invoices as any[]
+  set({
+    invoices: invoices.map((inv) =>
+      inv.id === id
+        ? {
+            ...inv,
+            amountPaid: nextPaid,
+            status: nextStatus,
+            updatedAt: Date.now(),
+          }
+        : inv
+    ),
+  })
+},
 
 
-    upsert: async () => {
-    throw new Error('Invoice upsert not implemented yet')
-  },
+
+
 
 
   // -------------------------------------------------
