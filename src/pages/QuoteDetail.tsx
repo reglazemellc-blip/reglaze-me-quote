@@ -14,6 +14,8 @@ import type {
   Invoice,
 } from "@db/index";
 import { useToastStore } from "@store/useToastStore";
+import { useInvoicesStore } from "@store/useInvoicesStore";
+
 
 // -------------------------------------------------------------
 // FIX: SafeQuote overrides strict Quote fields and allows missing data
@@ -31,6 +33,7 @@ export default function QuoteDetail() {
   const { id } = useParams();
   const quoteId = id ?? "";
   const navigate = useNavigate();
+const { getByQuote, upsertInvoice } = useInvoicesStore();
 
   
   const { config, init: initConfig } = useConfigStore();

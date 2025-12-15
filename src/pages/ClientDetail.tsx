@@ -5,13 +5,15 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   doc,
   getDoc,
-  updateDoc,
-  collection,
   getDocs,
+  updateDoc,
+  deleteDoc,
+  collection,
   query,
   where,
   arrayUnion,
 } from "firebase/firestore";
+
 
 
 import { db, storage } from "../firebase";
@@ -905,12 +907,27 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                           <div>${q.total.toFixed(2)}</div>
                         )}
                       </div>
-                      <button
+                     
+
+<button
+  type="button"
   className="text-[11px] text-red-400 ml-3"
-  onClick={() => navigate(`/invoices/${q.id}?delete=1`)}
+  onClick={async () => {
+    const ok = window.confirm("Delete this quote? This cannot be undone.")
+    if (!ok) return
+
+    try {
+      await deleteDoc(doc(db, "quotes", q.id))
+      setQuotes((prev) => prev.filter((x) => x.id !== q.id))
+    } catch (err) {
+      console.error(err)
+      useToastStore.getState().show("Failed to delete quote. See console.")
+    }
+  }}
 >
   Delete
 </button>
+
 
                     </div>
                   ))}

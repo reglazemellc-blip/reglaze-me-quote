@@ -12,15 +12,18 @@ import type { InvoiceStatus } from '@db/index'
 
 export default function InvoicesPage() {
   const { invoices, init, loading } = useInvoicesStore()
-  const { clients } = useClientsStore()
+  const { clients, init: initClients } = useClientsStore()
+
   const { config } = useConfigStore()
   const navigate = useNavigate()
 
   const [filter, setFilter] = useState<InvoiceStatus | 'all'>('all')
 
   useEffect(() => {
-    init()
-  }, [init])
+  init()
+  initClients()
+}, [init, initClients])
+
 
   const filtered = useMemo(() => {
     if (filter === 'all') return invoices

@@ -9,6 +9,8 @@ import { ArrowLeft, FileText } from 'lucide-react'
 import { useClientsStore } from '@store/useClientsStore'
 import { useQuotesStore } from '@store/useQuotesStore'
 import { useConfigStore } from '@store/useConfigStore'
+import { useInvoicesStore } from '@store/useInvoicesStore'
+
 
 import { generateInvoicePDF } from '@utils/pdf'
 import { useToastStore } from '@store/useToastStore'
@@ -18,9 +20,11 @@ export default function InvoiceDetail() {
   const navigate = useNavigate()
 
   
-  const { clients, init: initClients } = useClientsStore()
-  const { quotes, init: initQuotes } = useQuotesStore()
-  const { config, init: initConfig } = useConfigStore()
+ const { clients, init: initClients } = useClientsStore()
+const { quotes, init: initQuotes } = useQuotesStore()
+const { invoices, init: initInvoices, recordPayment } = useInvoicesStore()
+const { config, init: initConfig } = useConfigStore()
+
 
 
   const [paymentAmount, setPaymentAmount] = useState('')
@@ -28,13 +32,16 @@ export default function InvoiceDetail() {
 
   // Initialize stores
   useEffect(() => {
-   initClients()
+  initClients()
   initQuotes()
+  initInvoices()
   initConfig()
-}, [initClients, initQuotes, initConfig])
+}, [initClients, initQuotes, initInvoices, initConfig])
 
 
-  const invoice = null
+
+  const invoice = (invoices.find((i) => i.id === id) as any) || null
+
   const client = invoice ? clients.find((c) => c.id === invoice.clientId) : null
   const quote = invoice ? quotes.find((q) => q.id === invoice.quoteId) : null
 

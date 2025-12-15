@@ -57,6 +57,8 @@ type ClientsState = {
 
 const clientsCol = collection(db, 'clients')
 const quotesCol = collection(db, 'quotes')
+const invoicesCol = collection(db, 'invoices')
+
 
 // simple id helper (no dependency on crypto)
 function createId() {
@@ -210,15 +212,34 @@ const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
   // REMOVE CLIENT + THEIR QUOTES
   // -------------------------------------------------
   remove: async (id) => {
+      const tenantId = useConfigStore.getState().activeTenantId
+
     await deleteDoc(doc(clientsCol, id))
 
     // delete quotes belonging to client
     const qSnap = await getDocs(query(quotesCol, where('clientId', '==', id)))
     const deletes = qSnap.docs.map((d) => deleteDoc(doc(quotesCol, d.id)))
     await Promise.all(deletes)
+   
+    // delete invoices belonging to client
+const iSnap = await getDocs(
+  query(
+    invoicesCol,
+    where('tenantId', '==', tenantId),
+    where('clientId', '==', id)
+  )
+)
+
+const invoiceDeletes = iSnap.docs.map((d) =>
+  deleteDoc(doc(invoicesCol, d.id))
+)
+
+await Promise.all(invoiceDeletes)
+
+
 
     // reload
-    const tenantId = useConfigStore.getState().activeTenantId
+    
 const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
     const clients: Client[] = snap.docs.map((d) => ({
       ...(d.data() as Client),
