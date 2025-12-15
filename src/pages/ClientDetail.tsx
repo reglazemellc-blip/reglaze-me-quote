@@ -205,8 +205,10 @@ export default function ClientDetail() {
 
         const iList = iSnap.docs.map((d) => {
           const idata = d.data() as any;
-          return {
-            id: d.id,
+           return {
+           id: d.id,
+           invoiceNumber: idata.invoiceNumber ?? null,
+
             status: idata.status ?? "draft",
             total:
               typeof idata.total === "number"
@@ -956,7 +958,8 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                         to={`/invoices/${inv.id}`}
                         className="text-[#e8d487] underline break-all"
                       >
-                        {inv.id}
+                        {inv.invoiceNumber ?? inv.id}
+
                       </Link>
                       <div className="text-[11px] text-gray-400 text-right ml-3">
                         <div>{inv.status}</div>
@@ -996,11 +999,12 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                       className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
                     >
                       <Link
-                        to={`/contracts/${contract.id}`}
-                        className="text-[#e8d487] underline break-all"
-                      >
-                        {contract.id}
-                      </Link>
+  to={`/contracts/${contract.id}`}
+  className="text-[#e8d487] underline break-all"
+>
+  {contract.contractNumber ?? contract.id}
+</Link>
+
                       <div className="text-[11px] text-gray-400 text-right ml-3">
                         <div>{contract.status || "draft"}</div>
                         {typeof contract.totalAmount === "number" && (

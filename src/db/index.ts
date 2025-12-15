@@ -200,6 +200,8 @@ export type Contract = {
   clientId: string;
   quoteId?: string;
 
+   contractNumber?: string
+
   // Contract details
   templateId: string;
   terms: string;

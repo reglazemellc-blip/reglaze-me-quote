@@ -103,6 +103,8 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
 
             clientId: invoice.clientId ?? existing?.clientId!,
             quoteId: invoice.quoteId ?? existing?.quoteId,
+            invoiceNumber: invoice.invoiceNumber ?? existing?.invoiceNumber,
+
 
 
             total: invoice.total ?? existing?.total ?? 0,

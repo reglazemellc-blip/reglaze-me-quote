@@ -182,16 +182,29 @@ useEffect(() => {
       const contractId = isNew ? `con-${Date.now()}` : id!
 
       const data: any = {
-        id: contractId,
-        clientId,
-        templateId,
-        terms,
-        scope,
-        warranty,
-        status,
-        createdAt: contract?.createdAt || now,
-        updatedAt: now,
-      }
+  id: contractId,
+  clientId,
+  templateId,
+  terms,
+  scope,
+  warranty,
+  status,
+  createdAt: contract?.createdAt || now,
+  updatedAt: now,
+}
+
+if (quoteId && quoteId.trim() !== '') {
+  const validQuote = quotes.find(q => q.id === quoteId)
+  if (validQuote) {
+    data.quoteId = quoteId
+  }
+
+  const linkedQuote = quotes.find(q => q.id === quoteId)
+  if (linkedQuote?.quoteNumber) {
+    data.contractNumber = `CON-${linkedQuote.quoteNumber.replace(/^Q-/, '')}`
+  }
+}
+      
 
       // Only add optional fields if they have values
       // Validate quoteId is a valid Firestore document ID
@@ -415,7 +428,8 @@ useEffect(() => {
             Back to Contracts
           </button>
           <h1 className="text-2xl font-semibold text-[#e8d487]">
-            {isNew ? 'New Contract' : contract?.id}
+            {isNew ? 'New Contract' : contract?.contractNumber ?? contract?.id}
+
           </h1>
         </div>
 

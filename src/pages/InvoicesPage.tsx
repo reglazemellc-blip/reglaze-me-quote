@@ -25,10 +25,21 @@ export default function InvoicesPage() {
 }, [init, initClients])
 
 
-  const filtered = useMemo(() => {
-    if (filter === 'all') return invoices
-    return invoices.filter((i) => i.status === filter)
+    const filtered = useMemo(() => {
+    const list =
+      filter === 'all'
+        ? invoices
+        : invoices.filter((i) => i.status === filter)
+
+    // Surface outstanding payments first
+    return [...list].sort((a, b) => {
+      const aOutstanding = a.status === 'unpaid' || a.status === 'partial'
+      const bOutstanding = b.status === 'unpaid' || b.status === 'partial'
+      if (aOutstanding === bOutstanding) return 0
+      return aOutstanding ? -1 : 1
+    })
   }, [invoices, filter])
+
 
   const getClientName = (clientId: string) => {
     return clients.find((c) => c.id === clientId)?.name || 'Unknown Client'
@@ -40,6 +51,13 @@ export default function InvoicesPage() {
       currency: 'USD',
     }).format(amount)
   }
+
+    const outstandingTotal = useMemo(() => {
+    return invoices
+      .filter((i) => i.status === 'unpaid' || i.status === 'partial')
+      .reduce((sum, i) => sum + Math.max(0, i.total - i.amountPaid), 0)
+  }, [invoices])
+
 
   const formatDate = (ts: number) => {
     return new Date(ts).toLocaleDateString()
@@ -75,6 +93,18 @@ export default function InvoicesPage() {
           </p>
         </div>
       </div>
+
+            {outstandingTotal > 0 && (
+        <div className="card p-4 flex justify-between items-center">
+          <div className="text-sm text-gray-400">
+            Outstanding balance
+          </div>
+          <div className="text-xl font-semibold text-red-400">
+            {formatCurrency(outstandingTotal)}
+          </div>
+        </div>
+      )}
+
 
       {/* FILTERS */}
       <div className="flex gap-2 flex-wrap">
@@ -113,7 +143,9 @@ export default function InvoicesPage() {
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <span className="font-semibold text-[#e8d487]">{invoice.invoiceNumber || invoice.id}</span>
+                  <span className="font-semibold text-[#e8d487]">
+                   {invoice.invoiceNumber ?? invoice.id}
+                </span>
                   <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(invoice.status)}`}>
                     {labels?.[`status${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}` as keyof typeof labels] || invoice.status}
                   </span>
