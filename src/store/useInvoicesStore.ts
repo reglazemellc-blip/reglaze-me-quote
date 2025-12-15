@@ -1,5 +1,7 @@
 // -------------------------------------------------------------
-// useClientsStore.ts  (UPGRADED FOR NEW DATABASE TYPES + REMINDERS)
+// useInvoicesStore.ts
+// -------------------------------------------------------------
+// Store for managing invoices in the application
 // -------------------------------------------------------------
 
 import { create } from 'zustand'
@@ -79,7 +81,8 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
     }
 
     // prevent duplicate invoice for same quote
-    if (invoice.quoteId) {
+        if (!invoice.id && invoice.quoteId) {
+
       const existing = get().invoices.find(
         (i) => i.quoteId === invoice.quoteId
       )
@@ -89,17 +92,23 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
     }
 
     const now = Date.now()
+    const existing =
+      invoice.id
+        ? get().invoices.find((i) => i.id === invoice.id)
+        : undefined
 
     const clean: Invoice = {
       id: invoice.id ?? `${now}_${Math.random().toString(36).slice(2)}`,
       tenantId,
 
-      clientId: invoice.clientId!,
-      quoteId: invoice.quoteId,
+            clientId: invoice.clientId ?? existing?.clientId!,
+            quoteId: invoice.quoteId ?? existing?.quoteId,
 
-      total: invoice.total ?? 0,
-      amountPaid: invoice.amountPaid ?? 0,
-      status: invoice.status ?? 'unpaid',
+
+            total: invoice.total ?? existing?.total ?? 0,
+      amountPaid: invoice.amountPaid ?? existing?.amountPaid ?? 0,
+      status: invoice.status ?? existing?.status ?? 'unpaid',
+
 
       ...(invoice.dueDate !== undefined ? { dueDate: invoice.dueDate } : {}),
       ...(invoice.notes !== undefined ? { notes: invoice.notes } : {}),
@@ -115,17 +124,15 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
 
     await setDoc(doc(collection(db, 'invoices'), clean.id), clean)
 
-    // refresh invoices (read-only reload)
-    const snap = await getDocs(
-      query(collection(db, 'invoices'), where('tenantId', '==', tenantId))
-    )
+        set({
+      invoices: (() => {
+        const current = get().invoices
+        const index = current.findIndex((i) => i.id === clean.id)
+        if (index === -1) return [...current, clean]
+        return current.map((i) => (i.id === clean.id ? clean : i))
+      })(),
+    })
 
-    const invoices: Invoice[] = snap.docs.map((d) => ({
-      ...(d.data() as Invoice),
-      id: d.id,
-    }))
-
-    set({ invoices })
 
     return clean
   },
