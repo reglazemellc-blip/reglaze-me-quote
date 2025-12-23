@@ -118,21 +118,23 @@ export default function ContractsPage() {
     >
       <div className="space-y-1">
         <div className="flex items-center gap-3">
-          <span className="font-semibold text-[#e8d487]">{contract.id}</span>
-        
-<span
-  className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(
-    contract.status
-  )}`}
->
-  {labels?.[
-    `status${
-      contract.status.charAt(0).toUpperCase() + contract.status.slice(1)
-    }` as keyof typeof labels
-  ] || contract.status}
-</span>
+  <span className="font-semibold text-[#e8d487]">
+    {contract.contractNumber ?? contract.id}
+  </span>
 
-        </div>
+  <span
+    className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(
+      contract.status
+    )}`}
+  >
+    {labels?.[
+      `status${
+        contract.status.charAt(0).toUpperCase() + contract.status.slice(1)
+      }` as keyof typeof labels
+    ] || contract.status}
+  </span>
+</div>
+
 
         <div className="text-sm text-gray-400">
           {getClientName(contract.clientId)}
