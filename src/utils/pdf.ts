@@ -919,7 +919,7 @@ export async function generateQuotePDF(quote: Quote, client: Client, businessPro
   )
 
   if (quote.notes) {
-    yPos = drawNotesSection(pdf, yPos, 'TERMS & CONDITIONS:', quote.notes)
+    yPos = drawNotesSection(pdf, yPos, 'NOTES:', quote.notes)
   }
 
   if ((quote as any).jobsiteReadyAcknowledged && (quote as any).jobsiteReadyAcknowledgedAt) {
@@ -939,6 +939,20 @@ export async function generateInvoicePDF(
   client: Client,
   businessProfile: BusinessProfile
 ) {
+    let quoteData: any = null
+  if (invoice.quoteId) {
+    try {
+      const { doc, getDoc } = await import('firebase/firestore')
+      const { db } = await import('../firebase')
+      const quoteSnap = await getDoc(doc(db, 'quotes', invoice.quoteId))
+      if (quoteSnap.exists()) {
+        quoteData = quoteSnap.data()
+      }
+    } catch (error) {
+      console.warn(`Invoice PDF: Failed to fetch quote '${invoice.quoteId}':`, error)
+    }
+  }
+
   let logoData: { data: string; format: string } | null = null
   console.log("PDF LOGO URL:", businessProfile.logo)
 
@@ -1079,8 +1093,10 @@ yPos += 30
     businessProfile.currencySymbol
   )
 
-  if (invoice.notes) {
-    yPos = drawNotesSection(pdf, yPos, 'NOTES', invoice.notes)
+  if (quoteData?.notes) {
+
+    yPos = drawNotesSection(pdf, yPos, 'NOTES', quoteData.notes)
+
   }
 
   if ((invoice as any).jobsiteReadyAcknowledged && (invoice as any).jobsiteReadyAcknowledgedAt) {
@@ -1238,6 +1254,10 @@ contentY += 16
   }
 
   yPos += LAYOUT.infoBoxHeight + LAYOUT.sectionGap
+
+    if (quoteData?.notes) {
+    yPos = drawNotesSection(pdf, yPos, 'NOTES', quoteData.notes)
+  }
 
   if (contract.terms) {
     yPos = drawNotesSection(pdf, yPos, 'TERMS & CONDITIONS', contract.terms)
