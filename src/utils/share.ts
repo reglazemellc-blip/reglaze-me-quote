@@ -1,6 +1,6 @@
 /**
  * Universal sharing utility for quotes, invoices, contracts, and documents
- * Works on mobile (native share) and desktop (clipboard + download)
+ * Works on mobile (native share) and desktop (email client + download)
  */
 
 type ShareDocumentOptions = {
@@ -8,6 +8,7 @@ type ShareDocumentOptions = {
   message: string
   pdfBlob?: Blob // Optional: PDF blob to share as file
   pdfFileName?: string // Required if pdfBlob provided
+  clientEmail?: string // Optional: pre-fill recipient email
 }
 
 /**
@@ -19,19 +20,20 @@ function isMobileDevice(): boolean {
 }
 
 /**
- * Share a document via native share (mobile with PDF) or clipboard+download (desktop)
+ * Share a document via native share (mobile with PDF) or email client + download (desktop)
  */
 export async function shareDocument(options: ShareDocumentOptions): Promise<boolean> {
-  const { title, message, pdfBlob, pdfFileName } = options
+  const { title, message, pdfBlob, pdfFileName, clientEmail } = options
 
   try {
-    // Only use Web Share API on actual mobile devices
+    // Mobile: Use native share API
     if (isMobileDevice() && navigator.share) {
       // Try to share with file if supported
-      if (navigator.canShare && pdfBlob && pdfFileName) {
+      if (pdfBlob && pdfFileName) {
         const file = new File([pdfBlob], pdfFileName, { type: 'application/pdf' })
 
-        if (navigator.canShare({ files: [file] })) {
+        // Check if file sharing is supported
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
             title,
             text: message,
@@ -41,7 +43,7 @@ export async function shareDocument(options: ShareDocumentOptions): Promise<bool
         }
       }
 
-      // Fallback: Share text only on mobile
+      // Fallback: Share text only if file sharing not supported
       await navigator.share({
         title,
         text: message,
@@ -49,8 +51,9 @@ export async function shareDocument(options: ShareDocumentOptions): Promise<bool
       return true
     }
 
-    // Desktop: Download PDF directly + copy text to clipboard
+    // Desktop: Download PDF + open email client
     if (pdfBlob && pdfFileName) {
+      // Download the PDF
       const url = URL.createObjectURL(pdfBlob)
       const a = document.createElement('a')
       a.href = url
@@ -61,8 +64,14 @@ export async function shareDocument(options: ShareDocumentOptions): Promise<bool
       URL.revokeObjectURL(url)
     }
 
-    // Copy email text to clipboard
-    await navigator.clipboard.writeText(message)
+    // Open email client with mailto link
+    const subject = encodeURIComponent(title)
+    const body = encodeURIComponent(message + '\n\n(PDF attachment downloaded separately)')
+    const mailto = clientEmail
+      ? `mailto:${clientEmail}?subject=${subject}&body=${body}`
+      : `mailto:?subject=${subject}&body=${body}`
+
+    window.location.href = mailto
 
     return true
   } catch (error: any) {

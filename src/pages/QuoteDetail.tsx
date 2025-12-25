@@ -269,6 +269,7 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
         message: emailText,
         pdfBlob: blob,
         pdfFileName: filename,
+        clientEmail: quote.client?.email || '',
       })
 
       useToastStore.getState().show("Quote shared successfully!")

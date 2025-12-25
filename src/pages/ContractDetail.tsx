@@ -321,6 +321,7 @@ if (quoteId && quoteId.trim() !== '') {
         message: emailText,
         pdfBlob: blob,
         pdfFileName: filename,
+        clientEmail: selectedClient.email || '',
       })
 
       useToastStore.getState().show("Contract shared successfully!")

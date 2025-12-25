@@ -170,6 +170,7 @@ const { config, init: initConfig } = useConfigStore()
         message: emailText,
         pdfBlob: blob,
         pdfFileName: filename,
+        clientEmail: client.email || '',
       })
 
       useToastStore.getState().show("Invoice shared successfully!")
