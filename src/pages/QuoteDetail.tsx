@@ -209,13 +209,13 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
       useToastStore.getState().show("Unable to generate PDF. Missing quote or client data.")
       return
     }
-    
+
     // Check if jobsite readiness is acknowledged
     if (!quote.jobsiteReadyAcknowledged) {
       useToastStore.getState().show("Please acknowledge jobsite readiness before generating the PDF.")
       return
     }
-    
+
     try {
       // Convert SafeQuote client snapshot to full Client object for PDF
       const client = {
@@ -232,6 +232,58 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
     } catch (error) {
       console.error('Error generating PDF:', error)
       useToastStore.getState().show("Failed to generate PDF")
+    }
+  }
+
+  const handleShareQuote = async () => {
+    if (!quote || !config) {
+      useToastStore.getState().show("Unable to share quote. Missing quote or client data.")
+      return
+    }
+
+    // Check if jobsite readiness is acknowledged
+    if (!quote.jobsiteReadyAcknowledged) {
+      useToastStore.getState().show("Please acknowledge jobsite readiness before sharing.")
+      return
+    }
+
+    try {
+      // Generate professional email text
+      const clientName = quote.client?.name || quote.clientName || 'Customer'
+      const emailText = `Hi ${clientName},
+
+Here's your quote from ${config.businessProfile.companyName}:
+
+Quote #: ${quote.quoteNumber || quote.id}
+Total: $${(quote.total || 0).toFixed(2)}
+
+${quote.notes ? `Notes: ${quote.notes}\n\n` : ''}Thank you for your business!
+
+${config.businessProfile.companyName}
+${config.businessProfile.phone || ''}
+${config.businessProfile.email || ''}`
+
+      // Check if Web Share API is supported (mobile/tablets)
+      if (navigator.share) {
+        await navigator.share({
+          title: `Quote from ${config.businessProfile.companyName}`,
+          text: emailText,
+          // Note: Can't attach PDF file directly via Web Share API
+          // User will need to download PDF separately if needed
+        })
+        useToastStore.getState().show("Quote shared successfully!")
+      } else {
+        // Desktop fallback: Copy email text to clipboard
+        await navigator.clipboard.writeText(emailText)
+        useToastStore.getState().show("Quote details copied to clipboard! Paste into your email.")
+      }
+    } catch (error: any) {
+      // User cancelled share dialog
+      if (error.name === 'AbortError') {
+        return
+      }
+      console.error('Error sharing quote:', error)
+      useToastStore.getState().show("Failed to share quote")
     }
   }
 
@@ -325,6 +377,13 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
         </div>
 
         <div className="flex gap-2">
+          <button
+            onClick={handleShareQuote}
+            className="btn-primary px-4 py-1 text-sm"
+          >
+            Share Quote
+          </button>
+
           <button
             onClick={handleGeneratePDF}
             className="btn-outline-gold px-4 py-1 text-sm"
