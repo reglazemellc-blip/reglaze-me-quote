@@ -14,10 +14,11 @@ import {
   collection,
   query,
   where,
-  getDoc,        
+  getDoc,
   getDocs,
   updateDoc,
   setDoc,
+  deleteDoc,
 } from 'firebase/firestore'
 
 import { db } from '../firebase'
@@ -124,19 +125,23 @@ export const useInvoicesStore = create<InvoicesState>((set, get) => ({
       updatedAt: now,
     }
 
-    await setDoc(doc(collection(db, 'invoices'), clean.id), clean)
+    try {
+      await setDoc(doc(collection(db, 'invoices'), clean.id), clean)
 
-        set({
-      invoices: (() => {
-        const current = get().invoices
-        const index = current.findIndex((i) => i.id === clean.id)
-        if (index === -1) return [...current, clean]
-        return current.map((i) => (i.id === clean.id ? clean : i))
-      })(),
-    })
+      set({
+        invoices: (() => {
+          const current = get().invoices
+          const index = current.findIndex((i) => i.id === clean.id)
+          if (index === -1) return [...current, clean]
+          return current.map((i) => (i.id === clean.id ? clean : i))
+        })(),
+      })
 
-
-    return clean
+      return clean
+    } catch (error) {
+      console.error('Failed to save invoice:', error);
+      throw new Error('Failed to save invoice. Please check your connection and try again.');
+    }
   },
 
 
@@ -248,11 +253,20 @@ init: async () => {
 
 
   // -------------------------------------------------
-  // REMOVE CLIENT + THEIR QUOTES
+  // REMOVE INVOICE
   // -------------------------------------------------
-  
-  remove: async () => {
-  throw new Error('Invoice remove not implemented yet')
+
+  remove: async (id: string) => {
+    try {
+      await deleteDoc(doc(collection(db, 'invoices'), id))
+
+      set({
+        invoices: get().invoices.filter((i) => i.id !== id)
+      })
+    } catch (error) {
+      console.error('Failed to delete invoice:', error);
+      throw new Error('Failed to delete invoice. Please check your connection and try again.');
+    }
 },
 
 

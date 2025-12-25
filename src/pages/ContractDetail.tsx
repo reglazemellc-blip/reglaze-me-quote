@@ -29,6 +29,8 @@ const editId = isNew ? null : id;
   const { config, init: initConfig } = useConfigStore()
 
 
+
+
   const [loading, setLoading] = useState(false)
     const [saveState, setSaveState] = useState<'idle'|'saving'|'saved'>('idle')
   const [contract, setContract] = useState<Contract | null>(null)
@@ -45,6 +47,7 @@ const editId = isNew ? null : id;
   // Form state
   const [clientId, setClientId] = useState('')
   const [quoteId, setQuoteId] = useState('')
+  const linkedQuote = quotes.find(q => q.id === quoteId)
   const [templateId, setTemplateId] = useState('reglazing')
   const [terms, setTerms] = useState('')
   const [scope, setScope] = useState('')
@@ -693,8 +696,8 @@ if (quoteId && quoteId.trim() !== '') {
         <div>
           <label className="block text-xs text-gray-500 mb-2">Notes</label>
           <textarea
-            value={notes}
-            onChange={(e) => { setNotes(e.target.value); triggerAutoSave(); }}
+            value={linkedQuote?.notes || ''}
+            readOnly
             rows={3}
             placeholder="Internal notes..."
             className="input-field"

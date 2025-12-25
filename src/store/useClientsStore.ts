@@ -185,27 +185,32 @@ init: async () => {
       updatedAt: now,
     }
 
-    await setDoc(doc(clientsCol, clean.id), clean)
+    try {
+      await setDoc(doc(clientsCol, clean.id), clean)
 
-    // reload clients
-    // tenantId already resolved above
+      // reload clients
+      // tenantId already resolved above
 
-const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
+      const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
 
-    const clients: Client[] = snap.docs.map((d) => ({
-      ...(d.data() as Client),
-      id: d.id,
-      photos: d.data().photos ?? [],
-      attachments: d.data().attachments ?? [],
-      conversations: d.data().conversations ?? [],
-      reminders: d.data().reminders ?? [],
-      status: (d.data() as any).status ?? 'new',
+      const clients: Client[] = snap.docs.map((d) => ({
+        ...(d.data() as Client),
+        id: d.id,
+        photos: d.data().photos ?? [],
+        attachments: d.data().attachments ?? [],
+        conversations: d.data().conversations ?? [],
+        reminders: d.data().reminders ?? [],
+        status: (d.data() as any).status ?? 'new',
 
-    }))
+      }))
 
-    set({ clients })
+      set({ clients })
 
-    return clean
+      return clean
+    } catch (error) {
+      console.error('Failed to save client:', error);
+      throw new Error('Failed to save client. Please check your connection and try again.');
+    }
   },
 
   // -------------------------------------------------

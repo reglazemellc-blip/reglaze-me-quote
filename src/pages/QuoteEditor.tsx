@@ -40,6 +40,7 @@ import ClientDrawer from "@components/ClientDrawer";
 import PhotoUpload from "@components/PhotoUpload";
 import ClientAutocomplete from "@components/ClientAutocomplete";
 import { useToastStore } from "@store/useToastStore";
+import { round2 } from "@utils/quote";
 
 
 // -------------------------------------------------------------
@@ -83,9 +84,9 @@ function createEmptyItem(): LineItem {
 }
 
 function calcTotals(items: LineItem[], taxRate: number, discount: number) {
-  const subtotal = items.reduce((sum, it) => sum + (it.total || 0), 0);
-  const tax = subtotal * taxRate;
-  const total = subtotal + tax - discount;
+  const subtotal = round2(items.reduce((sum, it) => sum + (it.total || 0), 0));
+  const tax = round2(subtotal * taxRate);
+  const total = round2(subtotal + tax - discount);
   return { subtotal, tax, total };
 }
 
@@ -441,7 +442,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
       prev.map((it) => {
         if (it.id !== id) return it;
         const next: LineItem = { ...it, ...patch };
-        next.total = Number(next.qty || 0) * Number(next.unitPrice || 0);
+        next.total = round2(Number(next.qty || 0) * Number(next.unitPrice || 0));
         return next;
       })
     );

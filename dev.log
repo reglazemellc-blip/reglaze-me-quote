@@ -1,0 +1,19 @@
+
+> reglaze-me-quote@0.1.0 dev
+> vite --host
+
+[2m2:42:56 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because lockfile has changed
+
+  [32m[1mVITE[22m v7.3.0[39m  [2mready in [0m[1m2094[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.157:[1m5173[22m/[39m
+[2m1:03:53 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Clients.tsx, /src/pages/Dashboard.tsx, /src/pages/QuotesBoard.tsx, /src/pages/InvoiceDetail.tsx, /src/pages/ContractDetail.tsx[22m
+[2m1:03:56 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Clients.tsx, /src/pages/Dashboard.tsx, /src/pages/QuotesBoard.tsx, /src/pages/InvoiceDetail.tsx, /src/pages/ContractDetail.tsx[22m
+[2m1:04:10 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Clients.tsx, /src/pages/Dashboard.tsx, /src/pages/QuotesBoard.tsx, /src/pages/InvoiceDetail.tsx, /src/pages/ContractDetail.tsx[22m
+[2m1:04:26 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/Clients.tsx, /src/pages/Dashboard.tsx, /src/pages/ClientNew.tsx, /src/pages/ClientDetail.tsx, /src/pages/QuotesBoard.tsx, /src/pages/InvoicesPage.tsx, /src/pages/ContractsPage.tsx, /src/pages/InvoiceDetail.tsx, /src/pages/QuoteEditor.tsx, /src/pages/RemindersPage.tsx, /src/pages/ContractDetail.tsx, /src/components/ClientDrawer.tsx, /src/components/ClientAutocomplete.tsx[22m
+[2m1:04:42 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/ClientDetail.tsx, /src/pages/ContractsPage.tsx, /src/pages/ContractDetail.tsx[22m
+[2m1:04:45 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/ClientDetail.tsx, /src/pages/ContractsPage.tsx, /src/pages/ContractDetail.tsx[22m
+[2m1:05:01 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/QuoteDetail.tsx, /src/pages/InvoicesPage.tsx, /src/pages/InvoiceDetail.tsx[22m
+[2m1:05:11 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/QuoteDetail.tsx, /src/pages/InvoicesPage.tsx, /src/pages/InvoiceDetail.tsx[22m
+[2m1:05:29 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/QuoteDetail.tsx, /src/pages/InvoicesPage.tsx, /src/pages/InvoiceDetail.tsx[22m

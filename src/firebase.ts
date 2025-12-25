@@ -1,7 +1,4 @@
-// 🔥 TEMP DEBUG — MUST BE AT VERY TOP
-// @ts-ignore
-window.firebaseAuthLoaded = "YES - FIREBASE FILE RAN";
-console.log("🔥 FIREBASE FILE LOADED");
+// Firebase initialization
 
 
 import { initializeApp } from "firebase/app";
@@ -17,15 +14,13 @@ import {
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAgwFECmmUXjyaZc2r6554IsffPBFmmsXY",
-  authDomain: "reglazemequote.firebaseapp.com",
-  projectId: "reglazemequote",
-  storageBucket: "reglazemequote.firebasestorage.app",
-
-
-  messagingSenderId: "573136801814",
-  appId: "1:573136801814:web:10c33d828c3485d5a7e537",
-  measurementId: "G-J47F8N177B",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
@@ -42,6 +37,3 @@ setPersistence(auth, browserLocalPersistence)
 export const db = getFirestore(app);
 
 export const storage = getStorage(app);
-
-// TEMP DEBUG — confirm firebase.ts was loaded
-// @ts-ignore

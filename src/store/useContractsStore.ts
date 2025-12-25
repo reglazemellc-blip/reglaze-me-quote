@@ -43,20 +43,30 @@ export const useContractsStore = create<ContractsState>((set, get) => ({
   },
 
   upsert: async (contract: Contract) => {
-    const ref = doc(contractsCol, contract.id)
-    await setDoc(ref, contract, { merge: true })
+    try {
+      const ref = doc(contractsCol, contract.id)
+      await setDoc(ref, contract, { merge: true })
 
-    const snap = await getDocs(contractsCol)
-    const contracts = snap.docs.map((d) => ({ ...(d.data() as Contract), id: d.id }))
-    set({ contracts })
+      const snap = await getDocs(contractsCol)
+      const contracts = snap.docs.map((d) => ({ ...(d.data() as Contract), id: d.id }))
+      set({ contracts })
+    } catch (error) {
+      console.error('Failed to save contract:', error);
+      throw new Error('Failed to save contract. Please check your connection and try again.');
+    }
   },
 
   remove: async (id: string) => {
-    await deleteDoc(doc(contractsCol, id))
+    try {
+      await deleteDoc(doc(contractsCol, id))
 
-    const snap = await getDocs(contractsCol)
-    const contracts = snap.docs.map((d) => ({ ...(d.data() as Contract), id: d.id }))
-    set({ contracts })
+      const snap = await getDocs(contractsCol)
+      const contracts = snap.docs.map((d) => ({ ...(d.data() as Contract), id: d.id }))
+      set({ contracts })
+    } catch (error) {
+      console.error('Failed to delete contract:', error);
+      throw new Error('Failed to delete contract. Please check your connection and try again.');
+    }
   },
 
   updateStatus: async (id: string, status: ContractStatus) => {

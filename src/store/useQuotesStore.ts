@@ -44,35 +44,45 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
 
     const ref = doc(quotesCol, q.id);
 
-    // write with tenantId enforced
-    await setDoc(
-      ref,
-      { ...q, tenantId },
-      { merge: true }
-    );
+    try {
+      // write with tenantId enforced
+      await setDoc(
+        ref,
+        { ...q, tenantId },
+        { merge: true }
+      );
 
-    // reload only this tenant's quotes
-    const snap = await getDocs(quotesCol);
-    const quotes = snap.docs
-      .map((d) => ({ ...(d.data() as Quote), id: d.id }))
-      .filter((q) => q.tenantId === tenantId);
+      // reload only this tenant's quotes
+      const snap = await getDocs(quotesCol);
+      const quotes = snap.docs
+        .map((d) => ({ ...(d.data() as Quote), id: d.id }))
+        .filter((q) => q.tenantId === tenantId);
 
-    set({ quotes });
+      set({ quotes });
+    } catch (error) {
+      console.error('Failed to save quote:', error);
+      throw new Error('Failed to save quote. Please check your connection and try again.');
+    }
   },
 
   // ============================================================
   // REMOVE — Delete + reload only this tenant's quotes
   // ============================================================
   remove: async (id: string) => {
-    await deleteDoc(doc(quotesCol, id));
+    try {
+      await deleteDoc(doc(quotesCol, id));
 
-    const tenantId = useConfigStore.getState().activeTenantId;
+      const tenantId = useConfigStore.getState().activeTenantId;
 
-    const snap = await getDocs(quotesCol);
-    const quotes = snap.docs
-      .map((d) => ({ ...(d.data() as Quote), id: d.id }))
-      .filter((q) => q.tenantId === tenantId);
+      const snap = await getDocs(quotesCol);
+      const quotes = snap.docs
+        .map((d) => ({ ...(d.data() as Quote), id: d.id }))
+        .filter((q) => q.tenantId === tenantId);
 
-    set({ quotes });
+      set({ quotes });
+    } catch (error) {
+      console.error('Failed to delete quote:', error);
+      throw new Error('Failed to delete quote. Please check your connection and try again.');
+    }
   },
 }));
