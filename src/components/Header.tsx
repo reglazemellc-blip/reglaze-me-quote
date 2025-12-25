@@ -106,6 +106,7 @@ useEffect(() => {
           <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
           <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
           <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
+          <IconLink to="/documents" label="Documents" svg={DocumentsIcon} />
           <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
           <IconLink to="/settings" label={navSettings} svg={CogIcon} />
         </nav>
@@ -199,6 +200,10 @@ useEffect(() => {
 
   <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
     <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
+  </motion.div>
+
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
+    <IconLink to="/documents" label="Documents" svg={DocumentsIcon} />
   </motion.div>
 
   <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
@@ -428,6 +433,24 @@ function ContractIcon(): JSX.Element {
       <path d="M9 12h6" stroke="url(#gold-contract)" />
       <path d="M9 16h6" stroke="url(#gold-contract)" />
       <path d="M9 20h3" stroke="url(#gold-contract)" />
+    </svg>
+  );
+}
+
+function DocumentsIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
+      <defs>
+        <linearGradient id="gold-documents" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe18d" />
+          <stop offset="100%" stopColor="#d4af37" />
+        </linearGradient>
+      </defs>
+      <path d="M9 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="url(#gold-documents)" />
+      <path d="M9 2v6h6" stroke="url(#gold-documents)" />
+      <path d="M13 2v6h6" stroke="url(#gold-documents)" />
+      <path d="M9 13h6" stroke="url(#gold-documents)" />
+      <path d="M9 17h4" stroke="url(#gold-documents)" />
     </svg>
   );
 }

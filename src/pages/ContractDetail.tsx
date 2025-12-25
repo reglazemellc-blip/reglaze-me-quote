@@ -11,9 +11,10 @@ import { useContractsStore } from '@store/useContractsStore'
 import { useClientsStore } from '@store/useClientsStore'
 import { useQuotesStore } from '@store/useQuotesStore'
 import { useConfigStore } from '@store/useConfigStore'
-import { generateContractPDF } from '@utils/pdf'
+import { generateContractPDF, generateContractPDFBlob } from '@utils/pdf'
 import type { Contract, ContractStatus } from '@db/index'
 import { useToastStore } from '@store/useToastStore'
+import { shareDocument, generateContractEmail } from '@utils/share'
 
 export default function ContractDetail() {
   const { id } = useParams<{ id: string }>()
@@ -294,6 +295,42 @@ if (quoteId && quoteId.trim() !== '') {
     }
   }
 
+  const handleShareContract = async () => {
+    if (!contract || !selectedClient || !config) {
+      useToastStore.getState().show("Unable to share contract. Missing contract or client data.")
+      return
+    }
+
+    try {
+      // Generate PDF
+      const { blob, filename } = await generateContractPDFBlob(contract, selectedClient, config.businessProfile)
+
+      // Generate email text
+      const emailText = generateContractEmail({
+        clientName: selectedClient.name,
+        companyName: config.businessProfile.companyName,
+        contractNumber: contract.contractNumber || contract.id,
+        totalAmount: contract.totalAmount,
+        startDate: contract.startDate,
+        phone: config.businessProfile.phone,
+        email: config.businessProfile.email,
+      })
+
+      await shareDocument({
+        title: `Contract from ${config.businessProfile.companyName}`,
+        message: emailText,
+        pdfBlob: blob,
+        pdfFileName: filename,
+      })
+
+      useToastStore.getState().show("Contract shared successfully!")
+    } catch (error: any) {
+      if (error.message === 'CANCELLED') return
+      console.error('Error sharing contract:', error)
+      useToastStore.getState().show("Failed to share contract")
+    }
+  }
+
   const handleClientSignature = async () => {
     console.log('handleClientSignature - contract:', contract?.id, 'isNew:', isNew)
     if (isNew || !contract?.id) {
@@ -439,6 +476,12 @@ if (quoteId && quoteId.trim() !== '') {
         <div className="flex gap-2">
           {!isNew && (
             <>
+              <button
+                onClick={handleShareContract}
+                className="btn-primary px-4 py-1 text-sm"
+              >
+                Share Contract
+              </button>
               <button
                 onClick={handleGeneratePDF}
                 className="btn-secondary flex items-center gap-2"

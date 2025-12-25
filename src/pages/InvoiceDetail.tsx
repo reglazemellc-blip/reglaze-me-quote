@@ -12,8 +12,9 @@ import { useConfigStore } from '@store/useConfigStore'
 import { useInvoicesStore } from '@store/useInvoicesStore'
 
 
-import { generateInvoicePDF } from '@utils/pdf'
+import { generateInvoicePDF, generateInvoicePDFBlob } from '@utils/pdf'
 import { useToastStore } from '@store/useToastStore'
+import { shareDocument, generateInvoiceEmail } from '@utils/share'
 
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
@@ -123,6 +124,62 @@ const { config, init: initConfig } = useConfigStore()
     }
   }
 
+  const handleShareInvoice = async () => {
+    if (!invoice || !client || !config) {
+      useToastStore.getState().show("Unable to share invoice. Missing invoice or client data.")
+      return
+    }
+
+    // Get quote data for items
+    const relatedQuote = quote
+    if (!relatedQuote) {
+      useToastStore.getState().show("Unable to share invoice. Invoice must be linked to a quote with line items.")
+      return
+    }
+
+    try {
+      // Generate PDF
+      const invoiceWithItems = {
+        ...invoice,
+        items: relatedQuote.items || [],
+        subtotal: relatedQuote.subtotal || 0,
+        tax: relatedQuote.tax || 0,
+        taxRate: relatedQuote.taxRate || 0,
+        discount: relatedQuote.discount || 0,
+        payments: [],
+        balance: invoice.total - invoice.amountPaid,
+      }
+
+      const { blob, filename } = await generateInvoicePDFBlob(invoiceWithItems as any, client, config.businessProfile)
+
+      // Generate email text
+      const emailText = generateInvoiceEmail({
+        clientName: client.name,
+        companyName: config.businessProfile.companyName,
+        invoiceNumber: invoice.invoiceNumber || invoice.id,
+        total: invoice.total,
+        amountPaid: invoice.amountPaid,
+        balance: balance,
+        dueDate: invoice.dueDate ? formatDate(invoice.dueDate) : undefined,
+        phone: config.businessProfile.phone,
+        email: config.businessProfile.email,
+      })
+
+      await shareDocument({
+        title: `Invoice from ${config.businessProfile.companyName}`,
+        message: emailText,
+        pdfBlob: blob,
+        pdfFileName: filename,
+      })
+
+      useToastStore.getState().show("Invoice shared successfully!")
+    } catch (error: any) {
+      if (error.message === 'CANCELLED') return
+      console.error('Error sharing invoice:', error)
+      useToastStore.getState().show("Failed to share invoice")
+    }
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -168,6 +225,12 @@ const { config, init: initConfig } = useConfigStore()
         </div>
 
         <div className="flex gap-2">
+          <button
+            onClick={handleShareInvoice}
+            className="btn-primary px-4 py-1 text-sm"
+          >
+            Share Invoice
+          </button>
           <button
             onClick={handleGeneratePDF}
             className="btn-secondary flex items-center gap-2"

@@ -24,6 +24,7 @@ import ServiceForm from "@pages/services/ServiceForm";
 
 import RemindersPage from "@pages/RemindersPage";
 import TestUI from "@pages/TestUI";
+import Documents from "@pages/Documents";
 
 import Header from "@components/Header";
 import OfflineToast from "@components/OfflineToast";
@@ -114,6 +115,9 @@ export default function App() {
 
   {/* Reminders */}
   <Route path="/reminders" element={<RemindersPage />} />
+
+  {/* Documents */}
+  <Route path="/documents" element={<Documents />} />
 
   {/* PDF View */}
   <Route path="/print" element={<QuotePrint />} />

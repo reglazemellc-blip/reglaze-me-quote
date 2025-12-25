@@ -4,7 +4,8 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useConfigStore } from "@store/useConfigStore";
-import { generateQuotePDF } from "@utils/pdf";
+import { generateQuotePDF, generateQuotePDFBlob } from "@utils/pdf";
+import { shareDocument, generateQuoteEmail } from "@utils/share";
 
 import type {
   Quote,
@@ -236,7 +237,7 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
   }
 
   const handleShareQuote = async () => {
-    if (!quote || !config) {
+    if (!quote || !config || !quote.client) {
       useToastStore.getState().show("Unable to share quote. Missing quote or client data.")
       return
     }
@@ -248,35 +249,29 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
     }
 
     try {
+      // Generate PDF using quote.client
+      const { blob, filename } = await generateQuotePDFBlob(quote as any, quote.client as any, config.businessProfile)
+
       // Generate professional email text
       const clientName = quote.client?.name || quote.clientName || 'Customer'
-      const emailText = `Hi ${clientName},
+      const emailText = generateQuoteEmail({
+        clientName,
+        companyName: config.businessProfile.companyName,
+        quoteNumber: quote.quoteNumber || quote.id,
+        total: quote.total || 0,
+        notes: quote.notes,
+        phone: config.businessProfile.phone,
+        email: config.businessProfile.email,
+      })
 
-Here's your quote from ${config.businessProfile.companyName}:
+      await shareDocument({
+        title: `Quote from ${config.businessProfile.companyName}`,
+        message: emailText,
+        pdfBlob: blob,
+        pdfFileName: filename,
+      })
 
-Quote #: ${quote.quoteNumber || quote.id}
-Total: $${(quote.total || 0).toFixed(2)}
-
-${quote.notes ? `Notes: ${quote.notes}\n\n` : ''}Thank you for your business!
-
-${config.businessProfile.companyName}
-${config.businessProfile.phone || ''}
-${config.businessProfile.email || ''}`
-
-      // Check if Web Share API is supported (mobile/tablets)
-      if (navigator.share) {
-        await navigator.share({
-          title: `Quote from ${config.businessProfile.companyName}`,
-          text: emailText,
-          // Note: Can't attach PDF file directly via Web Share API
-          // User will need to download PDF separately if needed
-        })
-        useToastStore.getState().show("Quote shared successfully!")
-      } else {
-        // Desktop fallback: Copy email text to clipboard
-        await navigator.clipboard.writeText(emailText)
-        useToastStore.getState().show("Quote details copied to clipboard! Paste into your email.")
-      }
+      useToastStore.getState().show("Quote shared successfully!")
     } catch (error: any) {
       // User cancelled share dialog
       if (error.name === 'AbortError') {

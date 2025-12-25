@@ -1,37 +1,70 @@
 /**
  * Universal sharing utility for quotes, invoices, contracts, and documents
- * Works on mobile (native share) and desktop (clipboard)
+ * Works on mobile (native share) and desktop (clipboard + download)
  */
 
 type ShareDocumentOptions = {
   title: string
   message: string
-  pdfUrl?: string // Optional: URL to PDF if available
+  pdfBlob?: Blob // Optional: PDF blob to share as file
+  pdfFileName?: string // Required if pdfBlob provided
 }
 
 /**
- * Share a document via native share (mobile) or clipboard (desktop)
+ * Detect if we're on a true mobile device (not Windows with touch)
+ */
+function isMobileDevice(): boolean {
+  const userAgent = navigator.userAgent.toLowerCase()
+  return /android|iphone|ipad|ipod/.test(userAgent)
+}
+
+/**
+ * Share a document via native share (mobile with PDF) or clipboard+download (desktop)
  */
 export async function shareDocument(options: ShareDocumentOptions): Promise<boolean> {
-  const { title, message, pdfUrl } = options
+  const { title, message, pdfBlob, pdfFileName } = options
 
   try {
-    // Check if Web Share API is supported (mobile/tablets)
-    if (navigator.share) {
-      const shareData: ShareData = {
-        title,
-        text: message,
+    // Only use Web Share API on actual mobile devices
+    if (isMobileDevice() && navigator.share) {
+      // Try to share with file if supported
+      if (navigator.canShare && pdfBlob && pdfFileName) {
+        const file = new File([pdfBlob], pdfFileName, { type: 'application/pdf' })
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title,
+            text: message,
+            files: [file],
+          })
+          return true
+        }
       }
 
-      // Note: Can't attach PDF files directly via Web Share API
-      // Users will need to download PDF separately if needed
-      await navigator.share(shareData)
-      return true
-    } else {
-      // Desktop fallback: Copy to clipboard
-      await navigator.clipboard.writeText(message)
+      // Fallback: Share text only on mobile
+      await navigator.share({
+        title,
+        text: message,
+      })
       return true
     }
+
+    // Desktop: Download PDF directly + copy text to clipboard
+    if (pdfBlob && pdfFileName) {
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = pdfFileName
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    }
+
+    // Copy email text to clipboard
+    await navigator.clipboard.writeText(message)
+
+    return true
   } catch (error: any) {
     // User cancelled share dialog
     if (error.name === 'AbortError') {
@@ -152,4 +185,50 @@ If you have any questions, please don't hesitate to contact us.
 ${companyName}
 ${phone || ''}
 ${email || ''}`
+}
+
+/**
+ * Generate a simple text document as PDF blob
+ */
+export async function generateTextDocumentPDF(
+  title: string,
+  content: string,
+  companyName: string
+): Promise<Blob> {
+  const { default: jsPDF } = await import('jspdf')
+  const pdf = new jsPDF('p', 'pt', 'a4')
+
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const pageHeight = pdf.internal.pageSize.getHeight()
+  const margin = 40
+  const maxWidth = pageWidth - 2 * margin
+
+  // Title
+  pdf.setFontSize(18)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(title, margin, margin + 20)
+
+  // Company name
+  pdf.setFontSize(10)
+  pdf.setFont('helvetica', 'normal')
+  pdf.text(companyName, margin, margin + 40)
+
+  // Content
+  pdf.setFontSize(11)
+  pdf.setFont('helvetica', 'normal')
+
+  const lines = pdf.splitTextToSize(content, maxWidth)
+  let yPos = margin + 60
+
+  for (const line of lines) {
+    // Check if we need a new page
+    if (yPos > pageHeight - margin) {
+      pdf.addPage()
+      yPos = margin
+    }
+    pdf.text(line, margin, yPos)
+    yPos += 14 // Line height
+  }
+
+  return pdf.output('blob')
 }

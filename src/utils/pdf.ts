@@ -1274,3 +1274,697 @@ contentY += 16
   drawFooter(pdf, businessProfile)
   pdf.save(`Contract_${contract.id || 'Unknown'}_${(client.name || 'Client').replace(/\s+/g, '_')}.pdf`)
 }
+
+// ============================================================================
+// HELPER FUNCTIONS FOR BLOB VERSIONS
+// ============================================================================
+
+/**
+ * Draw line items table with header and rows
+ */
+function drawLineItemsTable(
+  pdf: jsPDF,
+  yPos: number,
+  items: any[],
+  options: { currencySymbol: string }
+): number {
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+
+  const columns: TableColumnConfig = {
+    descColX: margin + 12,
+    qtyColX: pageWidth - 280,
+    priceColX: pageWidth - 180,
+    totalColX: pageWidth - margin - 12,
+  }
+
+  yPos = drawTableHeader(pdf, yPos, columns)
+
+  if (items && Array.isArray(items)) {
+    items.forEach((item: any, index: number) => {
+      yPos = drawTableRow(pdf, item, yPos, columns, index, options.currencySymbol)
+    })
+  }
+
+  // Draw closing line
+  pdf.setDrawColor(...COLORS.gold)
+  pdf.setLineWidth(2)
+  pdf.line(margin, yPos, pageWidth - margin, yPos)
+  yPos += 25
+
+  return yPos
+}
+
+/**
+ * Draw totals section (wrapper for drawTotals with config object)
+ */
+function drawTotalsSection(
+  pdf: jsPDF,
+  yPos: number,
+  config: {
+    subtotal: number
+    tax: number
+    discount: number
+    total: number
+    currencySymbol: string
+    taxRate?: number
+  }
+): number {
+  return drawTotals(
+    pdf,
+    yPos,
+    config.subtotal,
+    config.tax,
+    config.discount,
+    config.total,
+    config.currencySymbol,
+    config.taxRate
+  )
+}
+
+/**
+ * Draw invoice totals section with payment info
+ */
+function drawInvoiceTotalsSection(
+  pdf: jsPDF,
+  yPos: number,
+  config: {
+    subtotal: number
+    tax: number
+    discount: number
+    total: number
+    amountPaid: number
+    balance: number
+    currencySymbol: string
+    taxRate?: number
+  }
+): number {
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+  const totalsX = pageWidth - margin - LAYOUT.totalsBoxWidth + 10
+
+  pdf.setFontSize(FONTS.body)
+  pdf.setFont('helvetica', 'normal')
+  pdf.setTextColor(...COLORS.darkGray)
+
+  pdf.text('Subtotal:', totalsX, yPos)
+  pdf.text(`${config.currencySymbol}${config.subtotal.toFixed(2)}`, pageWidth - margin - 12, yPos, { align: 'right' })
+  yPos += 12
+
+  if (config.tax > 0) {
+    const taxLabel = config.taxRate ? `Tax (${(config.taxRate * 100).toFixed(1)}%):` : 'Tax:'
+    pdf.text(taxLabel, totalsX, yPos)
+    pdf.text(`${config.currencySymbol}${config.tax.toFixed(2)}`, pageWidth - margin - 12, yPos, { align: 'right' })
+    yPos += 12
+  }
+
+  if (config.discount > 0) {
+    pdf.setTextColor(200, 0, 0)
+    pdf.text('Discount:', totalsX, yPos)
+    pdf.text(`-${config.currencySymbol}${config.discount.toFixed(2)}`, pageWidth - margin - 12, yPos, { align: 'right' })
+    pdf.setTextColor(...COLORS.darkGray)
+    yPos += 12
+  }
+
+  yPos += 5
+  pdf.setFillColor(...COLORS.gold)
+  pdf.rect(totalsX - 10, yPos - 10, LAYOUT.totalsBoxWidth, LAYOUT.totalsBoxHeight, 'F')
+  pdf.setDrawColor(...COLORS.black)
+  pdf.setLineWidth(1.5)
+  pdf.rect(totalsX - 10, yPos - 10, LAYOUT.totalsBoxWidth, LAYOUT.totalsBoxHeight, 'S')
+
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(FONTS.heading)
+  pdf.setTextColor(...COLORS.black)
+  pdf.text('TOTAL:', totalsX, yPos + 10)
+  pdf.text(`${config.currencySymbol}${config.total.toFixed(2)}`, pageWidth - margin - 12, yPos + 10, { align: 'right' })
+  yPos += 38
+
+  // Payment info
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(FONTS.body)
+  pdf.setTextColor(...COLORS.darkGray)
+
+  pdf.text('Amount Paid:', totalsX, yPos)
+  pdf.setTextColor(0, 150, 0)
+  pdf.text(`${config.currencySymbol}${config.amountPaid.toFixed(2)}`, pageWidth - margin - 12, yPos, { align: 'right' })
+  yPos += 12
+
+  pdf.setTextColor(...COLORS.darkGray)
+  pdf.text('Balance Due:', totalsX, yPos)
+  if (config.balance > 0) {
+    pdf.setTextColor(200, 0, 0)
+  } else {
+    pdf.setTextColor(0, 150, 0)
+  }
+  pdf.text(`${config.currencySymbol}${config.balance.toFixed(2)}`, pageWidth - margin - 12, yPos, { align: 'right' })
+  yPos += 20
+
+  pdf.setTextColor(...COLORS.black)
+  return yPos
+}
+
+/**
+ * Draw property address section for contracts
+ */
+function drawPropertySection(pdf: jsPDF, yPos: number, propertyAddress: string): number {
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+
+  drawSectionTitle(pdf, 'PROPERTY ADDRESS:', margin, yPos, pageWidth - 2 * margin)
+  yPos += 38
+
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(FONTS.body)
+  pdf.setTextColor(...COLORS.mediumGray)
+  const wrapped = wrapText(pdf, propertyAddress, LAYOUT.textMaxWidths.address)
+  wrapped.lines.forEach((line: string) => {
+    pdf.text(line, margin + 10, yPos)
+    yPos += LAYOUT.lineSpacing.body
+  })
+
+  return yPos + LAYOUT.sectionGap
+}
+
+/**
+ * Draw contract amount section
+ */
+function drawContractAmountSection(pdf: jsPDF, yPos: number, totalAmount: number, currencySymbol: string): number {
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+
+  drawSectionTitle(pdf, 'CONTRACT AMOUNT:', margin, yPos, pageWidth - 2 * margin)
+  yPos += 38
+
+  pdf.setFillColor(...COLORS.gold)
+  pdf.rect(margin, yPos - 10, LAYOUT.totalsBoxWidth, LAYOUT.totalsBoxHeight, 'F')
+  pdf.setDrawColor(...COLORS.black)
+  pdf.setLineWidth(1.5)
+  pdf.rect(margin, yPos - 10, LAYOUT.totalsBoxWidth, LAYOUT.totalsBoxHeight, 'S')
+
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(FONTS.heading)
+  pdf.setTextColor(...COLORS.black)
+  pdf.text(`${currencySymbol}${totalAmount.toFixed(2)}`, margin + 10, yPos + 10)
+
+  return yPos + 48
+}
+
+/**
+ * Draw signatures section for contracts
+ */
+function drawSignaturesSection(
+  pdf: jsPDF,
+  yPos: number,
+  clientSignature?: string,
+  contractorSignature?: string
+): number {
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+  const boxWidth = (pageWidth - 2 * margin - LAYOUT.infoBoxGap) / 2
+
+  drawSectionTitle(pdf, 'SIGNATURES:', margin, yPos, pageWidth - 2 * margin)
+  yPos += 38
+
+  // Client signature box
+  pdf.setFillColor(...COLORS.veryLightGray)
+  pdf.rect(margin, yPos, boxWidth, 60, 'F')
+  pdf.setDrawColor(...COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(margin, yPos, boxWidth, 60, 'S')
+
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(FONTS.small)
+  pdf.setTextColor(...COLORS.darkGray)
+  pdf.text('Client Signature', margin + 10, yPos + 15)
+
+  if (clientSignature) {
+    pdf.setFont('helvetica', 'italic')
+    pdf.setFontSize(FONTS.body)
+    pdf.text(clientSignature, margin + 10, yPos + 40)
+  }
+
+  // Contractor signature box
+  const rightBoxX = margin + boxWidth + LAYOUT.infoBoxGap
+  pdf.setFillColor(...COLORS.veryLightGray)
+  pdf.rect(rightBoxX, yPos, boxWidth, 60, 'F')
+  pdf.setDrawColor(...COLORS.border)
+  pdf.rect(rightBoxX, yPos, boxWidth, 60, 'S')
+
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(FONTS.small)
+  pdf.setTextColor(...COLORS.darkGray)
+  pdf.text('Contractor Signature', rightBoxX + 10, yPos + 15)
+
+  if (contractorSignature) {
+    pdf.setFont('helvetica', 'italic')
+    pdf.setFontSize(FONTS.body)
+    pdf.text(contractorSignature, rightBoxX + 10, yPos + 40)
+  }
+
+  return yPos + 80
+}
+
+// ============================================================================
+// BLOB-RETURNING VERSIONS FOR SHARING
+// ============================================================================
+
+/**
+ * Generate quote PDF and return as Blob (for sharing)
+ * Mirrors generateQuotePDF but returns blob instead of saving
+ */
+export async function generateQuotePDFBlob(quote: Quote, client: Client, businessProfile: BusinessProfile): Promise<{ blob: Blob; filename: string }> {
+  let logoData: { data: string; format: string } | null = null
+  if (businessProfile.logo && businessProfile.logo.trim()) {
+    logoData = await loadLogoAsBase64(businessProfile.logo)
+  }
+
+  const pdf = new jsPDF('p', 'pt', 'a4')
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+
+  let yPos = drawHeader(pdf, businessProfile, 'QUOTE', logoData)
+
+  const boxWidth = (pageWidth - 2 * margin - LAYOUT.infoBoxGap) / 2
+
+  // Bill To box
+  drawInfoBox(pdf, {
+    x: margin,
+    y: yPos,
+    width: boxWidth,
+    height: LAYOUT.infoBoxHeight,
+    title: 'BILL TO:',
+  })
+  let contentY = yPos + 35
+  pdf.setFontSize(FONTS.body)
+  pdf.setTextColor(...COLORS.black)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(client.name || 'N/A', margin + LAYOUT.rowPadding, contentY)
+  contentY += 14
+
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(FONTS.body)
+  pdf.setTextColor(...COLORS.darkGray)
+  if (client.address) {
+    const wrapped = wrapText(pdf, client.address, boxWidth - 24)
+    wrapped.lines.slice(0, 2).forEach((line: string) => {
+      pdf.text(line, margin + LAYOUT.rowPadding, contentY)
+      contentY += 14
+    })
+  }
+  if (client.phone) {
+    pdf.text(client.phone, margin + LAYOUT.rowPadding, contentY)
+    contentY += 14
+  }
+  if (client.email) {
+    pdf.text(client.email, margin + LAYOUT.rowPadding, contentY)
+  }
+
+  // Quote Details box
+  const rightBoxX = margin + boxWidth + LAYOUT.infoBoxGap
+  drawInfoBox(pdf, {
+    x: rightBoxX,
+    y: yPos,
+    width: boxWidth,
+    height: LAYOUT.infoBoxHeight,
+    title: 'QUOTE DETAILS:',
+  })
+
+  const displayId = quote.quoteNumber || quote.id || 'N/A'
+  const quoteDate = new Date(quote.createdAt || Date.now()).toLocaleDateString()
+
+  contentY = yPos + 35
+  drawKeyValueRow(pdf, {
+    label: 'Quote #:',
+    value: displayId,
+    x: rightBoxX,
+    y: contentY,
+    labelX: rightBoxX + 12,
+    valueX: rightBoxX + boxWidth - 12,
+    align: 'right',
+  })
+  contentY += 16
+
+  drawKeyValueRow(pdf, {
+    label: 'Date:',
+    value: quoteDate,
+    x: rightBoxX,
+    y: contentY,
+    labelX: rightBoxX + 12,
+    valueX: rightBoxX + boxWidth - 12,
+    align: 'right',
+  })
+  contentY += 16
+
+  drawKeyValueRow(pdf, {
+    label: 'Payment:',
+    value: 'Due on completion',
+    x: rightBoxX,
+    y: contentY,
+    labelX: rightBoxX + 12,
+    valueX: rightBoxX + boxWidth - 12,
+    align: 'right',
+  })
+
+  yPos += LAYOUT.infoBoxHeight + LAYOUT.sectionGap
+
+  // Services table
+  drawSectionTitle(pdf, 'SERVICES:', margin, yPos, pageWidth - 2 * margin)
+  yPos += 30
+
+  if (quote.items && quote.items.length > 0) {
+    yPos = drawLineItemsTable(pdf, yPos, quote.items, {
+      currencySymbol: businessProfile.currencySymbol || '$'
+    })
+  }
+
+  yPos = drawTotalsSection(pdf, yPos, {
+    subtotal: quote.subtotal || 0,
+    tax: quote.tax || 0,
+    discount: quote.discount || 0,
+    total: quote.total || 0,
+    currencySymbol: businessProfile.currencySymbol || '$',
+    taxRate: quote.taxRate
+  })
+
+  if (quote.notes) {
+    yPos = drawNotesSection(pdf, yPos, 'NOTES:', quote.notes)
+  }
+
+  if ((quote as any).jobsiteReadyAcknowledged && (quote as any).jobsiteReadyAcknowledgedAt) {
+    yPos = drawJobsiteReadiness(pdf, yPos, (quote as any).jobsiteReadyAcknowledgedAt, (quote as any).waterShutoffElected)
+  }
+
+  drawFooter(pdf, businessProfile)
+
+  const filename = `Quote_${displayId}_${(client.name || 'Client').replace(/\s+/g, '_')}.pdf`
+
+  return {
+    blob: pdf.output('blob'),
+    filename
+  }
+}
+
+/**
+ * Generate invoice PDF and return as Blob (for sharing)
+ * Mirrors generateInvoicePDF but returns blob instead of saving
+ */
+export async function generateInvoicePDFBlob(
+  invoice: Invoice & { items?: any[]; subtotal?: number; tax?: number; discount?: number; payments?: any[]; balance?: number },
+  client: Client,
+  businessProfile: BusinessProfile
+): Promise<{ blob: Blob; filename: string }> {
+  let logoData: { data: string; format: string } | null = null
+  if (businessProfile.logo && businessProfile.logo.trim()) {
+    logoData = await loadLogoAsBase64(businessProfile.logo)
+  }
+
+  const pdf = new jsPDF('p', 'pt', 'a4')
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+
+  let yPos = drawHeader(pdf, businessProfile, 'INVOICE', logoData)
+
+  const boxWidth = (pageWidth - 2 * margin - LAYOUT.infoBoxGap) / 2
+
+  // Invoice Info box
+  const rightBoxX = margin + boxWidth + LAYOUT.infoBoxGap
+  drawInfoBox(pdf, {
+    x: rightBoxX,
+    y: yPos,
+    width: boxWidth,
+    height: LAYOUT.infoBoxHeight,
+    title: 'INVOICE INFO:',
+  })
+
+  const displayInvoiceNumber = invoice.invoiceNumber || invoice.id || 'N/A'
+  let contentY = yPos + 35
+
+  drawKeyValueRow(pdf, {
+    label: 'Invoice #:',
+    value: displayInvoiceNumber,
+    x: rightBoxX,
+    y: contentY,
+    labelX: rightBoxX + 12,
+    valueX: rightBoxX + boxWidth - 12,
+    align: 'right',
+  })
+  contentY += 16
+
+  drawKeyValueRow(pdf, {
+    label: 'Date:',
+    value: new Date(invoice.createdAt || Date.now()).toLocaleDateString(),
+    x: rightBoxX,
+    y: contentY,
+    labelX: rightBoxX + 12,
+    valueX: rightBoxX + boxWidth - 12,
+    align: 'right',
+  })
+  contentY += 16
+
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(FONTS.small)
+  pdf.text('Status:', rightBoxX + 12, contentY)
+
+  const statusColors: Record<string, [number, number, number]> = {
+    unpaid: [200, 0, 0],
+    partial: [255, 165, 0],
+    paid: [0, 150, 0],
+  }
+  const color = statusColors[invoice.status] || COLORS.black
+  pdf.setTextColor(...color)
+  pdf.text(invoice.status.toUpperCase(), rightBoxX + boxWidth - 12, contentY, { align: 'right' })
+
+  // Bill To box
+  drawInfoBox(pdf, {
+    x: margin,
+    y: yPos,
+    width: boxWidth,
+    height: LAYOUT.infoBoxHeight,
+    title: 'BILL TO:',
+  })
+
+  contentY = yPos + 35
+  pdf.setFontSize(FONTS.body)
+  pdf.setTextColor(...COLORS.black)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(client.name || 'N/A', margin + LAYOUT.rowPadding, contentY)
+  contentY += 14
+
+  pdf.setFont('helvetica', 'normal')
+  pdf.setTextColor(...COLORS.darkGray)
+  if (client.address) {
+    const wrapped = wrapText(pdf, client.address, boxWidth - 24)
+    wrapped.lines.slice(0, 2).forEach((line: string) => {
+      pdf.text(line, margin + LAYOUT.rowPadding, contentY)
+      contentY += 14
+    })
+  }
+  if (client.phone) {
+    pdf.text(client.phone, margin + LAYOUT.rowPadding, contentY)
+    contentY += 14
+  }
+  if (client.email) {
+    pdf.text(client.email, margin + LAYOUT.rowPadding, contentY)
+  }
+
+  yPos += LAYOUT.infoBoxHeight + LAYOUT.sectionGap
+
+  // Services table
+  drawSectionTitle(pdf, 'SERVICES:', margin, yPos, pageWidth - 2 * margin)
+  yPos += 30
+
+  if (invoice.items && invoice.items.length > 0) {
+    yPos = drawLineItemsTable(pdf, yPos, invoice.items, {
+      currencySymbol: businessProfile.currencySymbol || '$'
+    })
+  }
+
+  const subtotal = invoice.subtotal ?? 0
+  const tax = invoice.tax ?? 0
+  const discount = invoice.discount ?? 0
+  const total = invoice.total ?? 0
+  const amountPaid = invoice.amountPaid ?? 0
+  const balance = invoice.balance ?? (total - amountPaid)
+
+  yPos = drawInvoiceTotalsSection(pdf, yPos, {
+    subtotal,
+    tax,
+    discount,
+    total,
+    amountPaid,
+    balance,
+    currencySymbol: businessProfile.currencySymbol || '$'
+  })
+
+  if ((invoice as any).jobsiteReadyAcknowledged && (invoice as any).jobsiteReadyAcknowledgedAt) {
+    yPos = drawJobsiteReadiness(pdf, yPos, (invoice as any).jobsiteReadyAcknowledgedAt, (invoice as any).waterShutoffElected)
+  }
+
+  drawFooter(pdf, businessProfile)
+
+  const filename = `Invoice_${displayInvoiceNumber}_${(client.name || 'Client').replace(/\s+/g, '_')}.pdf`
+
+  return {
+    blob: pdf.output('blob'),
+    filename
+  }
+}
+
+/**
+ * Generate contract PDF and return as Blob (for sharing)
+ * Mirrors generateContractPDF but returns blob instead of saving
+ */
+export async function generateContractPDFBlob(contract: Contract, client: Client, businessProfile: BusinessProfile): Promise<{ blob: Blob; filename: string }> {
+  let quoteData: any = null
+  if (contract.quoteId) {
+    try {
+      const { doc, getDoc } = await import('firebase/firestore')
+      const { db } = await import('../firebase')
+      const quoteSnap = await getDoc(doc(db, 'quotes', contract.quoteId))
+      if (quoteSnap.exists()) {
+        quoteData = quoteSnap.data()
+      }
+    } catch (error) {
+      console.warn('Contract PDF Blob: Failed to fetch quote:', error)
+    }
+  }
+
+  let logoData: { data: string; format: string } | null = null
+  if (businessProfile.logo && businessProfile.logo.trim()) {
+    logoData = await loadLogoAsBase64(businessProfile.logo)
+  }
+
+  const pdf = new jsPDF('p', 'pt', 'a4')
+  const pageWidth = pdf.internal.pageSize.getWidth()
+  const margin = LAYOUT.pageMargin
+
+  let yPos = drawHeader(pdf, businessProfile, 'CONTRACT', logoData)
+
+  const boxWidth = (pageWidth - 2 * margin - LAYOUT.infoBoxGap) / 2
+
+  // Contract Details box
+  const rightBoxX = margin + boxWidth + LAYOUT.infoBoxGap
+  drawInfoBox(pdf, {
+    x: rightBoxX,
+    y: yPos,
+    width: boxWidth,
+    height: LAYOUT.infoBoxHeight,
+    title: 'CONTRACT DETAILS:',
+  })
+
+  const contractNumber = contract.contractNumber || contract.id || 'N/A'
+  let contentY = yPos + 35
+
+  drawKeyValueRow(pdf, {
+    label: 'Contract #:',
+    value: contractNumber,
+    x: rightBoxX,
+    y: contentY,
+    labelX: rightBoxX + 12,
+    valueX: rightBoxX + boxWidth - 12,
+    align: 'right',
+  })
+  contentY += 16
+
+  if (contract.startDate) {
+    drawKeyValueRow(pdf, {
+      label: 'Start Date:',
+      value: contract.startDate,
+      x: rightBoxX,
+      y: contentY,
+      labelX: rightBoxX + 12,
+      valueX: rightBoxX + boxWidth - 12,
+      align: 'right',
+    })
+    contentY += 16
+  }
+
+  if (contract.endDate) {
+    drawKeyValueRow(pdf, {
+      label: 'End Date:',
+      value: contract.endDate,
+      x: rightBoxX,
+      y: contentY,
+      labelX: rightBoxX + 12,
+      valueX: rightBoxX + boxWidth - 12,
+      align: 'right',
+    })
+  }
+
+  // Client box
+  drawInfoBox(pdf, {
+    x: margin,
+    y: yPos,
+    width: boxWidth,
+    height: LAYOUT.infoBoxHeight,
+    title: 'CLIENT:',
+  })
+
+  contentY = yPos + 35
+  pdf.setFontSize(FONTS.body)
+  pdf.setTextColor(...COLORS.black)
+  pdf.setFont('helvetica', 'bold')
+  pdf.text(client.name || 'N/A', margin + LAYOUT.rowPadding, contentY)
+  contentY += 14
+
+  pdf.setFont('helvetica', 'normal')
+  pdf.setTextColor(...COLORS.darkGray)
+  if (client.address) {
+    const wrapped = wrapText(pdf, client.address, boxWidth - 24)
+    wrapped.lines.slice(0, 2).forEach((line: string) => {
+      pdf.text(line, margin + LAYOUT.rowPadding, contentY)
+      contentY += 14
+    })
+  }
+  if (client.phone) {
+    pdf.text(client.phone, margin + LAYOUT.rowPadding, contentY)
+    contentY += 14
+  }
+  if (client.email) {
+    pdf.text(client.email, margin + LAYOUT.rowPadding, contentY)
+  }
+
+  yPos += LAYOUT.infoBoxHeight + LAYOUT.sectionGap
+
+  if (contract.propertyAddress) {
+    yPos = drawPropertySection(pdf, yPos, contract.propertyAddress)
+  }
+
+  if (contract.totalAmount != null) {
+    yPos = drawContractAmountSection(pdf, yPos, contract.totalAmount, businessProfile.currencySymbol || '$')
+  }
+
+  // Get signature data - handle both string and object formats
+  const clientSig = typeof contract.clientSignature === 'object' && contract.clientSignature
+    ? (contract.clientSignature as any).dataUrl
+    : contract.clientSignature
+  const contractorSig = typeof contract.contractorSignature === 'object' && contract.contractorSignature
+    ? (contract.contractorSignature as any).dataUrl
+    : contract.contractorSignature
+
+  if (clientSig || contractorSig) {
+    yPos = drawSignaturesSection(pdf, yPos, clientSig, contractorSig)
+  }
+
+  if (contract.terms) {
+    yPos = drawNotesSection(pdf, yPos, 'TERMS & CONDITIONS', contract.terms)
+  }
+
+  if (contract.scope) {
+    yPos = drawNotesSection(pdf, yPos, 'SCOPE OF WORK', contract.scope)
+  }
+
+  if (quoteData && quoteData.jobsiteReadyAcknowledged && quoteData.jobsiteReadyAcknowledgedAt) {
+    yPos = drawJobsiteReadiness(pdf, yPos, quoteData.jobsiteReadyAcknowledgedAt, quoteData.waterShutoffElected)
+  }
+
+  drawFooter(pdf, businessProfile)
+
+  const filename = `Contract_${contract.id || 'Unknown'}_${(client.name || 'Client').replace(/\s+/g, '_')}.pdf`
+
+  return {
+    blob: pdf.output('blob'),
+    filename
+  }
+}
