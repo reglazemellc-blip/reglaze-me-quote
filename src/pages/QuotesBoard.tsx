@@ -30,7 +30,7 @@ export default function QuotesBoard() {
   const [params] = useSearchParams()
 
   const [term, setTerm] = useState('')
-  const [status, setStatus] = useState(params.get('status') || '')
+  const [status, setStatus] = useState(params.get('status') || 'active')
   const [selected, setSelected] = useState<string[]>([])
 
   // Load quotes + clients
@@ -78,6 +78,9 @@ const sorted = useMemo(() => {
       .filter((c) => c.name.toLowerCase().includes(t))
       .map((c) => c.id)
 
+    // Define finished statuses
+    const finishedStatuses = ['completed', 'invoiced', 'paid']
+
     return sorted.filter((q) => {
       const matchText =
         !t ||
@@ -88,7 +91,16 @@ const sorted = useMemo(() => {
 
       // Use workflowStatus for filtering (fallback to 'new' if not set)
       const quoteWorkflowStatus = (q as any).workflowStatus ?? 'new'
-      const matchStatus = !status || quoteWorkflowStatus === status
+      
+      // Handle special "active" filter
+      let matchStatus = true
+      if (status === 'active') {
+        matchStatus = !finishedStatuses.includes(quoteWorkflowStatus)
+      } else if (status === 'history') {
+        matchStatus = finishedStatuses.includes(quoteWorkflowStatus)
+      } else if (status) {
+        matchStatus = quoteWorkflowStatus === status
+      }
 
       return matchText && matchStatus
     })
@@ -180,7 +192,10 @@ const sorted = useMemo(() => {
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
-          <option value="">All Statuses</option>
+          <option value="active">Active Jobs</option>
+          <option value="history">History (Completed)</option>
+          <option value="">All Quotes</option>
+          <option disabled>──────────</option>
           {Object.entries(workflowStatusConfig).map(([value, config]) => (
             <option key={value} value={value}>
               {config.label}

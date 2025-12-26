@@ -1,7 +1,7 @@
 // src/pages/QuoteDetail.tsx
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useConfigStore } from "@store/useConfigStore";
 import { generateQuotePDF, generateQuotePDFBlob } from "@utils/pdf";
@@ -27,6 +27,42 @@ const timeOptions = [
   "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
   "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM"
 ];
+
+// Helper to sync invoice status when quote workflow changes
+async function syncInvoiceStatus(quoteId: string, workflowStatus: WorkflowStatus) {
+  try {
+    // Find invoice linked to this quote
+    const invoicesRef = collection(db, 'invoices');
+    const q = query(invoicesRef, where('quoteId', '==', quoteId));
+    const snap = await getDocs(q);
+    
+    if (snap.empty) return; // No invoice linked
+    
+    const invoiceDoc = snap.docs[0];
+    const invoiceData = invoiceDoc.data();
+    
+    // Map workflow status to invoice status
+    let newInvoiceStatus: 'unpaid' | 'partial' | 'paid' | undefined;
+    
+    if (workflowStatus === 'paid') {
+      newInvoiceStatus = 'paid';
+    } else if (workflowStatus === 'invoiced') {
+      // Don't change if already paid or partial
+      if (invoiceData.status === 'paid' || invoiceData.status === 'partial') return;
+      newInvoiceStatus = 'unpaid';
+    }
+    
+    if (newInvoiceStatus && newInvoiceStatus !== invoiceData.status) {
+      await updateDoc(invoiceDoc.ref, {
+        status: newInvoiceStatus,
+        ...(newInvoiceStatus === 'paid' ? { amountPaid: invoiceData.total || 0 } : {}),
+        updatedAt: Date.now(),
+      });
+    }
+  } catch (err) {
+    console.error('Failed to sync invoice status:', err);
+  }
+}
 
 // Workflow status configuration
 const workflowStatuses: { value: WorkflowStatus; label: string; color: string; bgColor: string }[] = [
@@ -506,6 +542,12 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
                 updatedAt: Date.now(),
               }, { merge: true })
               setQuote({ ...quote, workflowStatus: next })
+              
+              // Sync invoice status if paid or invoiced
+              if (next === 'paid' || next === 'invoiced') {
+                await syncInvoiceStatus(quote.id, next)
+              }
+              
               useToastStore.getState().show(`Status updated to ${workflowStatuses.find(s => s.value === next)?.label}`)
             }}
           >
@@ -537,6 +579,12 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
                         updatedAt: Date.now(),
                       }, { merge: true })
                       setQuote({ ...quote, workflowStatus: status.value })
+                      
+                      // Sync invoice status if paid or invoiced
+                      if (status.value === 'paid' || status.value === 'invoiced') {
+                        await syncInvoiceStatus(quote.id, status.value)
+                      }
+                      
                       useToastStore.getState().show(`Status updated to ${status.label}`)
                     }}
                     className={`
