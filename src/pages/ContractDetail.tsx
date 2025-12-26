@@ -324,7 +324,7 @@ if (quoteId && quoteId.trim() !== '') {
         clientEmail: selectedClient.email || '',
       })
 
-      useToastStore.getState().show("Contract shared successfully!")
+      useToastStore.getState().show("PDF downloaded! Attach it to the email.")
     } catch (error: any) {
       if (error.message === 'CANCELLED') return
       console.error('Error sharing contract:', error)

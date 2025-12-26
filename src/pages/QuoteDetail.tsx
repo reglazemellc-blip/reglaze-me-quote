@@ -272,7 +272,7 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
         clientEmail: quote.client?.email || '',
       })
 
-      useToastStore.getState().show("Quote shared successfully!")
+      useToastStore.getState().show("PDF downloaded! Attach it to the email.")
     } catch (error: any) {
       // User cancelled share dialog
       if (error.name === 'AbortError') {

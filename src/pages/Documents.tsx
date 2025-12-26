@@ -299,7 +299,7 @@ export default function Documents() {
         pdfFileName: filename,
       })
 
-      useToastStore.getState().show(`${doc.name} shared successfully!`)
+      useToastStore.getState().show("PDF downloaded! Attach it to the email.")
     } catch (error: any) {
       if (error.message === 'CANCELLED') return
       console.error('Error sharing document:', error)

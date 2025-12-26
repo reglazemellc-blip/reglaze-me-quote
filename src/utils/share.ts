@@ -51,7 +51,7 @@ export async function shareDocument(options: ShareDocumentOptions): Promise<bool
       return true
     }
 
-    // Desktop: Download PDF + open email client
+    // Desktop: Download PDF + open Gmail compose
     if (pdfBlob && pdfFileName) {
       // Download the PDF
       const url = URL.createObjectURL(pdfBlob)
@@ -64,14 +64,14 @@ export async function shareDocument(options: ShareDocumentOptions): Promise<bool
       URL.revokeObjectURL(url)
     }
 
-    // Open email client with mailto link
+    // Open Gmail compose with pre-filled fields
     const subject = encodeURIComponent(title)
-    const body = encodeURIComponent(message + '\n\n(PDF attachment downloaded separately)')
-    const mailto = clientEmail
-      ? `mailto:${clientEmail}?subject=${subject}&body=${body}`
-      : `mailto:?subject=${subject}&body=${body}`
+    const body = encodeURIComponent(message)
+    const to = clientEmail ? encodeURIComponent(clientEmail) : ''
 
-    window.location.href = mailto
+    // Use Gmail compose URL (works reliably in browser)
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}`
+    window.open(gmailUrl, '_blank')
 
     return true
   } catch (error: any) {
