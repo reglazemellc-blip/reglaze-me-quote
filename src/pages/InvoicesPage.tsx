@@ -8,10 +8,11 @@ import { useNavigate } from 'react-router-dom'
 import { useInvoicesStore } from '@store/useInvoicesStore'
 import { useClientsStore } from '@store/useClientsStore'
 import { useConfigStore } from '@store/useConfigStore'
+import { useToastStore } from '@store/useToastStore'
 import type { InvoiceStatus } from '@db/index'
 
 export default function InvoicesPage() {
-  const { invoices, init, loading } = useInvoicesStore()
+  const { invoices, init, loading, recordPayment } = useInvoicesStore()
   const { clients, init: initClients } = useClientsStore()
 
   const { config } = useConfigStore()
@@ -132,49 +133,74 @@ export default function InvoicesPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((invoice) => (
-            <button
-              key={invoice.id}
-              onClick={() => navigate(`/invoices/${invoice.id}`)}
-              className="
-                w-full card p-4 flex justify-between items-center
-                hover:bg-black/60 transition text-left
-              "
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-[#e8d487]">
-                   {invoice.invoiceNumber ?? invoice.id}
-                </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(invoice.status)}`}>
-                    {labels?.[`status${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}` as keyof typeof labels] || invoice.status}
+          {filtered.map((invoice) => {
+            const balance = invoice.total - invoice.amountPaid
+            const hasBalance = balance > 0
+            
+            return (
+              <div
+                key={invoice.id}
+                className="
+                  w-full card p-4 flex justify-between items-center
+                  hover:bg-black/60 transition cursor-pointer
+                "
+                onClick={() => navigate(`/invoices/${invoice.id}`)}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-[#e8d487]">
+                     {invoice.invoiceNumber ?? invoice.id}
                   </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${statusColor(invoice.status)}`}>
+                      {labels?.[`status${invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}` as keyof typeof labels] || invoice.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {getClientName(invoice.clientId)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Created {formatDate(invoice.createdAt)}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-400">
-                  {getClientName(invoice.clientId)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  Created {formatDate(invoice.createdAt)}
-                </div>
-              </div>
 
-              <div className="text-right space-y-1">
-                <div className="text-lg font-semibold text-[#e8d487]">
-                  {formatCurrency(invoice.total)}
+                <div className="flex items-center gap-4">
+                  <div className="text-right space-y-1">
+                    <div className="text-lg font-semibold text-[#e8d487]">
+                      {formatCurrency(invoice.total)}
+                    </div>
+                    {invoice.amountPaid > 0 && (
+                      <div className="text-xs text-gray-400">
+                        Paid: {formatCurrency(invoice.amountPaid)}
+                      </div>
+                    )}
+                    {hasBalance && (
+                      <div className="text-xs text-red-400">
+                        Due: {formatCurrency(balance)}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mark Paid Button - only show if there's a balance */}
+                  {hasBalance && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        recordPayment(invoice.id, balance)
+                        useToastStore.getState().show(`Marked ${invoice.invoiceNumber || 'invoice'} as paid`)
+                      }}
+                      className="
+                        px-3 py-2 text-xs font-medium rounded-lg
+                        bg-green-600 hover:bg-green-500 text-white
+                        transition whitespace-nowrap
+                      "
+                    >
+                      Mark Paid
+                    </button>
+                  )}
                 </div>
-                {invoice.amountPaid > 0 && (
-                  <div className="text-xs text-gray-400">
-                    Paid: {formatCurrency(invoice.amountPaid)}
-                  </div>
-                )}
-                {invoice.total - invoice.amountPaid > 0 && (
-                  <div className="text-xs text-red-400">
-                    Due: {formatCurrency(invoice.total - invoice.amountPaid)}
-                  </div>
-                )}
               </div>
-            </button>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

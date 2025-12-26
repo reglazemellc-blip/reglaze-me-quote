@@ -18,7 +18,7 @@ import type {
 import { useToastStore } from "@store/useToastStore";
 import { useInvoicesStore } from "@store/useInvoicesStore";
 import { setDoc } from "firebase/firestore";
-import { Clock, FileText, Calendar, Send, CheckCircle2, X } from "lucide-react";
+import { Clock, FileText, Calendar, Send, CheckCircle2, X, ArrowLeft } from "lucide-react";
 
 // Time options for dropdown
 const timeOptions = [
@@ -403,8 +403,18 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
 
   return (
     <div className="p-6 space-y-6 max-w-3xl mx-auto text-[#f5f3da]">
+      {/* BACK NAVIGATION */}
+      {quote.clientId && (
+        <Link
+          to={`/clients/${quote.clientId}`}
+          className="text-[#e8d487] hover:text-white transition flex items-center gap-2 text-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to {quote.clientName || 'Client'}
+        </Link>
+      )}
+
       {/* HEADER */}
-            {/* HEADER */}
       <div className="flex justify-between items-center">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-[#e8d487]">
@@ -451,12 +461,19 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
 
 
       {/* CLIENT CARD */}
-      <div className="card p-4 space-y-1">
-        <div className="text-lg font-semibold">{quote.clientName}</div>
-        <div className="text-sm text-gray-400">{quote.clientPhone}</div>
-        <div className="text-sm text-gray-400">{quote.clientEmail}</div>
-        <div className="text-sm whitespace-pre-line text-gray-300">
-          {quote.clientAddress}
+      <div className="card p-4 space-y-2">
+        <div className="text-[11px] tracking-wide text-gray-500 uppercase">
+          Client
+        </div>
+        <div className="text-lg font-semibold text-[#f5f3da]">
+          {quote.clientName}
+        </div>
+        <div className="text-sm text-gray-300 space-y-0.5">
+          {quote.clientPhone && <div>{quote.clientPhone}</div>}
+          {quote.clientAddress && (
+            <div className="whitespace-pre-line">{quote.clientAddress}</div>
+          )}
+          {quote.clientEmail && <div className="text-gray-400">{quote.clientEmail}</div>}
         </div>
 
         {quote.clientId && (
@@ -571,22 +588,6 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
                     : 'Not sent'}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span>Pre-Job Received:</span>
-                <span className={quote.documentTracking?.preJobReceived ? 'text-green-400' : 'text-gray-500'}>
-                  {quote.documentTracking?.preJobReceived
-                    ? new Date(quote.documentTracking.preJobReceived).toLocaleDateString()
-                    : 'Not received'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Prep & Care Sent:</span>
-                <span className={quote.documentTracking?.prepCareSent ? 'text-green-400' : 'text-gray-500'}>
-                  {quote.documentTracking?.prepCareSent
-                    ? new Date(quote.documentTracking.prepCareSent).toLocaleDateString()
-                    : 'Not sent'}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -649,42 +650,6 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
                 }}
               >
                 ✓ Mark Pre-Job Sent
-              </button>
-              <button
-                className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
-                onClick={async () => {
-                  const quoteRef = doc(db, 'quotes', quote.id)
-                  await setDoc(quoteRef, {
-                    'documentTracking.preJobReceived': Date.now(),
-                    workflowStatus: 'ready_to_schedule',
-                    updatedAt: Date.now(),
-                  }, { merge: true })
-                  setQuote({
-                    ...quote,
-                    documentTracking: { ...quote.documentTracking, preJobReceived: Date.now() },
-                    workflowStatus: 'ready_to_schedule'
-                  })
-                  useToastStore.getState().show('Marked Pre-Job as received - Ready to schedule!')
-                }}
-              >
-                ✓ Mark Pre-Job Received
-              </button>
-              <button
-                className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
-                onClick={async () => {
-                  const quoteRef = doc(db, 'quotes', quote.id)
-                  await setDoc(quoteRef, {
-                    'documentTracking.prepCareSent': Date.now(),
-                    updatedAt: Date.now(),
-                  }, { merge: true })
-                  setQuote({
-                    ...quote,
-                    documentTracking: { ...quote.documentTracking, prepCareSent: Date.now() }
-                  })
-                  useToastStore.getState().show('Marked Prep & Care as sent')
-                }}
-              >
-                ✓ Mark Prep & Care Sent
               </button>
             </div>
           </div>

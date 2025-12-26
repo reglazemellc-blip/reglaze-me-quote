@@ -74,20 +74,24 @@ export default function Calendar() {
       }
     })
 
-    // Add scheduled quotes (appointmentDate)
+    // Add scheduled quotes (scheduledDate or appointmentDate)
     quotes.forEach((quote) => {
-      if (quote.appointmentDate && (quote.status === 'scheduled' || quote.status === 'approved')) {
+      const schedDate = quote.scheduledDate || quote.appointmentDate
+      const schedTime = quote.scheduledTime || quote.appointmentTime
+      const isScheduled = quote.workflowStatus === 'scheduled' || quote.status === 'scheduled' || quote.status === 'approved'
+      
+      if (schedDate && isScheduled) {
         const client = clients.find((c) => c.id === quote.clientId)
-        // Don't duplicate if client already has scheduled date
-        if (client && client.scheduledDate === quote.appointmentDate) return
+        // Don't duplicate if client already has same scheduled date
+        if (client && client.scheduledDate === schedDate) return
 
         jobs.push({
           id: quote.id,
           type: 'client',
           name: quote.clientName || client?.name || 'Unknown',
           address: quote.clientAddress || client?.address || '',
-          date: quote.appointmentDate,
-          time: quote.appointmentTime || undefined,
+          date: schedDate,
+          time: schedTime || undefined,
           quoteTotal: quote.total,
           linkTo: `/quotes/${quote.id}`,
         })

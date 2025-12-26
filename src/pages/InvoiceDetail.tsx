@@ -264,16 +264,20 @@ const { config, init: initConfig } = useConfigStore()
       </div>
 
       {/* CLIENT INFO */}
-      <div className="card p-6 space-y-3">
-        <h2 className="text-lg font-semibold text-[#e8d487]">
-          {labels?.invoiceClientInfo || 'Client Information'}
-        </h2>
+      <div className="card p-6 space-y-2">
+        <div className="text-[11px] tracking-wide text-gray-500 uppercase">
+          Client
+        </div>
+        <div className="text-lg font-semibold text-[#f5f3da]">
+          {client?.name}
+        </div>
         {client && (
-          <div className="space-y-1 text-sm">
-            <p className="font-medium text-white">{client.name}</p>
+          <div className="text-sm text-gray-300 space-y-0.5">
+            {client.phone && <p>{client.phone}</p>}
+            {client.address && (
+              <p className="whitespace-pre-line">{client.address}</p>
+            )}
             {client.email && <p className="text-gray-400">{client.email}</p>}
-            {client.phone && <p className="text-gray-400">{client.phone}</p>}
-            {client.address && <p className="text-gray-400">{client.address}</p>}
           </div>
         )}
       </div>

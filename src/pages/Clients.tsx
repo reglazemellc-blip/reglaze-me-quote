@@ -368,92 +368,51 @@ useEffect(() => {
         >
           <div className="flex justify-between items-start">
             <div className="flex-1">
+              {/* Name */}
               <div className="text-lg font-semibold text-[#f5f3da]">
                 {c.name}
               </div>
 
-              <div className="mt-1 text-[11px] text-gray-500">
-                Last activity: {Math.max(
-                  c.createdAt ?? 0,
-                  ...clientQuotes
-                    .filter((q) => q.clientId === c.id)
-                    .map((q) => q.updatedAt ?? q.createdAt ?? 0)
-                )
-                  ? `${Math.floor(
-                      (Date.now() -
-                        Math.max(
-                          c.createdAt ?? 0,
-                          ...clientQuotes
-                            .filter((q) => q.clientId === c.id)
-                            .map((q) => q.updatedAt ?? q.createdAt ?? 0)
-                        )) /
-                        (1000 * 60 * 60 * 24)
-                    )}d ago`
-                  : "No activity yet"}
-              </div>
-
-              {/* Quote Status Badges - Shows workflow status for each quote */}
-              {clientQuotes.filter((q) => q.clientId === c.id).length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {clientQuotes
-                    .filter((q) => q.clientId === c.id)
-                    .slice(0, 3) // Show max 3 quotes
-                    .map((q: any) => {
-                      const status = q.workflowStatus || 'new';
-                      const statusColors: Record<string, string> = {
-                        new: 'bg-gray-600/50 text-gray-300 border-gray-500/50',
-                        docs_sent: 'bg-yellow-600/50 text-yellow-300 border-yellow-500/50',
-                        waiting_prejob: 'bg-orange-600/50 text-orange-300 border-orange-500/50',
-                        ready_to_schedule: 'bg-cyan-600/50 text-cyan-300 border-cyan-500/50',
-                        scheduled: 'bg-blue-600/50 text-blue-300 border-blue-500/50',
-                        in_progress: 'bg-indigo-600/50 text-indigo-300 border-indigo-500/50',
-                        completed: 'bg-green-600/50 text-green-300 border-green-500/50',
-                        invoiced: 'bg-purple-600/50 text-purple-300 border-purple-500/50',
-                        paid: 'bg-emerald-600/50 text-emerald-300 border-emerald-500/50',
-                      };
-                      const statusLabels: Record<string, string> = {
-                        new: 'New',
-                        docs_sent: 'Docs Sent',
-                        waiting_prejob: 'Waiting',
-                        ready_to_schedule: 'Ready',
-                        scheduled: 'Scheduled',
-                        in_progress: 'In Progress',
-                        completed: 'Done',
-                        invoiced: 'Invoiced',
-                        paid: 'Paid',
-                      };
-                      return (
-                        <span
-                          key={q.id}
-                          className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColors[status] || statusColors.new}`}
-                          title={`${q.quoteNumber || q.id}: ${statusLabels[status] || status}`}
-                        >
-                          {q.quoteNumber ? q.quoteNumber.replace('Q-', '#') : 'Q'}: {statusLabels[status] || status}
-                        </span>
-                      );
-                    })}
-                  {clientQuotes.filter((q) => q.clientId === c.id).length > 3 && (
-                    <span className="text-[10px] text-gray-500">
-                      +{clientQuotes.filter((q) => q.clientId === c.id).length - 3} more
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
-                {c.phone && <div>{c.phone}</div>}
-                {c.email && <div>{c.email}</div>}
+              {/* Contact Info: Phone, Address, Email */}
+              <div className="mt-2 text-[13px] space-y-0.5">
+                {c.phone && <div className="text-gray-300">{c.phone}</div>}
                 {c.address && (
-                  <div className="whitespace-pre-line text-gray-400">
+                  <div className="whitespace-pre-line text-gray-300">
                     {c.address}
                   </div>
                 )}
+                {c.email && <div className="text-gray-400">{c.email}</div>}
               </div>
-            </div>
 
-            <span className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap">
-              {quoteCount(c.id)} quotes
-            </span>
+              {/* Quote Summary - Clean compact display */}
+              {(() => {
+                const quotes = clientQuotes.filter((q) => q.clientId === c.id);
+                if (quotes.length === 0) return null;
+                
+                const finishedStatuses = ['completed', 'invoiced', 'paid'];
+                const activeQuotes = quotes.filter((q: any) => !finishedStatuses.includes(q.workflowStatus || 'new'));
+                const completedQuotes = quotes.filter((q: any) => finishedStatuses.includes(q.workflowStatus || 'new'));
+                
+                return (
+                  <div className="mt-2 flex items-center gap-2 text-[11px]">
+                    {activeQuotes.length > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#e8d487]/20 text-[#e8d487] border border-[#e8d487]/30">
+                        <span className="w-1.5 h-1.5 bg-[#e8d487] rounded-full animate-pulse"></span>
+                        {activeQuotes.length} active
+                      </span>
+                    )}
+                    {completedQuotes.length > 0 && (
+                      <span className="px-2 py-0.5 rounded-full bg-green-900/30 text-green-400 border border-green-700/30">
+                        {completedQuotes.length} done
+                      </span>
+                    )}
+                    <span className="text-gray-500">
+                      {quotes.length} total
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </Link>
          ))}

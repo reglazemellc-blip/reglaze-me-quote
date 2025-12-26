@@ -556,10 +556,20 @@ if (quoteId && quoteId.trim() !== '') {
         </div>
 
         {selectedClient && (
-          <div className="text-sm text-gray-400 space-y-1 pt-2 border-t border-gray-800">
-            <p>{selectedClient.phone}</p>
-            <p>{selectedClient.email}</p>
-            <p>{selectedClient.address}</p>
+          <div className="pt-2 border-t border-gray-800">
+            <div className="text-[11px] tracking-wide text-gray-500 uppercase mb-1">
+              Client
+            </div>
+            <div className="text-lg font-semibold text-[#f5f3da] mb-2">
+              {selectedClient.name}
+            </div>
+            <div className="text-sm text-gray-300 space-y-0.5">
+              {selectedClient.phone && <p>{selectedClient.phone}</p>}
+              {selectedClient.address && (
+                <p className="whitespace-pre-line">{selectedClient.address}</p>
+              )}
+              {selectedClient.email && <p className="text-gray-400">{selectedClient.email}</p>}
+            </div>
           </div>
         )}
       </div>

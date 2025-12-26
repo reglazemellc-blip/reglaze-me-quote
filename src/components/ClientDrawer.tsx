@@ -335,19 +335,6 @@ export default function ClientDrawer({
             />
           </div>
 
-          {/* Email */}
-          <div>
-            <label className="text-xs text-gray-400 block mb-1">
-              Email
-            </label>
-            <input
-              className="input w-full"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-            />
-          </div>
-
           {/* Address */}
           <div>
             <label className="text-xs text-gray-400 block mb-1">
@@ -392,6 +379,19 @@ export default function ClientDrawer({
               className="input w-full"
               value={zip}
               onChange={(e) => setZip(e.target.value)}
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">
+              Email
+            </label>
+            <input
+              className="input w-full"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
             />
           </div>
 

@@ -578,235 +578,6 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
           </div>
         </div>
 
-        {/* WORKFLOW STATUS PIPELINE */}
-        <div className="card p-4 md:p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-[#e8d487] flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              Workflow Status
-            </h2>
-
-            {/* Status Dropdown */}
-            <select
-              className="input text-xs md:text-sm"
-              value={client.workflowStatus ?? client.status ?? 'new'}
-              onChange={async (e) => {
-                const next = e.target.value as WorkflowStatus
-                setClient((prev: any) => ({ ...prev, workflowStatus: next, status: next }))
-                await updateDoc(doc(db, 'clients', client.id), {
-                  workflowStatus: next,
-                  status: next,
-                  updatedAt: Date.now(),
-                })
-                useToastStore.getState().show(`Status updated to ${workflowStatuses.find(s => s.value === next)?.label}`)
-              }}
-            >
-              {workflowStatuses.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Pipeline Visualization */}
-          <div className="overflow-x-auto pb-2">
-            <div className="flex items-center gap-1 min-w-max">
-              {workflowStatuses.map((status, idx) => {
-                const currentIdx = workflowStatuses.findIndex(
-                  (s) => s.value === (client.workflowStatus ?? client.status ?? 'new')
-                )
-                const isCompleted = idx < currentIdx
-                const isCurrent = idx === currentIdx
-                const isPending = idx > currentIdx
-
-                return (
-                  <React.Fragment key={status.value}>
-                    <button
-                      onClick={async () => {
-                        setClient((prev: any) => ({ ...prev, workflowStatus: status.value, status: status.value }))
-                        await updateDoc(doc(db, 'clients', client.id), {
-                          workflowStatus: status.value,
-                          status: status.value,
-                          updatedAt: Date.now(),
-                        })
-                        useToastStore.getState().show(`Status updated to ${status.label}`)
-                      }}
-                      className={`
-                        flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-all
-                        min-w-[70px] md:min-w-[80px]
-                        ${isCurrent
-                          ? `${status.bgColor} text-white ring-2 ring-[#e8d487] ring-offset-2 ring-offset-black`
-                          : isCompleted
-                            ? 'bg-green-900/50 text-green-300 border border-green-700/50'
-                            : 'bg-black/30 text-gray-500 border border-gray-700/50 hover:bg-black/50'
-                        }
-                      `}
-                    >
-                      {isCompleted ? (
-                        <CheckCircle2 className="w-4 h-4 mb-1" />
-                      ) : isCurrent ? (
-                        <div className="w-3 h-3 rounded-full bg-white mb-1 animate-pulse" />
-                      ) : (
-                        <div className="w-3 h-3 rounded-full border border-gray-500 mb-1" />
-                      )}
-                      <span className="text-[10px] md:text-[11px] font-medium text-center leading-tight">
-                        {status.label}
-                      </span>
-                    </button>
-
-                    {idx < workflowStatuses.length - 1 && (
-                      <div className={`w-4 h-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-700'}`} />
-                    )}
-                  </React.Fragment>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Document Tracking & Scheduling Info */}
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            {/* Document Status */}
-            <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4 text-[#e8d487]" />
-                <span className="font-medium text-gray-300">Documents</span>
-              </div>
-              <div className="space-y-1 text-gray-400">
-                <div className="flex items-center justify-between">
-                  <span>Pre-Job Sent:</span>
-                  <span className={client.documentTracking?.preJobSent ? 'text-green-400' : 'text-gray-500'}>
-                    {client.documentTracking?.preJobSent
-                      ? new Date(client.documentTracking.preJobSent).toLocaleDateString()
-                      : 'Not sent'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Pre-Job Received:</span>
-                  <span className={client.documentTracking?.preJobReceived ? 'text-green-400' : 'text-gray-500'}>
-                    {client.documentTracking?.preJobReceived
-                      ? new Date(client.documentTracking.preJobReceived).toLocaleDateString()
-                      : 'Not received'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Prep & Care Sent:</span>
-                  <span className={client.documentTracking?.prepCareSent ? 'text-green-400' : 'text-gray-500'}>
-                    {client.documentTracking?.prepCareSent
-                      ? new Date(client.documentTracking.prepCareSent).toLocaleDateString()
-                      : 'Not sent'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Schedule Info */}
-            <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar className="w-4 h-4 text-[#e8d487]" />
-                <span className="font-medium text-gray-300">Schedule</span>
-              </div>
-              {client.scheduledDate ? (
-                <div className="text-gray-300">
-                  <div className="text-lg font-semibold text-[#e8d487]">
-                    {new Date(client.scheduledDate).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </div>
-                  {client.scheduledTime && (
-                    <div className="text-gray-400">@ {client.scheduledTime}</div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-gray-500">Not scheduled</div>
-              )}
-              <button
-                className="mt-2 text-[#e8d487] underline text-[11px]"
-                onClick={() => {
-                  setScheduleDate(client.scheduledDate || '');
-                  setScheduleTime(client.scheduledTime || '');
-                  setShowScheduleModal(true);
-                }}
-              >
-                {client.scheduledDate ? 'Change Schedule' : 'Set Schedule'}
-              </button>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
-              <div className="flex items-center gap-2 mb-2">
-                <Send className="w-4 h-4 text-[#e8d487]" />
-                <span className="font-medium text-gray-300">Quick Actions</span>
-              </div>
-              <div className="space-y-2">
-                <button
-                  className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
-                  onClick={async () => {
-                    setClient((prev: any) => ({
-                      ...prev,
-                      documentTracking: {
-                        ...prev.documentTracking,
-                        preJobSent: Date.now()
-                      },
-                      workflowStatus: 'docs_sent'
-                    }))
-                    await updateDoc(doc(db, 'clients', client.id), {
-                      'documentTracking.preJobSent': Date.now(),
-                      workflowStatus: 'docs_sent',
-                      updatedAt: Date.now(),
-                    })
-                    useToastStore.getState().show('Marked Pre-Job as sent')
-                  }}
-                >
-                  Mark Pre-Job Sent
-                </button>
-                <button
-                  className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
-                  onClick={async () => {
-                    setClient((prev: any) => ({
-                      ...prev,
-                      documentTracking: {
-                        ...prev.documentTracking,
-                        preJobReceived: Date.now()
-                      },
-                      workflowStatus: 'ready_to_schedule'
-                    }))
-                    await updateDoc(doc(db, 'clients', client.id), {
-                      'documentTracking.preJobReceived': Date.now(),
-                      workflowStatus: 'ready_to_schedule',
-                      updatedAt: Date.now(),
-                    })
-                    useToastStore.getState().show('Marked Pre-Job as received - Ready to schedule!')
-                  }}
-                >
-                  Mark Pre-Job Received
-                </button>
-                <button
-                  className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
-                  onClick={async () => {
-                    setClient((prev: any) => ({
-                      ...prev,
-                      documentTracking: {
-                        ...prev.documentTracking,
-                        prepCareSent: Date.now()
-                      }
-                    }))
-                    await updateDoc(doc(db, 'clients', client.id), {
-                      'documentTracking.prepCareSent': Date.now(),
-                      updatedAt: Date.now(),
-                    })
-                    useToastStore.getState().show('Marked Prep & Care as sent')
-                  }}
-                >
-                  Mark Prep & Care Sent
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-4 md:gap-5">
           {/* LEFT COLUMN --------------------------------------------------- */}
@@ -814,16 +585,19 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
             {/* CLIENT CARD */}
             <div className="card p-5 md:p-6">
               <div className="flex flex-col gap-3">
-                <div className="text-[11px] tracking-wide text-gray-400">
-                  CLIENT
+                <div className="text-[11px] tracking-wide text-gray-500 uppercase">
+                  Client
+                </div>
+                <div className="text-lg font-semibold text-[#f5f3da]">
+                  {client.name}
                 </div>
 
-                <div className="text-sm text-gray-300 space-y-1">
+                <div className="text-sm text-gray-300 space-y-0.5">
                   {client.phone && <div>{client.phone}</div>}
-                  {client.email && <div>{client.email}</div>}
                   {client.address && (
                     <div className="whitespace-pre-line">{client.address}</div>
                   )}
+                  {client.email && <div className="text-gray-400">{client.email}</div>}
                 </div>
 
                 {/* Photos header */}
@@ -917,6 +691,141 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                 </ul>
               )}
             </div>
+
+            {/* QUOTES - Collapsible */}
+            <details className="card p-5 md:p-6 group" open={quotes.length > 0}>
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
+                  Quotes ({quotes.length})
+                  <span className="text-gray-500 group-open:hidden text-[10px]">+</span>
+                  <span className="text-gray-500 hidden group-open:inline text-[10px]">−</span>
+                </h2>
+                <button
+                  className="btn-gold text-sm px-3 py-1.5"
+                  onClick={(e) => { e.preventDefault(); navigate(`/quotes/new?clientId=${client.id}`); }}
+                >
+                  New Quote
+                </button>
+              </summary>
+
+              <div className="mt-3">
+                {loadingQuotes ? (
+                  <p className="text-xs text-gray-400">Loading quotes…</p>
+                ) : quotes.length === 0 ? (
+                  <p className="text-xs text-gray-400">No quotes yet.</p>
+                ) : (
+                  (() => {
+                    // Split quotes into active vs history
+                    const finishedStatuses = ['completed', 'invoiced', 'paid'];
+                    const activeQuotes = quotes.filter(q => !finishedStatuses.includes(q.workflowStatus || 'new'));
+                    const historyQuotes = quotes.filter(q => finishedStatuses.includes(q.workflowStatus || 'new'));
+                    
+                    // Status colors for workflow status
+                    const statusColors: Record<string, string> = {
+                      new: 'bg-gray-800 text-gray-300 border-gray-600',
+                      docs_sent: 'bg-yellow-900/50 text-yellow-300 border-yellow-700/50',
+                      waiting_prejob: 'bg-orange-900/50 text-orange-300 border-orange-700/50',
+                      ready_to_schedule: 'bg-cyan-900/50 text-cyan-300 border-cyan-700/50',
+                      scheduled: 'bg-blue-900/50 text-blue-300 border-blue-700/50',
+                      in_progress: 'bg-indigo-900/50 text-indigo-300 border-indigo-700/50',
+                      completed: 'bg-green-900/50 text-green-300 border-green-700/50',
+                      invoiced: 'bg-purple-900/50 text-purple-300 border-purple-700/50',
+                      paid: 'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
+                    };
+                    const statusLabels: Record<string, string> = {
+                      new: 'New',
+                      docs_sent: 'Docs Sent',
+                      waiting_prejob: 'Waiting',
+                      ready_to_schedule: 'Ready',
+                      scheduled: 'Scheduled',
+                      in_progress: 'In Progress',
+                      completed: 'Completed',
+                      invoiced: 'Invoiced',
+                      paid: 'Paid',
+                    };
+
+                    const QuoteRow = ({ q }: { q: QuoteSummary }) => {
+                      const wfStatus = q.workflowStatus || 'new';
+                      return (
+                        <div
+                          key={q.id}
+                          className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
+                          onClick={() => navigate(`/quotes/${q.id}`)}
+                        >
+                          <span className="text-[#e8d487] text-sm font-medium">
+                            {q.quoteNumber || q.id}
+                          </span>
+                          <div className="flex items-center gap-2 ml-3">
+                            <span className={`text-[11px] px-2 py-0.5 rounded border ${statusColors[wfStatus] || statusColors.new}`}>
+                              {statusLabels[wfStatus] || 'New'}
+                            </span>
+                            {typeof q.total === "number" && (
+                              <span className="text-sm text-gray-300">${q.total.toFixed(2)}</span>
+                            )}
+                            <button
+                              type="button"
+                              className="text-sm text-red-400 hover:text-red-300 ml-1"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const ok = window.confirm("Delete this quote? This cannot be undone.")
+                                if (!ok) return
+                                try {
+                                  await deleteDoc(doc(db, "quotes", q.id))
+                                  setQuotes((prev) => prev.filter((x) => x.id !== q.id))
+                                } catch (err) {
+                                  console.error(err)
+                                  useToastStore.getState().show("Failed to delete quote.")
+                                }
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <div className="space-y-4 text-xs">
+                        {/* ACTIVE JOBS - Always visible, prominent */}
+                        {activeQuotes.length > 0 && (
+                          <div>
+                            <div className="text-[11px] text-[#e8d487] font-medium mb-2 flex items-center gap-2">
+                              <span className="w-2 h-2 bg-[#e8d487] rounded-full animate-pulse"></span>
+                              Active Jobs ({activeQuotes.length})
+                            </div>
+                            <div className="space-y-2">
+                              {activeQuotes.map((q) => <QuoteRow key={q.id} q={q} />)}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* NO ACTIVE JOBS message */}
+                        {activeQuotes.length === 0 && historyQuotes.length > 0 && (
+                          <div className="text-gray-500 text-[11px] py-2">
+                            No active jobs — all work completed
+                          </div>
+                        )}
+
+                        {/* HISTORY - Collapsible */}
+                        {historyQuotes.length > 0 && (
+                          <details className="group/history">
+                            <summary className="text-[11px] text-gray-400 cursor-pointer hover:text-gray-300 transition list-none flex items-center gap-2">
+                              <span className="group-open/history:hidden">+</span>
+                              <span className="hidden group-open/history:inline">−</span>
+                              History ({historyQuotes.length} completed)
+                            </summary>
+                            <div className="space-y-2 mt-2 pl-4 border-l border-gray-700">
+                              {historyQuotes.map((q) => <QuoteRow key={q.id} q={q} />)}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
+            </details>
           </div>
 
           {/* RIGHT COLUMN -------------------------------------------------- */}
@@ -1102,179 +1011,87 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
               )}
             </div>
 
-            {/* QUOTES */}
-            <div className="card p-5 md:p-6">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
-                  Quotes
+            {/* INVOICES - Collapsible */}
+            <details className="card p-5 md:p-6 group" open={invoices.length > 0}>
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
+                  Invoices ({invoices.length})
+                  <span className="text-gray-500 group-open:hidden text-[10px]">+</span>
+                  <span className="text-gray-500 hidden group-open:inline text-[10px]">−</span>
                 </h2>
+              </summary>
 
-                <button
-                  className="btn-gold text-xs px-3 py-1.5"
-                  onClick={() => navigate(`/quotes/new?clientId=${client.id}`)}
-
-
-                >
-                  New Quote
-                </button>
-              </div>
-
-              {loadingQuotes ? (
-                <p className="text-xs text-gray-400">Loading quotes…</p>
-              ) : quotes.length === 0 ? (
-                <p className="text-xs text-gray-400">No quotes yet.</p>
-              ) : (
-                <div className="space-y-2 text-xs">
-                  {quotes.map((q) => {
-                    // Status colors for workflow status
-                    const statusColors: Record<string, string> = {
-                      new: 'bg-gray-800 text-gray-300 border-gray-600',
-                      docs_sent: 'bg-yellow-900/50 text-yellow-300 border-yellow-700/50',
-                      waiting_prejob: 'bg-orange-900/50 text-orange-300 border-orange-700/50',
-                      ready_to_schedule: 'bg-cyan-900/50 text-cyan-300 border-cyan-700/50',
-                      scheduled: 'bg-blue-900/50 text-blue-300 border-blue-700/50',
-                      in_progress: 'bg-indigo-900/50 text-indigo-300 border-indigo-700/50',
-                      completed: 'bg-green-900/50 text-green-300 border-green-700/50',
-                      invoiced: 'bg-purple-900/50 text-purple-300 border-purple-700/50',
-                      paid: 'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
-                    };
-                    const statusLabels: Record<string, string> = {
-                      new: 'New',
-                      docs_sent: 'Docs Sent',
-                      waiting_prejob: 'Waiting',
-                      ready_to_schedule: 'Ready',
-                      scheduled: 'Scheduled',
-                      in_progress: 'In Progress',
-                      completed: 'Completed',
-                      invoiced: 'Invoiced',
-                      paid: 'Paid',
-                    };
-                    const wfStatus = q.workflowStatus || 'new';
-
-                    return (
-                      <div
-                        key={q.id}
-                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
+              <div className="mt-3">
+                {invoices.length === 0 ? (
+                  <p className="text-sm text-gray-400">
+                    No invoices for this client.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {invoices.map((inv) => (
+                      <Link
+                        key={inv.id}
+                        to={`/invoices/${inv.id}`}
+                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
                       >
-                        <Link
-                          to={`/quotes/${q.id}`}
-                          className="text-[#e8d487] underline break-all"
-                        >
-                          {q.quoteNumber || q.id}
-                        </Link>
-                        <div className="flex items-center gap-2 ml-3">
-                          <span className={`text-[10px] px-2 py-0.5 rounded border ${statusColors[wfStatus] || statusColors.new}`}>
-                            {statusLabels[wfStatus] || 'New'}
-                          </span>
-                          {typeof q.total === "number" && (
-                            <span className="text-[11px] text-gray-400">${q.total.toFixed(2)}</span>
+                        <span className="text-[#e8d487] text-sm font-medium">
+                          {inv.invoiceNumber ?? inv.id}
+                        </span>
+                        <div className="text-sm text-gray-300 text-right ml-3">
+                          <div>{inv.status}</div>
+                          {typeof inv.total === "number" && (
+                            <div>${inv.total.toFixed(2)}</div>
                           )}
                         </div>
-
-                        <button
-                          type="button"
-                          className="text-[11px] text-red-400 ml-3"
-                          onClick={async () => {
-                            const ok = window.confirm("Delete this quote? This cannot be undone.")
-                            if (!ok) return
-
-                            try {
-                              await deleteDoc(doc(db, "quotes", q.id))
-                              setQuotes((prev) => prev.filter((x) => x.id !== q.id))
-                            } catch (err) {
-                              console.error(err)
-                              useToastStore.getState().show("Failed to delete quote. See console.")
-                            }
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-                        {/* INVOICES */}
-            <div className="card p-5 md:p-6">
-              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 mb-2">
-                Invoices
-              </h2>
-
-              {invoices.length === 0 ? (
-                <p className="text-xs text-gray-400">
-                  No invoices for this client.
-                </p>
-              ) : (
-                <div className="space-y-2 text-xs">
-                  {invoices.map((inv) => (
-                    <div
-                      key={inv.id}
-                      className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
-                    >
-                      <Link
-                        to={`/invoices/${inv.id}`}
-                        className="text-[#e8d487] underline break-all"
-                      >
-                        {inv.invoiceNumber ?? inv.id}
-
                       </Link>
-                      <div className="text-[11px] text-gray-400 text-right ml-3">
-                        <div>{inv.status}</div>
-                        {typeof inv.total === "number" && (
-                          <div>${inv.total.toFixed(2)}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-
-            {/* CONTRACTS */}
-            <div className="card p-5 md:p-6">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
-                  Contracts
-                </h2>
-
-                <button
-                  className="btn-gold text-xs px-3 py-1.5"
-                  onClick={() => navigate('/contracts/new')}
-                >
-                  New Contract
-                </button>
+                    ))}
+                  </div>
+                )}
               </div>
+            </details>
 
-              {clientContracts.length === 0 ? (
-                <p className="text-xs text-gray-400">No contracts yet.</p>
-              ) : (
-                <div className="space-y-2 text-xs">
-                  {clientContracts.map((contract) => (
-                    <div
-                      key={contract.id}
-                      className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
-                    >
+            {/* CONTRACTS - Collapsible */}
+            <details className="card p-5 md:p-6 group" open={clientContracts.length > 0}>
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
+                  Contracts ({clientContracts.length})
+                  <span className="text-gray-500 group-open:hidden text-[10px]">+</span>
+                  <span className="text-gray-500 hidden group-open:inline text-[10px]">−</span>
+                </h2>
+                <button
+                  className="btn-gold text-sm px-3 py-1.5"
+                  onClick={(e) => { e.preventDefault(); navigate('/contracts/new'); }}
+                >
+                  New
+                </button>
+              </summary>
+
+              <div className="mt-3">
+                {clientContracts.length === 0 ? (
+                  <p className="text-sm text-gray-400">No contracts yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {clientContracts.map((contract) => (
                       <Link
-  to={`/contracts/${contract.id}`}
-  className="text-[#e8d487] underline break-all"
->
-  {contract.contractNumber ?? contract.id}
-</Link>
-
-                      <div className="text-[11px] text-gray-400 text-right ml-3">
-                        <div>{contract.status || "draft"}</div>
-                        {typeof contract.totalAmount === "number" && (
-                          <div>${contract.totalAmount.toFixed(2)}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                        key={contract.id}
+                        to={`/contracts/${contract.id}`}
+                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
+                      >
+                        <span className="text-[#e8d487] text-sm font-medium">
+                          {contract.contractNumber ?? contract.id}
+                        </span>
+                        <div className="text-sm text-gray-300 text-right ml-3">
+                          <div>{contract.status || "draft"}</div>
+                          {typeof contract.totalAmount === "number" && (
+                            <div>${contract.totalAmount.toFixed(2)}</div>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
           </div>
         </div>
       </div>
