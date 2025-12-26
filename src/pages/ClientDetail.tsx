@@ -96,6 +96,129 @@ type QuoteSummary = {
 };
 
 // -------------------------------------------------------------
+// Call Scripts Card Component
+// -------------------------------------------------------------
+function CallScriptsCard({ client, settings, isPropertyManager }: { 
+  client: any; 
+  settings: any; 
+  isPropertyManager: boolean;
+}) {
+  const [activeScript, setActiveScript] = useState<'outbound' | 'inbound' | 'voicemail' | 'text'>('outbound')
+  const [copied, setCopied] = useState(false)
+  
+  const scripts = isPropertyManager 
+    ? settings?.propertyManagerScripts 
+    : settings?.homeownerScripts
+
+  // Fall back to legacy callScript if no new scripts
+  const hasNewScripts = scripts && (scripts.outbound || scripts.inbound || scripts.voicemail || scripts.followUpText)
+  
+  if (!hasNewScripts && !settings?.callScript) return null
+
+  const getScript = () => {
+    if (!hasNewScripts) return settings?.callScript || ''
+    switch (activeScript) {
+      case 'outbound': return scripts?.outbound || ''
+      case 'inbound': return scripts?.inbound || ''
+      case 'voicemail': return scripts?.voicemail || ''
+      case 'text': return scripts?.followUpText || ''
+      default: return ''
+    }
+  }
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(getScript())
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const scriptColors = {
+    outbound: { bg: 'from-green-900/30', border: 'border-green-700/50', text: 'text-green-400' },
+    inbound: { bg: 'from-blue-900/30', border: 'border-blue-700/50', text: 'text-blue-400' },
+    voicemail: { bg: 'from-yellow-900/30', border: 'border-yellow-700/50', text: 'text-yellow-400' },
+    text: { bg: 'from-purple-900/30', border: 'border-purple-700/50', text: 'text-purple-400' },
+  }
+
+  const colors = scriptColors[activeScript]
+
+  return (
+    <div className={`card p-5 md:p-6 bg-gradient-to-r ${colors.bg} to-transparent ${colors.border}`}>
+      {/* Header with type indicator */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Phone className={`w-4 h-4 ${colors.text}`} />
+          <h2 className={`text-sm font-semibold ${colors.text}`}>
+            {isPropertyManager ? '🏢 Property Manager' : '🏠 Homeowner'} Scripts
+          </h2>
+        </div>
+        {client?.phone && (
+          <a 
+            href={`tel:${client.phone}`}
+            className="flex items-center gap-1 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-lg text-xs font-medium transition"
+          >
+            <Phone className="w-3 h-3" />
+            Call
+          </a>
+        )}
+      </div>
+
+      {/* Script type tabs */}
+      {hasNewScripts && (
+        <div className="flex gap-1 mb-3 overflow-x-auto">
+          {[
+            { key: 'outbound', label: '📤 Outbound', color: 'green' },
+            { key: 'inbound', label: '📥 Inbound', color: 'blue' },
+            { key: 'voicemail', label: '📱 VM', color: 'yellow' },
+            { key: 'text', label: '💬 Text', color: 'purple' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveScript(key as any)}
+              className={`px-2 py-1 text-xs rounded whitespace-nowrap transition ${
+                activeScript === key
+                  ? 'bg-[#e8d487] text-black font-medium'
+                  : 'bg-black/30 text-gray-400 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Script content */}
+      <div className="bg-black/30 rounded-lg p-3 relative">
+        <pre className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap font-sans">
+          {getScript() || 'No script configured'}
+        </pre>
+        
+        {/* Copy button for text scripts */}
+        {activeScript === 'text' && getScript() && (
+          <button
+            onClick={copyToClipboard}
+            className="absolute top-2 right-2 px-2 py-1 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs font-medium transition"
+          >
+            {copied ? '✓ Copied!' : 'Copy'}
+          </button>
+        )}
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex gap-2 mt-3 flex-wrap">
+        {client?.phone && (
+          <a 
+            href={`sms:${client.phone}${activeScript === 'text' ? `?body=${encodeURIComponent(getScript())}` : ''}`}
+            className="flex items-center gap-1 px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded-lg text-xs font-medium transition"
+          >
+            💬 Text
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------
 // Component
 // -------------------------------------------------------------
 export default function ClientDetail() {
@@ -142,6 +265,7 @@ export default function ClientDetail() {
   // Checklist editing state
   const [editingChecklist, setEditingChecklist] = useState(false);
   const [newQuestionText, setNewQuestionText] = useState('');
+  const [saveToDefaults, setSaveToDefaults] = useState(false);
 
   // Settings for call script
   const { settings } = useSettingsStore();
@@ -858,6 +982,88 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                 )}
               </div>
             </details>
+
+            {/* INVOICES - Collapsible */}
+            <details className="card p-5 md:p-6 group" open={invoices.length > 0}>
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
+                  Invoices ({invoices.length})
+                  <span className="text-gray-500 group-open:hidden text-[10px]">+</span>
+                  <span className="text-gray-500 hidden group-open:inline text-[10px]">−</span>
+                </h2>
+              </summary>
+
+              <div className="mt-3">
+                {invoices.length === 0 ? (
+                  <p className="text-sm text-gray-400">
+                    No invoices for this client.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {invoices.map((inv) => (
+                      <Link
+                        key={inv.id}
+                        to={`/invoices/${inv.id}`}
+                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
+                      >
+                        <span className="text-[#e8d487] text-sm font-medium">
+                          {inv.invoiceNumber ?? inv.id}
+                        </span>
+                        <div className="text-sm text-gray-300 text-right ml-3">
+                          <div>{inv.status}</div>
+                          {typeof inv.total === "number" && (
+                            <div>${inv.total.toFixed(2)}</div>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
+
+            {/* CONTRACTS - Collapsible */}
+            <details className="card p-5 md:p-6 group" open={clientContracts.length > 0}>
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
+                  Contracts ({clientContracts.length})
+                  <span className="text-gray-500 group-open:hidden text-[10px]">+</span>
+                  <span className="text-gray-500 hidden group-open:inline text-[10px]">−</span>
+                </h2>
+                <button
+                  className="btn-gold text-sm px-3 py-1.5"
+                  onClick={(e) => { e.preventDefault(); navigate('/contracts/new'); }}
+                >
+                  New
+                </button>
+              </summary>
+
+              <div className="mt-3">
+                {clientContracts.length === 0 ? (
+                  <p className="text-sm text-gray-400">No contracts yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {clientContracts.map((contract) => (
+                      <Link
+                        key={contract.id}
+                        to={`/contracts/${contract.id}`}
+                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
+                      >
+                        <span className="text-[#e8d487] text-sm font-medium">
+                          {contract.contractNumber ?? contract.id}
+                        </span>
+                        <div className="text-sm text-gray-300 text-right ml-3">
+                          <div>{contract.status || "draft"}</div>
+                          {typeof contract.totalAmount === "number" && (
+                            <div>${contract.totalAmount.toFixed(2)}</div>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </details>
           </div>
 
           {/* RIGHT COLUMN -------------------------------------------------- */}
@@ -1027,38 +1233,27 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
             </div>
 
             {/* CALL SCRIPT */}
-            {settings?.callScript && (
-              <div className="card p-5 md:p-6 bg-gradient-to-r from-green-900/20 to-transparent border-green-700/30">
-                <div className="flex items-center gap-2 mb-3">
-                  <Phone className="w-4 h-4 text-green-400" />
-                  <h2 className="text-sm font-semibold text-green-400">
-                    Call Script
-                  </h2>
-                </div>
-                <p className="text-sm text-gray-200 leading-relaxed italic">
-                  "{settings.callScript}"
-                </p>
-                {client?.phone && (
-                  <a 
-                    href={`tel:${client.phone}`}
-                    className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition"
-                  >
-                    <Phone className="w-4 h-4" />
-                    Call {client.phone}
-                  </a>
-                )}
-              </div>
+            {/* CALL SCRIPTS */}
+            {(settings?.homeownerScripts || settings?.propertyManagerScripts || settings?.callScript) && (
+              <CallScriptsCard 
+                client={client} 
+                settings={settings} 
+                isPropertyManager={!!client?.companyId}
+              />
             )}
 
             {/* INTAKE CHECKLIST */}
-            <div className="card p-5 md:p-6">
-              <div className="flex items-center justify-between mb-3">
+            <details className="card p-5 md:p-6" open>
+              <summary className="flex items-center justify-between mb-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
                 <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
                   Intake Checklist
                 </h2>
                 <button
                   type="button"
-                  onClick={() => setEditingChecklist(!editingChecklist)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setEditingChecklist(!editingChecklist);
+                  }}
                   className={`text-xs flex items-center gap-1 px-2 py-1 rounded transition ${
                     editingChecklist 
                       ? 'bg-[#e8d487] text-black' 
@@ -1068,7 +1263,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                   <Pencil className="w-3 h-3" />
                   {editingChecklist ? 'Done' : 'Edit'}
                 </button>
-              </div>
+              </summary>
 
               <div className="space-y-3">
                 {(client.checklist || []).map((item: ChecklistItem, idx: number) => (
@@ -1240,55 +1435,92 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
 
                 {/* Add new question (when editing) */}
                 {editingChecklist && (
-                  <div className="flex gap-2 mt-3">
-                    <input
-                      type="text"
-                      className="flex-1 bg-black/40 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-[#e8d487] focus:outline-none"
-                      placeholder="Add a new question..."
-                      value={newQuestionText}
-                      onChange={(e) => setNewQuestionText(e.target.value)}
-                      onKeyDown={async (e) => {
-                        if (e.key === 'Enter' && newQuestionText.trim()) {
-                          const newItem: ChecklistItem = {
-                            id: `check_${Date.now()}`,
-                            question: newQuestionText.trim(),
-                            checked: false,
-                            answer: '',
-                          };
-                          const newChecklist = [...(client.checklist || []), newItem];
-                          setClient({ ...client, checklist: newChecklist });
-                          setNewQuestionText('');
-                          await updateDoc(doc(db, 'clients', client.id), {
-                            checklist: newChecklist,
-                            updatedAt: Date.now(),
-                          });
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition disabled:opacity-50"
-                      disabled={!newQuestionText.trim()}
-                      onClick={async () => {
-                        if (newQuestionText.trim()) {
-                          const newItem: ChecklistItem = {
-                            id: `check_${Date.now()}`,
-                            question: newQuestionText.trim(),
-                            checked: false,
-                            answer: '',
-                          };
-                          const newChecklist = [...(client.checklist || []), newItem];
-                          setClient({ ...client, checklist: newChecklist });
-                          setNewQuestionText('');
-                          await updateDoc(doc(db, 'clients', client.id), {
-                            checklist: newChecklist,
-                            updatedAt: Date.now(),
-                          });
-                        }
-                      }}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        className="flex-1 bg-black/40 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-[#e8d487] focus:outline-none"
+                        placeholder="Add a new question..."
+                        value={newQuestionText}
+                        onChange={(e) => setNewQuestionText(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter' && newQuestionText.trim()) {
+                            const newItem: ChecklistItem = {
+                              id: `check_${Date.now()}`,
+                              question: newQuestionText.trim(),
+                              checked: false,
+                              answer: '',
+                            };
+                            const newChecklist = [...(client.checklist || []), newItem];
+                            setClient({ ...client, checklist: newChecklist });
+                            
+                            // Save to defaults if checkbox is checked
+                            if (saveToDefaults && settings) {
+                              const currentDefaults = settings.defaultChecklistQuestions || [];
+                              if (!currentDefaults.includes(newQuestionText.trim())) {
+                                await useSettingsStore.getState().update({
+                                  defaultChecklistQuestions: [...currentDefaults, newQuestionText.trim()]
+                                });
+                              }
+                              setSaveToDefaults(false);
+                            }
+                            
+                            setNewQuestionText('');
+                            await updateDoc(doc(db, 'clients', client.id), {
+                              checklist: newChecklist,
+                              updatedAt: Date.now(),
+                            });
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition disabled:opacity-50"
+                        disabled={!newQuestionText.trim()}
+                        onClick={async () => {
+                          if (newQuestionText.trim()) {
+                            const newItem: ChecklistItem = {
+                              id: `check_${Date.now()}`,
+                              question: newQuestionText.trim(),
+                              checked: false,
+                              answer: '',
+                            };
+                            const newChecklist = [...(client.checklist || []), newItem];
+                            setClient({ ...client, checklist: newChecklist });
+                            
+                            // Save to defaults if checkbox is checked
+                            if (saveToDefaults && settings) {
+                              const currentDefaults = settings.defaultChecklistQuestions || [];
+                              if (!currentDefaults.includes(newQuestionText.trim())) {
+                                await useSettingsStore.getState().update({
+                                  defaultChecklistQuestions: [...currentDefaults, newQuestionText.trim()]
+                                });
+                              }
+                              setSaveToDefaults(false);
+                            }
+                            
+                            setNewQuestionText('');
+                            await updateDoc(doc(db, 'clients', client.id), {
+                              checklist: newChecklist,
+                              updatedAt: Date.now(),
+                            });
+                          }
+                        }}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {newQuestionText.trim() && (
+                      <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveToDefaults}
+                          onChange={(e) => setSaveToDefaults(e.target.checked)}
+                          className="w-3 h-3 rounded border-gray-600 bg-black/40 text-[#e8d487] focus:ring-[#e8d487] focus:ring-offset-0"
+                        />
+                        Also save to default questions for new clients
+                      </label>
+                    )}
                   </div>
                 )}
               </div>
@@ -1311,88 +1543,6 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* INVOICES - Collapsible */}
-            <details className="card p-5 md:p-6 group" open={invoices.length > 0}>
-              <summary className="flex items-center justify-between cursor-pointer list-none">
-                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
-                  Invoices ({invoices.length})
-                  <span className="text-gray-500 group-open:hidden text-[10px]">+</span>
-                  <span className="text-gray-500 hidden group-open:inline text-[10px]">−</span>
-                </h2>
-              </summary>
-
-              <div className="mt-3">
-                {invoices.length === 0 ? (
-                  <p className="text-sm text-gray-400">
-                    No invoices for this client.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {invoices.map((inv) => (
-                      <Link
-                        key={inv.id}
-                        to={`/invoices/${inv.id}`}
-                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
-                      >
-                        <span className="text-[#e8d487] text-sm font-medium">
-                          {inv.invoiceNumber ?? inv.id}
-                        </span>
-                        <div className="text-sm text-gray-300 text-right ml-3">
-                          <div>{inv.status}</div>
-                          {typeof inv.total === "number" && (
-                            <div>${inv.total.toFixed(2)}</div>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </details>
-
-            {/* CONTRACTS - Collapsible */}
-            <details className="card p-5 md:p-6 group" open={clientContracts.length > 0}>
-              <summary className="flex items-center justify-between cursor-pointer list-none">
-                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
-                  Contracts ({clientContracts.length})
-                  <span className="text-gray-500 group-open:hidden text-[10px]">+</span>
-                  <span className="text-gray-500 hidden group-open:inline text-[10px]">−</span>
-                </h2>
-                <button
-                  className="btn-gold text-sm px-3 py-1.5"
-                  onClick={(e) => { e.preventDefault(); navigate('/contracts/new'); }}
-                >
-                  New
-                </button>
-              </summary>
-
-              <div className="mt-3">
-                {clientContracts.length === 0 ? (
-                  <p className="text-sm text-gray-400">No contracts yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {clientContracts.map((contract) => (
-                      <Link
-                        key={contract.id}
-                        to={`/contracts/${contract.id}`}
-                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
-                      >
-                        <span className="text-[#e8d487] text-sm font-medium">
-                          {contract.contractNumber ?? contract.id}
-                        </span>
-                        <div className="text-sm text-gray-300 text-right ml-3">
-                          <div>{contract.status || "draft"}</div>
-                          {typeof contract.totalAmount === "number" && (
-                            <div>${contract.totalAmount.toFixed(2)}</div>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
             </details>
           </div>
         </div>

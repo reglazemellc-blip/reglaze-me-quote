@@ -373,18 +373,49 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
 // ==================== CALL SCRIPT & CHECKLIST SECTION ====================
 function CallScriptSection() {
   const { settings, update } = useSettingsStore()
-  const [callScript, setCallScript] = useState(settings?.callScript || '')
-  const [questions, setQuestions] = useState<string[]>(settings?.defaultChecklistQuestions || [])
+  const [activeTab, setActiveTab] = useState<'homeowner' | 'propertyManager'>('homeowner')
+  const [saving, setSaving] = useState(false)
+  
+  // Homeowner state
+  const [homeownerScripts, setHomeownerScripts] = useState(settings?.homeownerScripts || {
+    outbound: '',
+    inbound: '',
+    voicemail: '',
+    followUpText: '',
+  })
+  const [homeownerQuestions, setHomeownerQuestions] = useState<string[]>(settings?.defaultChecklistQuestions || [])
+  
+  // Property Manager state
+  const [pmScripts, setPmScripts] = useState(settings?.propertyManagerScripts || {
+    outbound: '',
+    inbound: '',
+    voicemail: '',
+    followUpText: '',
+  })
+  const [pmQuestions, setPmQuestions] = useState<string[]>(settings?.propertyManagerChecklistQuestions || [])
+  
+  // Shared
   const [answerOptions, setAnswerOptions] = useState<Record<string, string[]>>(settings?.defaultChecklistAnswerOptions || {})
   const [newQuestion, setNewQuestion] = useState('')
-  const [saving, setSaving] = useState(false)
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
   const [newOptionText, setNewOptionText] = useState('')
 
   useEffect(() => {
     if (settings) {
-      setCallScript(settings.callScript || '')
-      setQuestions(settings.defaultChecklistQuestions || [])
+      setHomeownerScripts(settings.homeownerScripts || {
+        outbound: settings.callScript || '',
+        inbound: '',
+        voicemail: '',
+        followUpText: '',
+      })
+      setHomeownerQuestions(settings.defaultChecklistQuestions || [])
+      setPmScripts(settings.propertyManagerScripts || {
+        outbound: '',
+        inbound: '',
+        voicemail: '',
+        followUpText: '',
+      })
+      setPmQuestions(settings.propertyManagerChecklistQuestions || [])
       setAnswerOptions(settings.defaultChecklistAnswerOptions || {})
     }
   }, [settings])
@@ -393,17 +424,25 @@ function CallScriptSection() {
     setSaving(true)
     try {
       await update({
-        callScript,
-        defaultChecklistQuestions: questions.filter(q => q.trim()),
+        homeownerScripts,
+        propertyManagerScripts: pmScripts,
+        defaultChecklistQuestions: homeownerQuestions.filter(q => q.trim()),
+        propertyManagerChecklistQuestions: pmQuestions.filter(q => q.trim()),
         defaultChecklistAnswerOptions: answerOptions,
       })
-      useToastStore.getState().show('Call script & checklist saved!')
+      useToastStore.getState().show('Scripts & checklists saved!')
     } catch (err) {
       useToastStore.getState().show('Failed to save: ' + String(err))
     } finally {
       setSaving(false)
     }
   }
+
+  // Current questions based on tab
+  const questions = activeTab === 'homeowner' ? homeownerQuestions : pmQuestions
+  const setQuestions = activeTab === 'homeowner' ? setHomeownerQuestions : setPmQuestions
+  const scripts = activeTab === 'homeowner' ? homeownerScripts : pmScripts
+  const setScripts = activeTab === 'homeowner' ? setHomeownerScripts : setPmScripts
 
   const addQuestion = () => {
     if (newQuestion.trim()) {
@@ -415,7 +454,6 @@ function CallScriptSection() {
   const removeQuestion = (idx: number) => {
     const questionToRemove = questions[idx]
     setQuestions(questions.filter((_, i) => i !== idx))
-    // Also remove its answer options
     const newOptions = { ...answerOptions }
     delete newOptions[questionToRemove]
     setAnswerOptions(newOptions)
@@ -425,7 +463,6 @@ function CallScriptSection() {
     const updated = [...questions]
     updated[idx] = newValue
     setQuestions(updated)
-    // If the question text changed, migrate answer options
     if (oldQuestion !== newValue && answerOptions[oldQuestion]) {
       const newOptions = { ...answerOptions }
       newOptions[newValue] = newOptions[oldQuestion]
@@ -464,35 +501,109 @@ function CallScriptSection() {
 
   return (
     <div className="border border-[#2a2414] rounded-lg p-4 space-y-4 mt-6">
-      <h3 className="text-lg font-semibold text-[#e8d487]">Call Script & Intake Questions</h3>
-      <p className="text-xs text-gray-500">Shown on client detail page when making calls</p>
+      <h3 className="text-lg font-semibold text-[#e8d487]">📞 Call Scripts & Intake Questions</h3>
+      
+      {/* Tab buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveTab('homeowner')}
+          className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            activeTab === 'homeowner'
+              ? 'bg-[#e8d487] text-black'
+              : 'bg-black/30 text-gray-400 hover:text-[#e8d487]'
+          }`}
+        >
+          🏠 Homeowner
+        </button>
+        <button
+          onClick={() => setActiveTab('propertyManager')}
+          className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
+            activeTab === 'propertyManager'
+              ? 'bg-[#e8d487] text-black'
+              : 'bg-black/30 text-gray-400 hover:text-[#e8d487]'
+          }`}
+        >
+          🏢 Property Manager
+        </button>
+      </div>
 
-      {/* Call Script */}
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-gray-400">Opening Call Script</span>
-        <textarea
-          className="input min-h-[80px] resize-y"
-          placeholder="Hi, this is [Your Name] from [Company]. I'm returning your call about refinishing services..."
-          value={callScript}
-          onChange={(e) => setCallScript(e.target.value)}
-        />
-        <span className="text-xs text-gray-500">This script appears on client pages to read when calling</span>
-      </label>
+      <p className="text-xs text-gray-500">
+        {activeTab === 'homeowner' 
+          ? 'Scripts for residential homeowner calls'
+          : 'Scripts for property managers & apartments (business-to-business)'}
+      </p>
 
-      {/* Default Checklist Questions with Answer Options */}
-      <div className="space-y-3">
+      {/* Script sections */}
+      <div className="grid gap-4">
+        {/* Outbound Script */}
+        <div className="bg-black/20 rounded-lg p-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-green-400 font-medium">📤 Outbound (You Call Them)</span>
+            <textarea
+              className="input min-h-[100px] resize-y text-sm"
+              placeholder="Hi, this is Joe from ReGlaze Me LLC..."
+              value={scripts.outbound}
+              onChange={(e) => setScripts({ ...scripts, outbound: e.target.value })}
+            />
+          </label>
+        </div>
+
+        {/* Inbound Script */}
+        <div className="bg-black/20 rounded-lg p-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-blue-400 font-medium">📥 Inbound (They Call You)</span>
+            <textarea
+              className="input min-h-[80px] resize-y text-sm"
+              placeholder="ReGlaze Me LLC, this is Joe..."
+              value={scripts.inbound}
+              onChange={(e) => setScripts({ ...scripts, inbound: e.target.value })}
+            />
+          </label>
+        </div>
+
+        {/* Voicemail Script */}
+        <div className="bg-black/20 rounded-lg p-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-yellow-400 font-medium">📱 Voicemail</span>
+            <textarea
+              className="input min-h-[80px] resize-y text-sm"
+              placeholder="Hi, this is Joe with ReGlaze Me LLC returning your call..."
+              value={scripts.voicemail}
+              onChange={(e) => setScripts({ ...scripts, voicemail: e.target.value })}
+            />
+          </label>
+        </div>
+
+        {/* Follow-up Text */}
+        <div className="bg-black/20 rounded-lg p-3">
+          <label className="flex flex-col gap-1">
+            <span className="text-xs text-purple-400 font-medium">💬 Follow-up Text</span>
+            <textarea
+              className="input min-h-[60px] resize-y text-sm"
+              placeholder="Hi, this is Joe with ReGlaze Me LLC. I just tried calling..."
+              value={scripts.followUpText}
+              onChange={(e) => setScripts({ ...scripts, followUpText: e.target.value })}
+            />
+            <span className="text-xs text-gray-500">Copy this to send via text after missed calls</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Intake Questions */}
+      <div className="border-t border-[#2a2414] pt-4 space-y-3">
         <div>
-          <span className="text-xs text-gray-400">Default Intake Questions & Dropdown Answers</span>
-          <p className="text-xs text-gray-500">Click a question to add/edit dropdown answer options</p>
+          <span className="text-sm text-[#e8d487] font-medium">
+            {activeTab === 'homeowner' ? '🏠 Homeowner' : '🏢 Property Manager'} Intake Questions
+          </span>
+          <p className="text-xs text-gray-500">Click a question to add/edit dropdown options</p>
         </div>
         
         {questions.map((q, idx) => (
           <div key={idx} className="border border-[#2a2414] rounded-lg overflow-hidden">
-            {/* Question row */}
             <div className="flex gap-2 items-center p-2 bg-black/20">
               <span className="text-xs text-gray-500 w-5">{idx + 1}.</span>
               <input
-                className="input flex-1"
+                className="input flex-1 text-sm"
                 value={q}
                 onChange={(e) => updateQuestion(idx, q, e.target.value)}
               />
@@ -504,24 +615,21 @@ function CallScriptSection() {
                     ? 'bg-[#e8d487] text-black' 
                     : 'text-[#e8d487] hover:bg-black/40'
                 }`}
-                title="Edit dropdown options"
               >
-                {answerOptions[q]?.length || 0} options ▼
+                {answerOptions[q]?.length || 0} ▼
               </button>
               <button
                 type="button"
                 onClick={() => removeQuestion(idx)}
-                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition"
-                title="Remove question"
+                className="p-1 text-red-400 hover:text-red-300 text-sm"
               >
                 ✕
               </button>
             </div>
             
-            {/* Answer options (expanded) */}
             {expandedQuestion === q && (
               <div className="p-3 bg-black/30 border-t border-[#2a2414] space-y-2">
-                <p className="text-xs text-gray-400">Dropdown answer options (include "Other" for custom text input):</p>
+                <p className="text-xs text-gray-400">Dropdown options:</p>
                 
                 {(answerOptions[q] || []).map((opt, optIdx) => (
                   <div key={optIdx} className="flex gap-2 items-center pl-4">
@@ -535,19 +643,17 @@ function CallScriptSection() {
                       type="button"
                       onClick={() => removeAnswerOption(q, optIdx)}
                       className="p-1 text-red-400 hover:text-red-300 text-xs"
-                      title="Remove option"
                     >
                       ✕
                     </button>
                   </div>
                 ))}
                 
-                {/* Add new option */}
                 <div className="flex gap-2 items-center pl-4 mt-2">
                   <span className="text-xs text-gray-600">+</span>
                   <input
                     className="input flex-1 text-sm py-1"
-                    placeholder="Add answer option..."
+                    placeholder="Add option..."
                     value={newOptionText}
                     onChange={(e) => setNewOptionText(e.target.value)}
                     onKeyDown={(e) => {
@@ -561,7 +667,7 @@ function CallScriptSection() {
                     type="button"
                     onClick={() => addAnswerOption(q)}
                     disabled={!newOptionText.trim()}
-                    className="px-2 py-1 bg-[#e8d487] text-black rounded text-xs font-medium hover:bg-[#ffd700] transition disabled:opacity-50"
+                    className="px-2 py-1 bg-[#e8d487] text-black rounded text-xs font-medium disabled:opacity-50"
                   >
                     Add
                   </button>
@@ -571,15 +677,14 @@ function CallScriptSection() {
                   <button
                     type="button"
                     onClick={() => {
-                      const currentOptions = answerOptions[q] || []
                       setAnswerOptions({
                         ...answerOptions,
-                        [q]: [...currentOptions, 'Other']
+                        [q]: [...(answerOptions[q] || []), 'Other']
                       })
                     }}
-                    className="ml-4 text-xs text-[#e8d487] hover:text-[#ffd700] transition"
+                    className="ml-4 text-xs text-[#e8d487] hover:text-[#ffd700]"
                   >
-                    + Add "Other" option (allows custom text)
+                    + Add "Other" option
                   </button>
                 )}
               </div>
@@ -587,12 +692,11 @@ function CallScriptSection() {
           </div>
         ))}
 
-        {/* Add new question */}
-        <div className="flex gap-2 items-center mt-2">
+        <div className="flex gap-2 items-center">
           <span className="text-xs text-gray-500 w-5">+</span>
           <input
-            className="input flex-1"
-            placeholder="Add a new default question..."
+            className="input flex-1 text-sm"
+            placeholder="Add a new question..."
             value={newQuestion}
             onChange={(e) => setNewQuestion(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addQuestion()}
@@ -601,7 +705,7 @@ function CallScriptSection() {
             type="button"
             onClick={addQuestion}
             disabled={!newQuestion.trim()}
-            className="px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition disabled:opacity-50"
+            className="px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm disabled:opacity-50"
           >
             Add
           </button>
@@ -611,9 +715,9 @@ function CallScriptSection() {
       <button 
         onClick={handleSave} 
         disabled={saving}
-        className="btn-gold"
+        className="btn-gold w-full"
       >
-        {saving ? 'Saving...' : 'Save Call Script & Questions'}
+        {saving ? 'Saving...' : 'Save All Scripts & Questions'}
       </button>
     </div>
   )

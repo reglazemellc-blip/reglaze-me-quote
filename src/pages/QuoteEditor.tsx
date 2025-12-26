@@ -34,6 +34,7 @@ import {
   QuoteClientSnapshot,
   Attachment,
   AttachmentType,
+  ChecklistItem,
 } from "@db/index";
 
 import ClientDrawer from "@components/ClientDrawer";
@@ -222,6 +223,9 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   // Due date support
   const [dueTerms, setDueTerms] = useState<string>("due_upon_completion");
 
+  // Client checklist reference (for new quotes from client page)
+  const [clientChecklist, setClientChecklist] = useState<ChecklistItem[]>([]);
+
   // Service dropdown control
   const [openServiceFor, setOpenServiceFor] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -378,6 +382,11 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
               setClientCity(parsed.city);
               setClientState(parsed.state);
               setClientZip(parsed.zip);
+              
+              // Load client checklist for reference
+              if (found.checklist && found.checklist.length > 0) {
+                setClientChecklist(found.checklist);
+              }
             }
           }
         }
@@ -831,6 +840,45 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
             </div>
           </div>
         </div>
+
+        {/* CLIENT INTAKE CHECKLIST REFERENCE (only for new quotes) */}
+        {clientChecklist.length > 0 && (
+          <details className="card p-4">
+            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between">
+              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 flex items-center gap-2">
+                Intake Checklist Reference
+                <span className="text-[10px] text-gray-400">
+                  ({clientChecklist.filter(c => c.checked).length}/{clientChecklist.length} completed)
+                </span>
+              </h2>
+              <span className="text-gray-500 text-xs">Click to expand</span>
+            </summary>
+            <div className="mt-3 space-y-2 max-h-64 overflow-y-auto">
+              {clientChecklist.map((item) => (
+                <div 
+                  key={item.id}
+                  className={`flex items-start gap-3 p-2 rounded ${
+                    item.checked ? 'bg-[#e8d487]/10' : 'bg-black/20'
+                  }`}
+                >
+                  <span className={`mt-0.5 ${item.checked ? 'text-green-500' : 'text-gray-500'}`}>
+                    {item.checked ? '✓' : '○'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm ${item.checked ? 'text-gray-200' : 'text-gray-400'}`}>
+                      {item.question}
+                    </p>
+                    {item.answer && (
+                      <p className="text-xs text-[#e8d487] mt-1">
+                        Answer: {item.answer}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
 
         {/* STATUS + APPOINTMENT */}
         <div className="card p-4 space-y-3">

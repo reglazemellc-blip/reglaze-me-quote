@@ -304,10 +304,26 @@ export type Settings = {
   defaultTaxRate: number;
   nextSequence: number;
   watermark?: string;
-  // Call script shown when making client calls
+  // Legacy single call script (kept for backwards compatibility)
   callScript?: string;
+  // Homeowner scripts
+  homeownerScripts?: {
+    outbound: string;
+    inbound: string;
+    voicemail: string;
+    followUpText: string;
+  };
+  // Property Manager scripts
+  propertyManagerScripts?: {
+    outbound: string;
+    inbound: string;
+    voicemail: string;
+    followUpText: string;
+  };
   // Default intake checklist questions for new clients
   defaultChecklistQuestions?: string[];
+  // Property Manager intake questions (separate flow)
+  propertyManagerChecklistQuestions?: string[];
   // Default answer options for each question (keyed by question text)
   defaultChecklistAnswerOptions?: Record<string, string[]>;
 };
@@ -473,25 +489,52 @@ export async function getOrInitSettings(): Promise<Settings> {
     watermark: "",
     defaultTaxRate: 0.0,
     nextSequence: 1,
-    callScript: "Hi, this is [Your Name] from ReGlaze Me LLC. I'm returning your call about refinishing services. Is now a good time to chat?",
+    callScript: "Hi, this is Joe from ReGlaze Me LLC. I'm returning your call about refinishing your tub or shower. Did I catch you at a bad time?",
+    // Homeowner scripts
+    homeownerScripts: {
+      outbound: "Hi, this is Joe from ReGlaze Me LLC. I'm returning your call about refinishing your tub or shower.\nDid I catch you at a bad time?\n\nIf no:\n\"Perfect. I'll keep this quick and ask a few questions so I can give you accurate pricing.\"",
+      inbound: "ReGlaze Me LLC, this is Joe.\n\nIf they hesitate:\n\"How can I help you today?\"",
+      voicemail: "Hi, this is Joe with ReGlaze Me LLC returning your call about refinishing services.\nYou can call or text me back at 315-525-9142.\nAgain, Joe with ReGlaze Me LLC.",
+      followUpText: "Hi, this is Joe with ReGlaze Me LLC. I just tried calling you back about refinishing your tub or shower. You can call or text me here when it's convenient.",
+    },
+    // Property Manager scripts
+    propertyManagerScripts: {
+      outbound: "Hi, this is Joe with ReGlaze Me LLC returning your call about unit refinishing.\nIs now a good time to go over details?\n\nIf yes:\n\"Great. I just need unit info and condition so I can price this correctly.\"",
+      inbound: "ReGlaze Me LLC, Joe speaking.\n\nThen immediately:\n\"Is this for a single unit or multiple units?\"",
+      voicemail: "Hi, this is Joe with ReGlaze Me LLC returning your call about unit refinishing.\nYou can call or text me back at 315-525-9142.\nAgain, Joe with ReGlaze Me LLC.",
+      followUpText: "Hi, this is Joe with ReGlaze Me LLC following up on your unit refinishing request. Let me know the unit number and condition when you have a moment.",
+    },
     defaultChecklistQuestions: [
-      "How many tubs/showers?",
-      "Fiberglass or porcelain?",
-      "Current color / desired color?",
-      "Any chips, cracks, or damage?",
-      "Has it been refinished before?",
-      "Timeline - when do they need it done?",
+      "What are we refinishing?",
+      "Any chips, cracks, peeling, rust, or old coatings?",
+      "Keeping white or changing color?",
+      "Home or rental?",
+      "What town is the job in?",
       "How did they hear about us?",
+    ],
+    propertyManagerChecklistQuestions: [
+      "Property name and unit number?",
+      "Vacant or occupied?",
+      "Condition - chips, cracks, rust, previous coatings?",
+      "Standard white or color match?",
+      "Timeline / move-in date?",
+      "Who handles access - maintenance or tenant?",
     ],
     // Default answer options for each question
     defaultChecklistAnswerOptions: {
-      "How many tubs/showers?": ["1", "2", "3", "4+", "Other"],
-      "Fiberglass or porcelain?": ["Fiberglass", "Porcelain", "Cast Iron", "Acrylic", "Not Sure", "Other"],
-      "Current color / desired color?": ["White to White", "Almond to White", "Color change", "Not Sure", "Other"],
-      "Any chips, cracks, or damage?": ["None", "Minor chips", "Cracks", "Major damage", "Not Sure", "Other"],
-      "Has it been refinished before?": ["No", "Yes - good condition", "Yes - peeling/failing", "Not Sure", "Other"],
-      "Timeline - when do they need it done?": ["ASAP", "This week", "This month", "Flexible", "Other"],
+      "What are we refinishing?": ["Tub", "Shower", "Tub & Shower", "Tile", "Countertop", "Other"],
+      "Any chips, cracks, peeling, rust, or old coatings?": ["None", "Minor chips", "Cracks", "Peeling/rust", "Previous coating", "Other"],
+      "Keeping white or changing color?": ["Keeping white", "Color change", "Not sure", "Other"],
+      "Home or rental?": ["Own home", "Rental property", "Other"],
+      "What town is the job in?": ["Other"],
       "How did they hear about us?": ["Google", "Facebook", "Referral", "Home Advisor", "Repeat Customer", "Other"],
+      // Property Manager options
+      "Property name and unit number?": ["Other"],
+      "Vacant or occupied?": ["Vacant", "Occupied - can schedule", "Occupied - need notice", "Other"],
+      "Condition - chips, cracks, rust, previous coatings?": ["Good condition", "Minor chips", "Cracks/rust", "Previous coating - peeling", "Other"],
+      "Standard white or color match?": ["Standard white", "Almond", "Color match needed", "Other"],
+      "Timeline / move-in date?": ["ASAP", "This week", "End of month", "Flexible", "Other"],
+      "Who handles access - maintenance or tenant?": ["Maintenance", "Tenant", "Property manager", "Other"],
     },
   };
 
