@@ -41,6 +41,27 @@ const timeOptions = [
   "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM"
 ];
 
+// File upload validation constants
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+// File validation helper
+function validateImageFile(file: File): { valid: boolean; error?: string } {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return { 
+      valid: false, 
+      error: `${file.name}: Invalid file type. Only JPG, PNG, and WebP images are allowed.` 
+    };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return { 
+      valid: false, 
+      error: `${file.name}: File too large. Maximum size is 10MB (${(file.size / 1024 / 1024).toFixed(1)}MB provided).` 
+    };
+  }
+  return { valid: true };
+}
+
 // Default intake checklist questions
 const DEFAULT_CHECKLIST_QUESTIONS: ChecklistItem[] = [
   {
@@ -548,13 +569,41 @@ export default function ClientDetail() {
     const files: File[] = Array.from(e.target.files ?? []) as File[];
     if (files.length === 0) return;
 
+    // Validate all files first
+    const validationErrors: string[] = [];
+    const validFiles: File[] = [];
+    
+    for (const file of files) {
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        validationErrors.push(validation.error!);
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    // Show validation errors
+    if (validationErrors.length > 0) {
+      const errorMsg = validationErrors.join('\n');
+      useToastStore.getState().show(errorMsg, 5000);
+      // Also show alert for critical file errors
+      alert('File Upload Error:\n\n' + errorMsg);
+      // If no valid files, reset input and return
+      if (validFiles.length === 0) {
+        if (photoInputRef.current) {
+          photoInputRef.current.value = "";
+        }
+        return;
+      }
+    }
+
     setUploadingPhotos(true);
 
     try {
       const existing: Attachment[] = client.attachments || [];
       const additions: Attachment[] = [];
 
-      for (const file of files) {
+      for (const file of validFiles) {
         const tenantId =
   client.tenantId ?? useConfigStore.getState().activeTenantId;
 
@@ -575,21 +624,24 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
         });
       }
 
-           const refDoc = doc(db, "clients", client.id);
-
-      for (const att of additions) {
-        await updateDoc(refDoc, {
-          attachments: arrayUnion(att),
-          tenantId: client.tenantId ?? useConfigStore.getState().activeTenantId,
-        });
-      }
+      // Use a single update operation instead of multiple updateDoc calls
+      // This prevents race conditions when uploading multiple files
+      const refDoc = doc(db, "clients", client.id);
+      await updateDoc(refDoc, {
+        attachments: arrayUnion(...additions),
+        tenantId: client.tenantId ?? useConfigStore.getState().activeTenantId,
+        updatedAt: Date.now(),
+      });
 
            setClient((prev: any) => ({
         ...prev,
         attachments: [...(prev.attachments || []), ...additions],
       }));
 
-      useToastStore.getState().show(`${files.length} photo(s) uploaded successfully`);
+      const successMsg = validFiles.length === files.length
+        ? `${files.length} photo(s) uploaded successfully`
+        : `${validFiles.length} of ${files.length} photo(s) uploaded (${files.length - validFiles.length} rejected)`;
+      useToastStore.getState().show(successMsg);
 
     } catch (err) {
       console.error('Photo upload error:', err);
@@ -1455,7 +1507,19 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                   disabled={savingChecklist}
                   onClick={async () => {
                     if (!scheduleDate) {
-                      useToastStore.getState().show('Please select a date');
+                      useToastStore.getState().show('Please select a date', 3000);
+                      alert('Please select a date');
+                      return;
+                    }
+
+                    // Validate date is not in the past
+                    const selectedDateStr = scheduleDate; // format: YYYY-MM-DD
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    
+                    if (selectedDateStr < todayStr) {
+                      const errorMsg = 'Scheduled date cannot be in the past';
+                      useToastStore.getState().show(errorMsg, 4000);
+                      alert(errorMsg);
                       return;
                     }
 

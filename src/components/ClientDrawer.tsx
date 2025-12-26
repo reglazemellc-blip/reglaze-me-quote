@@ -196,9 +196,36 @@ export default function ClientDrawer({
   }, [open, onClose]);
 
   const handleSave = useCallback(async () => {
+    // Validation
+    const errors: string[] = [];
+    
     if (!name.trim()) {
-      useToastStore.getState().show("Client name is required.");
+      errors.push("Client name is required");
+    }
+    
+    if (!phone.trim()) {
+      errors.push("Phone number is required");
+    } else {
+      // Basic phone validation - must have at least 10 digits
+      const digitsOnly = phone.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        errors.push("Phone number must have at least 10 digits");
+      }
+    }
+    
+    if (email.trim()) {
+      // Email format validation if provided
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email.trim())) {
+        errors.push("Email format is invalid");
+      }
+    }
 
+    if (errors.length > 0) {
+      const errorMsg = errors.join('\n');
+      useToastStore.getState().show(errorMsg, 4000);
+      // Also show alert to ensure visibility
+      alert('Please fix the following errors:\n\n' + errorMsg);
       return;
     }
 

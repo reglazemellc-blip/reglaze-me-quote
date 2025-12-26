@@ -922,6 +922,24 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
                 <button
                   className="btn-gold flex-1"
                   onClick={async () => {
+                    if (!scheduleDate) {
+                      const errorMsg = 'Please select a date';
+                      useToastStore.getState().show(errorMsg, 3000);
+                      alert(errorMsg);
+                      return;
+                    }
+
+                    // Validate date is not in the past
+                    const selectedDateStr = scheduleDate; // format: YYYY-MM-DD
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    
+                    if (selectedDateStr < todayStr) {
+                      const errorMsg = 'Scheduled date cannot be in the past';
+                      useToastStore.getState().show(errorMsg, 4000);
+                      alert(errorMsg);
+                      return;
+                    }
+
                     const quoteRef = doc(db, 'quotes', quote.id);
                     await setDoc(quoteRef, {
                       scheduledDate: scheduleDate || null,
