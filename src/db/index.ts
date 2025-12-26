@@ -47,6 +47,17 @@ export type Reminder = {
   note?: string;
 };
 
+// Client intake checklist item
+export type ChecklistItem = {
+  id: string;
+  question: string;
+  checked: boolean;
+  answer?: string;
+  checkedAt?: number;
+  // Predefined answer options (if empty, just shows text input)
+  answerOptions?: string[];
+};
+
 // ------------------ Core Entities ------------------
 
 export type Client = {
@@ -96,6 +107,7 @@ export type Client = {
   attachments?: Attachment[];
   conversations?: ConversationEntry[];
   reminders?: Reminder[];
+  checklist?: ChecklistItem[];
 
   createdAt: number;
   updatedAt: number;
@@ -292,6 +304,12 @@ export type Settings = {
   defaultTaxRate: number;
   nextSequence: number;
   watermark?: string;
+  // Call script shown when making client calls
+  callScript?: string;
+  // Default intake checklist questions for new clients
+  defaultChecklistQuestions?: string[];
+  // Default answer options for each question (keyed by question text)
+  defaultChecklistAnswerOptions?: Record<string, string[]>;
 };
 
 export type ServiceCatalog = {
@@ -455,6 +473,26 @@ export async function getOrInitSettings(): Promise<Settings> {
     watermark: "",
     defaultTaxRate: 0.0,
     nextSequence: 1,
+    callScript: "Hi, this is [Your Name] from ReGlaze Me LLC. I'm returning your call about refinishing services. Is now a good time to chat?",
+    defaultChecklistQuestions: [
+      "How many tubs/showers?",
+      "Fiberglass or porcelain?",
+      "Current color / desired color?",
+      "Any chips, cracks, or damage?",
+      "Has it been refinished before?",
+      "Timeline - when do they need it done?",
+      "How did they hear about us?",
+    ],
+    // Default answer options for each question
+    defaultChecklistAnswerOptions: {
+      "How many tubs/showers?": ["1", "2", "3", "4+", "Other"],
+      "Fiberglass or porcelain?": ["Fiberglass", "Porcelain", "Cast Iron", "Acrylic", "Not Sure", "Other"],
+      "Current color / desired color?": ["White to White", "Almond to White", "Color change", "Not Sure", "Other"],
+      "Any chips, cracks, or damage?": ["None", "Minor chips", "Cracks", "Major damage", "Not Sure", "Other"],
+      "Has it been refinished before?": ["No", "Yes - good condition", "Yes - peeling/failing", "Not Sure", "Other"],
+      "Timeline - when do they need it done?": ["ASAP", "This week", "This month", "Flexible", "Other"],
+      "How did they hear about us?": ["Google", "Facebook", "Referral", "Home Advisor", "Repeat Customer", "Other"],
+    },
   };
 
   await setDoc(ref, defaults);

@@ -24,13 +24,14 @@ import {
   deleteObject,
 } from "firebase/storage";
 
-import type { Attachment, AttachmentType, WorkflowStatus } from "@db/index";
+import type { Attachment, AttachmentType, WorkflowStatus, ChecklistItem } from "@db/index";
 import { useClientsStore } from "@store/useClientsStore";
 import { useContractsStore } from "@store/useContractsStore";
 import { useConfigStore } from "@store/useConfigStore";
+import { useSettingsStore } from "@store/useSettingsStore";
 import ClientDrawer from "@components/ClientDrawer";
 import { useToastStore } from '@store/useToastStore'
-import { Calendar, FileCheck, FileText, Clock, Send, CheckCircle2, X } from 'lucide-react'
+import { Calendar, FileCheck, FileText, Clock, Send, CheckCircle2, X, Phone, Pencil, Plus, Trash2 } from 'lucide-react'
 
 // Time options for dropdown
 const timeOptions = [
@@ -38,6 +39,17 @@ const timeOptions = [
   "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
   "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
   "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM"
+];
+
+// Default intake checklist questions
+const DEFAULT_CHECKLIST_QUESTIONS = [
+  "How many tubs/showers?",
+  "Fiberglass or porcelain?",
+  "Current color / desired color?",
+  "Any chips, cracks, or damage?",
+  "Has it been refinished before?",
+  "Timeline - when do they need it done?",
+  "How did they hear about us?",
 ];
 
 // Workflow status configuration
@@ -127,6 +139,13 @@ export default function ClientDetail() {
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
 
+  // Checklist editing state
+  const [editingChecklist, setEditingChecklist] = useState(false);
+  const [newQuestionText, setNewQuestionText] = useState('');
+
+  // Settings for call script
+  const { settings } = useSettingsStore();
+
   // -------------------------------------------------------------
   // Load client + their quotes
   // -------------------------------------------------------------
@@ -181,6 +200,18 @@ export default function ClientDetail() {
           }
         });
 
+        // Initialize checklist - use saved or create from settings defaults
+        const savedChecklist: ChecklistItem[] = Array.isArray(data.checklist) ? data.checklist : [];
+        const defaultQuestions = useSettingsStore.getState().settings?.defaultChecklistQuestions || DEFAULT_CHECKLIST_QUESTIONS;
+        const checklist: ChecklistItem[] = savedChecklist.length > 0 
+          ? savedChecklist 
+          : defaultQuestions.map((q, i) => ({
+              id: `check_${i}`,
+              question: q,
+              checked: false,
+              answer: '',
+            }));
+
         setClient({
           id: snap.id,
           ...data,
@@ -188,6 +219,7 @@ export default function ClientDetail() {
           photos: data.photos || [],
           conversations: data.conversations || [],
           reminders: data.reminders || [],
+          checklist,
         });
 
         // ----- quotes for this client -----
@@ -994,20 +1026,290 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
               </div>
             </div>
 
-            {/* REMINDERS */}
-            <div className="card p-5 md:p-6">
-              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2 mb-2">
-                Reminders
-              </h2>
+            {/* CALL SCRIPT */}
+            {settings?.callScript && (
+              <div className="card p-5 md:p-6 bg-gradient-to-r from-green-900/20 to-transparent border-green-700/30">
+                <div className="flex items-center gap-2 mb-3">
+                  <Phone className="w-4 h-4 text-green-400" />
+                  <h2 className="text-sm font-semibold text-green-400">
+                    Call Script
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-200 leading-relaxed italic">
+                  "{settings.callScript}"
+                </p>
+                {client?.phone && (
+                  <a 
+                    href={`tel:${client.phone}`}
+                    className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition"
+                  >
+                    <Phone className="w-4 h-4" />
+                    Call {client.phone}
+                  </a>
+                )}
+              </div>
+            )}
 
-              {reminders.length === 0 ? (
-                <p className="text-xs text-gray-400">No reminders.</p>
-              ) : (
-                <ul className="mt-1 space-y-1 text-xs">
-                  {reminders.map((r: any) => (
-                    <li key={r.id}>{r.note || "Reminder"}</li>
-                  ))}
-                </ul>
+            {/* INTAKE CHECKLIST */}
+            <div className="card p-5 md:p-6">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
+                  Intake Checklist
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setEditingChecklist(!editingChecklist)}
+                  className={`text-xs flex items-center gap-1 px-2 py-1 rounded transition ${
+                    editingChecklist 
+                      ? 'bg-[#e8d487] text-black' 
+                      : 'text-[#e8d487] hover:bg-black/40'
+                  }`}
+                >
+                  <Pencil className="w-3 h-3" />
+                  {editingChecklist ? 'Done' : 'Edit'}
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {(client.checklist || []).map((item: ChecklistItem, idx: number) => (
+                  <div 
+                    key={item.id} 
+                    className={`p-3 rounded-lg border transition ${
+                      item.checked 
+                        ? 'bg-green-900/20 border-green-700/50' 
+                        : 'bg-black/30 border-gray-700/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      {!editingChecklist && (
+                        <button
+                          type="button"
+                          className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition ${
+                            item.checked
+                              ? 'bg-green-600 border-green-600 text-white'
+                              : 'border-gray-500 hover:border-[#e8d487]'
+                          }`}
+                          onClick={async () => {
+                            const newChecklist = [...(client.checklist || [])];
+                            newChecklist[idx] = {
+                              ...item,
+                              checked: !item.checked,
+                              checkedAt: !item.checked ? Date.now() : undefined,
+                            };
+                            setClient({ ...client, checklist: newChecklist });
+                            await updateDoc(doc(db, 'clients', client.id), {
+                              checklist: newChecklist,
+                              updatedAt: Date.now(),
+                            });
+                          }}
+                        >
+                          {item.checked && <span className="text-xs">✓</span>}
+                        </button>
+                      )}
+                      
+                      <div className="flex-1">
+                        {editingChecklist ? (
+                          <input
+                            type="text"
+                            className="w-full bg-black/40 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 placeholder-gray-500 focus:border-[#e8d487] focus:outline-none font-medium"
+                            value={item.question}
+                            onChange={(e) => {
+                              const newChecklist = [...(client.checklist || [])];
+                              newChecklist[idx] = { ...item, question: e.target.value };
+                              setClient({ ...client, checklist: newChecklist });
+                            }}
+                            onBlur={async () => {
+                              await updateDoc(doc(db, 'clients', client.id), {
+                                checklist: client.checklist,
+                                updatedAt: Date.now(),
+                              });
+                            }}
+                          />
+                        ) : (
+                          <>
+                            <div className={`text-sm font-medium ${item.checked ? 'text-green-400' : 'text-gray-200'}`}>
+                              {item.question}
+                            </div>
+                            {/* Answer input - dropdown if options exist, otherwise text */}
+                            {(() => {
+                              // Get answer options from item or from settings defaults
+                              const answerOptions = item.answerOptions || 
+                                settings?.defaultChecklistAnswerOptions?.[item.question] || 
+                                [];
+                              const hasOptions = answerOptions.length > 0;
+                              const isOther = item.answer === 'Other' || 
+                                (item.answer && !answerOptions.includes(item.answer) && item.answer !== '');
+                              
+                              if (hasOptions) {
+                                return (
+                                  <div className="mt-2 space-y-2">
+                                    <select
+                                      className="w-full bg-black/40 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 focus:border-[#e8d487] focus:outline-none"
+                                      value={isOther ? 'Other' : (item.answer || '')}
+                                      onChange={async (e) => {
+                                        const val = e.target.value;
+                                        const newChecklist = [...(client.checklist || [])];
+                                        if (val === 'Other') {
+                                          // Set to "Other" and clear for custom input
+                                          newChecklist[idx] = { ...item, answer: 'Other' };
+                                        } else {
+                                          newChecklist[idx] = { ...item, answer: val };
+                                        }
+                                        setClient({ ...client, checklist: newChecklist });
+                                        await updateDoc(doc(db, 'clients', client.id), {
+                                          checklist: newChecklist,
+                                          updatedAt: Date.now(),
+                                        });
+                                      }}
+                                    >
+                                      <option value="">Select answer...</option>
+                                      {answerOptions.map((opt: string) => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                      ))}
+                                    </select>
+                                    {/* Show text input if "Other" is selected or answer doesn't match options */}
+                                    {isOther && (
+                                      <input
+                                        type="text"
+                                        className="w-full bg-black/40 border border-yellow-600/50 rounded px-2 py-1.5 text-sm text-gray-200 placeholder-gray-500 focus:border-[#e8d487] focus:outline-none"
+                                        placeholder="Enter custom answer..."
+                                        value={item.answer === 'Other' ? '' : (item.answer || '')}
+                                        onChange={(e) => {
+                                          const newChecklist = [...(client.checklist || [])];
+                                          newChecklist[idx] = { ...item, answer: e.target.value || 'Other' };
+                                          setClient({ ...client, checklist: newChecklist });
+                                        }}
+                                        onBlur={async () => {
+                                          await updateDoc(doc(db, 'clients', client.id), {
+                                            checklist: client.checklist,
+                                            updatedAt: Date.now(),
+                                          });
+                                        }}
+                                        autoFocus
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              }
+                              
+                              // No options - show regular text input
+                              return (
+                                <input
+                                  type="text"
+                                  className="mt-2 w-full bg-black/40 border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-200 placeholder-gray-500 focus:border-[#e8d487] focus:outline-none"
+                                  placeholder="Answer / notes..."
+                                  value={item.answer || ''}
+                                  onChange={(e) => {
+                                    const newChecklist = [...(client.checklist || [])];
+                                    newChecklist[idx] = { ...item, answer: e.target.value };
+                                    setClient({ ...client, checklist: newChecklist });
+                                  }}
+                                  onBlur={async () => {
+                                    await updateDoc(doc(db, 'clients', client.id), {
+                                      checklist: client.checklist,
+                                      updatedAt: Date.now(),
+                                    });
+                                  }}
+                                />
+                              );
+                            })()}
+                          </>
+                        )}
+                      </div>
+                      
+                      {editingChecklist && (
+                        <button
+                          type="button"
+                          className="mt-1 p-1 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition"
+                          title="Delete question"
+                          onClick={async () => {
+                            const newChecklist = (client.checklist || []).filter((_: ChecklistItem, i: number) => i !== idx);
+                            setClient({ ...client, checklist: newChecklist });
+                            await updateDoc(doc(db, 'clients', client.id), {
+                              checklist: newChecklist,
+                              updatedAt: Date.now(),
+                            });
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add new question (when editing) */}
+                {editingChecklist && (
+                  <div className="flex gap-2 mt-3">
+                    <input
+                      type="text"
+                      className="flex-1 bg-black/40 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-[#e8d487] focus:outline-none"
+                      placeholder="Add a new question..."
+                      value={newQuestionText}
+                      onChange={(e) => setNewQuestionText(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && newQuestionText.trim()) {
+                          const newItem: ChecklistItem = {
+                            id: `check_${Date.now()}`,
+                            question: newQuestionText.trim(),
+                            checked: false,
+                            answer: '',
+                          };
+                          const newChecklist = [...(client.checklist || []), newItem];
+                          setClient({ ...client, checklist: newChecklist });
+                          setNewQuestionText('');
+                          await updateDoc(doc(db, 'clients', client.id), {
+                            checklist: newChecklist,
+                            updatedAt: Date.now(),
+                          });
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition disabled:opacity-50"
+                      disabled={!newQuestionText.trim()}
+                      onClick={async () => {
+                        if (newQuestionText.trim()) {
+                          const newItem: ChecklistItem = {
+                            id: `check_${Date.now()}`,
+                            question: newQuestionText.trim(),
+                            checked: false,
+                            answer: '',
+                          };
+                          const newChecklist = [...(client.checklist || []), newItem];
+                          setClient({ ...client, checklist: newChecklist });
+                          setNewQuestionText('');
+                          await updateDoc(doc(db, 'clients', client.id), {
+                            checklist: newChecklist,
+                            updatedAt: Date.now(),
+                          });
+                        }
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Progress indicator */}
+              {client.checklist && client.checklist.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-gray-700/50">
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>
+                      {client.checklist.filter((c: ChecklistItem) => c.checked).length} of {client.checklist.length} completed
+                    </span>
+                    <div className="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-[#e8d487] transition-all"
+                        style={{ 
+                          width: `${(client.checklist.filter((c: ChecklistItem) => c.checked).length / client.checklist.length) * 100}%` 
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 

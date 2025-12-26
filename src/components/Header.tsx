@@ -99,8 +99,8 @@ useEffect(() => {
           </Link>
         </div>
 
-        {/* CENTER NAV */}
-        <nav className="hidden md:flex items-center gap-5 text-[0.9rem] leading-none">
+        {/* CENTER NAV — scrollable when narrow */}
+        <nav className="hidden md:flex items-center gap-5 text-[0.9rem] leading-none overflow-x-auto flex-1 min-w-0 px-2 scrollbar-thin">
           <IconLink to="/" label={navDashboard} svg={HomeIcon} />
           <IconLink to="/clients" label={navClients} svg={UsersIcon} />
           <IconLink to="/companies" label="Companies" svg={BuildingIcon} />

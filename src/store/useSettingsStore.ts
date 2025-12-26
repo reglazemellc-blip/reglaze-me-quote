@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { auth } from '../firebase'
+import { auth, db as firestoreDb } from '../firebase'
+import { doc, setDoc } from 'firebase/firestore'
 import { db, getOrInitSettings, type Settings } from '@db/index'
 
 type SettingsState = {
@@ -29,11 +30,14 @@ const s = await getOrInitSettings()
     set({ settings: s, loading: false })
   },
 
-  // Update settings in Dexie
+  // Update settings in Dexie and Firestore
   update: async (patch) => {
     const current = get().settings!
     const next: Settings = { ...current, ...patch }
     await db.settings.put(next)
+    // Also sync to Firestore
+    const settingsRef = doc(firestoreDb, 'settings', 'settings')
+    await setDoc(settingsRef, next, { merge: true })
     applyTheme(next)
     set({ settings: next })
   },

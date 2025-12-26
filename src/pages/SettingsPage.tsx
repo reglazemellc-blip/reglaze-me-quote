@@ -360,8 +360,260 @@ function BusinessTab({ config, updateBusinessProfile }: any) {
         </label>
       </div>
 
+      {/* CALL SCRIPT & INTAKE CHECKLIST */}
+      <CallScriptSection />
+
       <button onClick={handleSave} className="btn-gold">
         Save Business Profile
+      </button>
+    </div>
+  )
+}
+
+// ==================== CALL SCRIPT & CHECKLIST SECTION ====================
+function CallScriptSection() {
+  const { settings, update } = useSettingsStore()
+  const [callScript, setCallScript] = useState(settings?.callScript || '')
+  const [questions, setQuestions] = useState<string[]>(settings?.defaultChecklistQuestions || [])
+  const [answerOptions, setAnswerOptions] = useState<Record<string, string[]>>(settings?.defaultChecklistAnswerOptions || {})
+  const [newQuestion, setNewQuestion] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null)
+  const [newOptionText, setNewOptionText] = useState('')
+
+  useEffect(() => {
+    if (settings) {
+      setCallScript(settings.callScript || '')
+      setQuestions(settings.defaultChecklistQuestions || [])
+      setAnswerOptions(settings.defaultChecklistAnswerOptions || {})
+    }
+  }, [settings])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await update({
+        callScript,
+        defaultChecklistQuestions: questions.filter(q => q.trim()),
+        defaultChecklistAnswerOptions: answerOptions,
+      })
+      useToastStore.getState().show('Call script & checklist saved!')
+    } catch (err) {
+      useToastStore.getState().show('Failed to save: ' + String(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const addQuestion = () => {
+    if (newQuestion.trim()) {
+      setQuestions([...questions, newQuestion.trim()])
+      setNewQuestion('')
+    }
+  }
+
+  const removeQuestion = (idx: number) => {
+    const questionToRemove = questions[idx]
+    setQuestions(questions.filter((_, i) => i !== idx))
+    // Also remove its answer options
+    const newOptions = { ...answerOptions }
+    delete newOptions[questionToRemove]
+    setAnswerOptions(newOptions)
+  }
+
+  const updateQuestion = (idx: number, oldQuestion: string, newValue: string) => {
+    const updated = [...questions]
+    updated[idx] = newValue
+    setQuestions(updated)
+    // If the question text changed, migrate answer options
+    if (oldQuestion !== newValue && answerOptions[oldQuestion]) {
+      const newOptions = { ...answerOptions }
+      newOptions[newValue] = newOptions[oldQuestion]
+      delete newOptions[oldQuestion]
+      setAnswerOptions(newOptions)
+    }
+  }
+
+  const addAnswerOption = (question: string) => {
+    if (newOptionText.trim()) {
+      const currentOptions = answerOptions[question] || []
+      setAnswerOptions({
+        ...answerOptions,
+        [question]: [...currentOptions, newOptionText.trim()]
+      })
+      setNewOptionText('')
+    }
+  }
+
+  const removeAnswerOption = (question: string, optionIdx: number) => {
+    const currentOptions = answerOptions[question] || []
+    setAnswerOptions({
+      ...answerOptions,
+      [question]: currentOptions.filter((_, i) => i !== optionIdx)
+    })
+  }
+
+  const updateAnswerOption = (question: string, optionIdx: number, value: string) => {
+    const currentOptions = [...(answerOptions[question] || [])]
+    currentOptions[optionIdx] = value
+    setAnswerOptions({
+      ...answerOptions,
+      [question]: currentOptions
+    })
+  }
+
+  return (
+    <div className="border border-[#2a2414] rounded-lg p-4 space-y-4 mt-6">
+      <h3 className="text-lg font-semibold text-[#e8d487]">Call Script & Intake Questions</h3>
+      <p className="text-xs text-gray-500">Shown on client detail page when making calls</p>
+
+      {/* Call Script */}
+      <label className="flex flex-col gap-1">
+        <span className="text-xs text-gray-400">Opening Call Script</span>
+        <textarea
+          className="input min-h-[80px] resize-y"
+          placeholder="Hi, this is [Your Name] from [Company]. I'm returning your call about refinishing services..."
+          value={callScript}
+          onChange={(e) => setCallScript(e.target.value)}
+        />
+        <span className="text-xs text-gray-500">This script appears on client pages to read when calling</span>
+      </label>
+
+      {/* Default Checklist Questions with Answer Options */}
+      <div className="space-y-3">
+        <div>
+          <span className="text-xs text-gray-400">Default Intake Questions & Dropdown Answers</span>
+          <p className="text-xs text-gray-500">Click a question to add/edit dropdown answer options</p>
+        </div>
+        
+        {questions.map((q, idx) => (
+          <div key={idx} className="border border-[#2a2414] rounded-lg overflow-hidden">
+            {/* Question row */}
+            <div className="flex gap-2 items-center p-2 bg-black/20">
+              <span className="text-xs text-gray-500 w-5">{idx + 1}.</span>
+              <input
+                className="input flex-1"
+                value={q}
+                onChange={(e) => updateQuestion(idx, q, e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setExpandedQuestion(expandedQuestion === q ? null : q)}
+                className={`px-2 py-1 text-xs rounded transition ${
+                  expandedQuestion === q 
+                    ? 'bg-[#e8d487] text-black' 
+                    : 'text-[#e8d487] hover:bg-black/40'
+                }`}
+                title="Edit dropdown options"
+              >
+                {answerOptions[q]?.length || 0} options ▼
+              </button>
+              <button
+                type="button"
+                onClick={() => removeQuestion(idx)}
+                className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition"
+                title="Remove question"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Answer options (expanded) */}
+            {expandedQuestion === q && (
+              <div className="p-3 bg-black/30 border-t border-[#2a2414] space-y-2">
+                <p className="text-xs text-gray-400">Dropdown answer options (include "Other" for custom text input):</p>
+                
+                {(answerOptions[q] || []).map((opt, optIdx) => (
+                  <div key={optIdx} className="flex gap-2 items-center pl-4">
+                    <span className="text-xs text-gray-600">•</span>
+                    <input
+                      className="input flex-1 text-sm py-1"
+                      value={opt}
+                      onChange={(e) => updateAnswerOption(q, optIdx, e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAnswerOption(q, optIdx)}
+                      className="p-1 text-red-400 hover:text-red-300 text-xs"
+                      title="Remove option"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                
+                {/* Add new option */}
+                <div className="flex gap-2 items-center pl-4 mt-2">
+                  <span className="text-xs text-gray-600">+</span>
+                  <input
+                    className="input flex-1 text-sm py-1"
+                    placeholder="Add answer option..."
+                    value={newOptionText}
+                    onChange={(e) => setNewOptionText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addAnswerOption(q)
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addAnswerOption(q)}
+                    disabled={!newOptionText.trim()}
+                    className="px-2 py-1 bg-[#e8d487] text-black rounded text-xs font-medium hover:bg-[#ffd700] transition disabled:opacity-50"
+                  >
+                    Add
+                  </button>
+                </div>
+                
+                {!(answerOptions[q] || []).includes('Other') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentOptions = answerOptions[q] || []
+                      setAnswerOptions({
+                        ...answerOptions,
+                        [q]: [...currentOptions, 'Other']
+                      })
+                    }}
+                    className="ml-4 text-xs text-[#e8d487] hover:text-[#ffd700] transition"
+                  >
+                    + Add "Other" option (allows custom text)
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Add new question */}
+        <div className="flex gap-2 items-center mt-2">
+          <span className="text-xs text-gray-500 w-5">+</span>
+          <input
+            className="input flex-1"
+            placeholder="Add a new default question..."
+            value={newQuestion}
+            onChange={(e) => setNewQuestion(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addQuestion()}
+          />
+          <button
+            type="button"
+            onClick={addQuestion}
+            disabled={!newQuestion.trim()}
+            className="px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition disabled:opacity-50"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+
+      <button 
+        onClick={handleSave} 
+        disabled={saving}
+        className="btn-gold"
+      >
+        {saving ? 'Saving...' : 'Save Call Script & Questions'}
       </button>
     </div>
   )
