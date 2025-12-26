@@ -105,6 +105,52 @@ export const DEFAULT_CHECKLIST_QUESTIONS: ChecklistItem[] = [
   },
 ];
 
+// Default property manager checklist questions
+export const DEFAULT_PROPERTY_MANAGER_QUESTIONS: ChecklistItem[] = [
+  {
+    id: "property-unit",
+    question: "Property name and unit number?",
+    checked: false,
+    answerType: "text",
+    answerOptions: [],
+  },
+  {
+    id: "vacant-occupied",
+    question: "Vacant or occupied?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Vacant", "Occupied - can schedule", "Occupied - need notice", "Other"],
+  },
+  {
+    id: "condition",
+    question: "Condition - chips, cracks, rust, previous coatings?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Good condition", "Minor chips", "Cracks/rust", "Previous coating - peeling", "Other"],
+  },
+  {
+    id: "white-or-color",
+    question: "Standard white or color match?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Standard white", "Almond", "Color match needed", "Other"],
+  },
+  {
+    id: "timeline",
+    question: "Timeline / move-in date?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["ASAP", "This week", "End of month", "Flexible", "Other"],
+  },
+  {
+    id: "access",
+    question: "Who handles access - maintenance or tenant?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Maintenance", "Tenant", "Property manager", "Other"],
+  },
+];
+
 // ------------------ Core Entities ------------------
 
 export type Client = {
@@ -551,22 +597,8 @@ export async function getOrInitSettings(): Promise<Settings> {
       voicemail: "Hi, this is Joe with ReGlaze Me LLC returning your call about unit refinishing.\nYou can call or text me back at 315-525-9142.\nAgain, Joe with ReGlaze Me LLC.",
       followUpText: "Hi, this is Joe with ReGlaze Me LLC following up on your unit refinishing request. Let me know the unit number and condition when you have a moment.",
     },
-    defaultChecklistQuestions: [
-      "What are we refinishing?",
-      "Any chips, cracks, peeling, rust, or old coatings?",
-      "Keeping white or changing color?",
-      "Home or rental?",
-      "What town is the job in?",
-      "How did they hear about us?",
-    ],
-    propertyManagerChecklistQuestions: [
-      "Property name and unit number?",
-      "Vacant or occupied?",
-      "Condition - chips, cracks, rust, previous coatings?",
-      "Standard white or color match?",
-      "Timeline / move-in date?",
-      "Who handles access - maintenance or tenant?",
-    ],
+    defaultChecklistQuestions: DEFAULT_CHECKLIST_QUESTIONS,
+    propertyManagerChecklistQuestions: DEFAULT_PROPERTY_MANAGER_QUESTIONS,
     // Default answer options for each question
     defaultChecklistAnswerOptions: {
       "What are we refinishing?": ["Tub", "Shower", "Tub & Shower", "Tile", "Countertop", "Other"],

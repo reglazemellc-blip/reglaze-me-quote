@@ -42,14 +42,63 @@ const timeOptions = [
 ];
 
 // Default intake checklist questions
-const DEFAULT_CHECKLIST_QUESTIONS = [
-  "How many tubs/showers?",
-  "Fiberglass or porcelain?",
-  "Current color / desired color?",
-  "Any chips, cracks, or damage?",
-  "Has it been refinished before?",
-  "Timeline - when do they need it done?",
-  "How did they hear about us?",
+const DEFAULT_CHECKLIST_QUESTIONS: ChecklistItem[] = [
+  {
+    id: "check_0",
+    question: "How many tubs/showers?",
+    checked: false,
+    answer: "",
+    answerType: "text",
+    answerOptions: [],
+  },
+  {
+    id: "check_1",
+    question: "Fiberglass or porcelain?",
+    checked: false,
+    answer: "",
+    answerType: "dropdown",
+    answerOptions: ["Fiberglass", "Porcelain", "Other"],
+  },
+  {
+    id: "check_2",
+    question: "Current color / desired color?",
+    checked: false,
+    answer: "",
+    answerType: "text",
+    answerOptions: [],
+  },
+  {
+    id: "check_3",
+    question: "Any chips, cracks, or damage?",
+    checked: false,
+    answer: "",
+    answerType: "text",
+    answerOptions: [],
+  },
+  {
+    id: "check_4",
+    question: "Has it been refinished before?",
+    checked: false,
+    answer: "",
+    answerType: "dropdown",
+    answerOptions: ["Yes", "No", "Not Sure"],
+  },
+  {
+    id: "check_5",
+    question: "Timeline - when do they need it done?",
+    checked: false,
+    answer: "",
+    answerType: "text",
+    answerOptions: [],
+  },
+  {
+    id: "check_6",
+    question: "How did they hear about us?",
+    checked: false,
+    answer: "",
+    answerType: "dropdown",
+    answerOptions: ["Google", "Referral", "Repeat", "Other"],
+  },
 ];
 
 // Workflow status configuration
@@ -224,6 +273,9 @@ export default function ClientDetail() {
 
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const [deletingPhoto, setDeletingPhoto] = useState<string | null>(null);
+  const [savingChecklist, setSavingChecklist] = useState(false);
+  const [deletingClient, setDeletingClient] = useState(false);
 
   // Quotes for this client
   const [quotes, setQuotes] = useState<QuoteSummary[]>([]);
@@ -266,25 +318,12 @@ export default function ClientDetail() {
       const defaultQuestions = settings?.defaultChecklistQuestions || DEFAULT_CHECKLIST_QUESTIONS;
       
       // Create fresh checklist from current defaults, preserving structure
-      const newChecklist: ChecklistItem[] = defaultQuestions.map((q, i) => {
-        if (typeof q === 'string') {
-          return {
-            id: `check_${i}`,
-            question: q,
-            checked: false,
-            answer: '',
-            answerType: 'text',
-            answerOptions: [],
-          };
-        } else {
-          return {
-            ...q,
-            id: `check_${i}`,
-            checked: false,
-            answer: '',
-          };
-        }
-      });
+      const newChecklist: ChecklistItem[] = defaultQuestions.map((q, i) => ({
+        ...q,
+        id: `check_${i}`,
+        checked: false,
+        answer: '',
+      }));
       
       // Update local state
       setClient({ ...client, checklist: newChecklist });
@@ -295,12 +334,34 @@ export default function ClientDetail() {
         updatedAt: Date.now(),
       });
       
-      useToastStore.getState().show('Checklist synced from settings', 'success');
+      useToastStore.getState().show('Checklist synced from settings');
     } catch (error) {
       console.error('Failed to sync checklist:', error);
-      useToastStore.getState().show('Failed to sync checklist', 'error');
+      useToastStore.getState().show('Failed to sync checklist. Please try again.');
     } finally {
       setSyncingFromSettings(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Helper: Save checklist with error handling
+  // -------------------------------------------------------------
+  const saveChecklist = async (newChecklist: ChecklistItem[]) => {
+    if (!client || savingChecklist) return false;
+    
+    setSavingChecklist(true);
+    try {
+      await updateDoc(doc(db, 'clients', client.id), {
+        checklist: newChecklist,
+        updatedAt: Date.now(),
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to save checklist:', error);
+      useToastStore.getState().show('Failed to save changes. Please try again.');
+      return false;
+    } finally {
+      setSavingChecklist(false);
     }
   };
 
@@ -363,27 +424,12 @@ export default function ClientDetail() {
         const defaultQuestions = useSettingsStore.getState().settings?.defaultChecklistQuestions || DEFAULT_CHECKLIST_QUESTIONS;
         const checklist: ChecklistItem[] = savedChecklist.length > 0 
           ? savedChecklist 
-          : defaultQuestions.map((q, i) => {
-              // Handle both old string format and new ChecklistItem format
-              if (typeof q === 'string') {
-                return {
-                  id: `check_${i}`,
-                  question: q,
-                  checked: false,
-                  answer: '',
-                  answerType: 'text',
-                  answerOptions: [],
-                };
-              } else {
-                // Copy all fields from the default ChecklistItem
-                return {
-                  ...q,
-                  id: `check_${i}`,
-                  checked: false,
-                  answer: '',
-                };
-              }
-            });
+          : defaultQuestions.map((q, i) => ({
+              ...q,
+              id: `check_${i}`,
+              checked: false,
+              answer: '',
+            }));
 
         setClient({
           id: snap.id,
@@ -474,20 +520,22 @@ export default function ClientDetail() {
   // Delete client (via useClientsStore.remove)
   // -------------------------------------------------------------
   async function handleDeleteClient() {
-    if (!client) return;
+    if (!client || deletingClient) return;
     const ok = window.confirm(
       "Delete this client and ALL their quotes? This cannot be undone."
     );
     if (!ok) return;
 
+    setDeletingClient(true);
     try {
       await remove(client.id);
+      useToastStore.getState().show('Client deleted successfully');
       navigate("/clients");
     } catch (err) {
-      console.error(err);
-      useToastStore.getState().show("Operation failed. See console.");
-
-
+      console.error('Delete client error:', err);
+      useToastStore.getState().show('Failed to delete client. Please try again.');
+    } finally {
+      setDeletingClient(false);
     }
   }
 
@@ -495,7 +543,7 @@ export default function ClientDetail() {
   // Photo Upload → attachments[]
   // -------------------------------------------------------------
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!client) return;
+    if (!client || uploadingPhotos) return;
 
     const files: File[] = Array.from(e.target.files ?? []) as File[];
     if (files.length === 0) return;
@@ -541,10 +589,11 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
         attachments: [...(prev.attachments || []), ...additions],
       }));
 
-    } catch (err) {
-      console.error(err);
-      useToastStore.getState().show("Import successful.");
+      useToastStore.getState().show(`${files.length} photo(s) uploaded successfully`);
 
+    } catch (err) {
+      console.error('Photo upload error:', err);
+      useToastStore.getState().show('Photo upload failed. Please try again.');
     } finally {
       setUploadingPhotos(false);
       if (photoInputRef.current) {
@@ -557,18 +606,18 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
   // Delete photo (from Storage + attachments[])
   // -------------------------------------------------------------
   async function deletePhoto(att: Attachment) {
-    if (!client) return;
+    if (!client || deletingPhoto) return;
+
+    if (!confirm('Delete this photo?')) return;
+
+    setDeletingPhoto(att.id);
 
     try {
       if (att.path) {
         const storageRef = ref(storage, att.path);
         await deleteObject(storageRef);
       }
-    } catch (err) {
-      console.error("Storage delete failed (continuing):", err);
-    }
 
-    try {
       const existing: Attachment[] = client.attachments || [];
       const updated = existing.filter((a) => a.id !== att.id);
 
@@ -581,10 +630,13 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
         ...prev,
         attachments: updated,
       }));
-    } catch (err) {
-      console.error("Failed to update Firestore after delete:", err);
-       useToastStore.getState().show("Failed to update Firestore after delete.");
 
+      useToastStore.getState().show('Photo deleted successfully');
+    } catch (err) {
+      console.error('Delete photo error:', err);
+      useToastStore.getState().show('Failed to delete photo. Please try again.');
+    } finally {
+      setDeletingPhoto(null);
     }
   }
 
@@ -637,10 +689,11 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
               New Quote
             </button>
             <button
-              className="px-4 py-1.5 text-xs md:text-sm rounded-lg border border-red-500/70 text-red-400 hover:bg-red-500 hover:text-black transition"
+              className="px-4 py-1.5 text-xs md:text-sm rounded-lg border border-red-500/70 text-red-400 hover:bg-red-500 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleDeleteClient}
+              disabled={deletingClient}
             >
-              Delete
+              {deletingClient ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </div>
@@ -680,12 +733,11 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
 
                   <button
                     type="button"
-                    className="text-[11px] text-[#e8d487] underline"
+                    className="text-[11px] text-[#e8d487] underline disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => photoInputRef.current?.click()}
-
-
+                    disabled={uploadingPhotos}
                   >
-                    Add Photos
+                    {uploadingPhotos ? 'Uploading...' : 'Add Photos'}
                   </button>
                 </div>
 
@@ -712,10 +764,11 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                           className="rounded border border-gray-700 w-full h-28 md:h-32 object-cover"
                         />
                         <button
-                          className="absolute top-1 right-1 text-red-400 text-[10px] bg-black/70 rounded px-1"
+                          className="absolute top-1 right-1 text-red-400 text-[10px] bg-black/70 rounded px-1 disabled:opacity-50"
                           onClick={() => deletePhoto(att)}
+                          disabled={deletingPhoto === att.id}
                         >
-                          ✕
+                          {deletingPhoto === att.id ? '...' : '✕'}
                         </button>
                       </div>
                     ))}
@@ -1057,10 +1110,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                               checkedAt: !item.checked ? Date.now() : undefined,
                             };
                             setClient({ ...client, checklist: newChecklist });
-                            await updateDoc(doc(db, 'clients', client.id), {
-                              checklist: newChecklist,
-                              updatedAt: Date.now(),
-                            });
+                            await saveChecklist(newChecklist);
                           }}
                         >
                           {item.checked && <span className="text-xs">✓</span>}
@@ -1079,10 +1129,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                               setClient({ ...client, checklist: newChecklist });
                             }}
                             onBlur={async () => {
-                              await updateDoc(doc(db, 'clients', client.id), {
-                                checklist: client.checklist,
-                                updatedAt: Date.now(),
-                              });
+                              await saveChecklist(client.checklist);
                             }}
                           />
                         ) : (
@@ -1116,10 +1163,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                                           newChecklist[idx] = { ...item, answer: val };
                                         }
                                         setClient({ ...client, checklist: newChecklist });
-                                        await updateDoc(doc(db, 'clients', client.id), {
-                                          checklist: newChecklist,
-                                          updatedAt: Date.now(),
-                                        });
+                                        await saveChecklist(newChecklist);
                                       }}
                                     >
                                       <option value="">Select answer...</option>
@@ -1140,10 +1184,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                                           setClient({ ...client, checklist: newChecklist });
                                         }}
                                         onBlur={async () => {
-                                          await updateDoc(doc(db, 'clients', client.id), {
-                                            checklist: client.checklist,
-                                            updatedAt: Date.now(),
-                                          });
+                                          await saveChecklist(client.checklist);
                                         }}
                                         autoFocus
                                       />
@@ -1165,10 +1206,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                                     setClient({ ...client, checklist: newChecklist });
                                   }}
                                   onBlur={async () => {
-                                    await updateDoc(doc(db, 'clients', client.id), {
-                                      checklist: client.checklist,
-                                      updatedAt: Date.now(),
-                                    });
+                                    await saveChecklist(client.checklist);
                                   }}
                                 />
                               );
@@ -1185,10 +1223,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                           onClick={async () => {
                             const newChecklist = (client.checklist || []).filter((_: ChecklistItem, i: number) => i !== idx);
                             setClient({ ...client, checklist: newChecklist });
-                            await updateDoc(doc(db, 'clients', client.id), {
-                              checklist: newChecklist,
-                              updatedAt: Date.now(),
-                            });
+                            await saveChecklist(newChecklist);
                           }}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1286,7 +1321,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            className="flex-1 px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition"
+                            className="flex-1 px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition disabled:opacity-50"
                             onClick={async () => {
                               const newItem: ChecklistItem = {
                                 id: `check_${Date.now()}`,
@@ -1301,28 +1336,33 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                               
                               // Save to defaults if checkbox is checked
                               if (saveToDefaults && settings) {
-                                const currentDefaults = settings.defaultChecklistQuestions || [];
-                                const questionExists = currentDefaults.some((q) => 
-                                  typeof q === 'string' ? q === newQuestionText.trim() : q.question === newQuestionText.trim()
-                                );
-                                if (!questionExists) {
-                                  await useSettingsStore.getState().update({
-                                    defaultChecklistQuestions: [...currentDefaults, newItem]
-                                  });
+                                try {
+                                  const currentDefaults = settings.defaultChecklistQuestions || [];
+                                  const questionExists = currentDefaults.some((q) => 
+                                    typeof q === 'string' ? q === newQuestionText.trim() : q.question === newQuestionText.trim()
+                                  );
+                                  if (!questionExists) {
+                                    await useSettingsStore.getState().update({
+                                      defaultChecklistQuestions: [...currentDefaults, newItem]
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error('Failed to save to defaults:', error);
+                                  useToastStore.getState().show('Question added but failed to save to defaults');
                                 }
                                 setSaveToDefaults(false);
                               }
                               
-                              setNewQuestionText('');
-                              setNewQuestionType('text');
-                              setNewQuestionOptions([]);
-                              await updateDoc(doc(db, 'clients', client.id), {
-                                checklist: newChecklist,
-                                updatedAt: Date.now(),
-                              });
+                              const saved = await saveChecklist(newChecklist);
+                              if (saved) {
+                                setNewQuestionText('');
+                                setNewQuestionType('text');
+                                setNewQuestionOptions([]);
+                              }
                             }}
+                            disabled={savingChecklist}
                           >
-                            Add Question
+                            {savingChecklist ? 'Saving...' : 'Add Question'}
                           </button>
                           <button
                             type="button"
@@ -1411,27 +1451,39 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
               {/* Actions */}
               <div className="flex gap-3 pt-4">
                 <button
-                  className="btn-gold flex-1"
+                  className="btn-gold flex-1 disabled:opacity-50"
+                  disabled={savingChecklist}
                   onClick={async () => {
-                    setClient((prev: any) => ({
-                      ...prev,
-                      scheduledDate: scheduleDate || undefined,
-                      scheduledTime: scheduleTime || undefined,
-                      workflowStatus: scheduleDate ? 'scheduled' : prev.workflowStatus
-                    }));
-                    await updateDoc(doc(db, 'clients', client.id), {
-                      scheduledDate: scheduleDate || null,
-                      scheduledTime: scheduleTime || null,
-                      workflowStatus: scheduleDate ? 'scheduled' : client.workflowStatus,
-                      updatedAt: Date.now(),
-                    });
-                    setShowScheduleModal(false);
-                    if (scheduleDate) {
-                      useToastStore.getState().show('Job scheduled!');
+                    if (!scheduleDate) {
+                      useToastStore.getState().show('Please select a date');
+                      return;
+                    }
+
+                    setSavingChecklist(true);
+                    try {
+                      setClient((prev: any) => ({
+                        ...prev,
+                        scheduledDate: scheduleDate,
+                        scheduledTime: scheduleTime || undefined,
+                        workflowStatus: 'scheduled'
+                      }));
+                      await updateDoc(doc(db, 'clients', client.id), {
+                        scheduleDate,
+                        scheduledTime: scheduleTime || null,
+                        workflowStatus: 'scheduled',
+                        updatedAt: Date.now(),
+                      });
+                      setShowScheduleModal(false);
+                      useToastStore.getState().show('Job scheduled successfully!');
+                    } catch (error) {
+                      console.error('Failed to schedule job:', error);
+                      useToastStore.getState().show('Failed to schedule job. Please try again.');
+                    } finally {
+                      setSavingChecklist(false);
                     }
                   }}
                 >
-                  Save Schedule
+                  {savingChecklist ? 'Saving...' : 'Save Schedule'}
                 </button>
                 <button
                   className="btn-outline-gold flex-1"
