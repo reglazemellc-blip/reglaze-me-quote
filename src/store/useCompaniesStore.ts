@@ -1,0 +1,291 @@
+// -------------------------------------------------------------
+// useCompaniesStore.ts - Manage property management companies and their properties
+// -------------------------------------------------------------
+
+import { create } from 'zustand'
+import { useConfigStore } from '@store/useConfigStore'
+import { auth } from '../firebase'
+
+import {
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  query,
+  where,
+  updateDoc,
+} from 'firebase/firestore'
+import { db } from '../firebase'
+import type { Company, Property, Attachment, ConversationEntry } from '@db/index'
+
+type CompaniesState = {
+  companies: Company[]
+  properties: Property[]
+  loading: boolean
+
+  init: () => Promise<void>
+
+  // Company CRUD
+  upsertCompany: (c: Partial<Company>) => Promise<Company>
+  removeCompany: (id: string) => Promise<void>
+
+  // Property CRUD
+  upsertProperty: (p: Partial<Property>) => Promise<Property>
+  removeProperty: (id: string) => Promise<void>
+
+  // Helpers
+  getPropertiesByCompany: (companyId: string) => Property[]
+  getScheduledJobs: () => Property[] // All properties with scheduledDate
+  searchCompanies: (term: string) => Company[]
+}
+
+const companiesCol = collection(db, 'companies')
+const propertiesCol = collection(db, 'properties')
+
+function createId() {
+  return `${Date.now()}_${Math.random().toString(36).slice(2)}`
+}
+
+export const useCompaniesStore = create<CompaniesState>((set, get) => ({
+  companies: [],
+  properties: [],
+  loading: true,
+
+  // -------------------------------------------------
+  // LOAD ALL COMPANIES & PROPERTIES
+  // -------------------------------------------------
+  init: async () => {
+    if (!auth.currentUser) {
+      set({ loading: false })
+      return
+    }
+
+    let tenantId = useConfigStore.getState().activeTenantId
+
+    // Wait for tenantId if not ready
+    if (!tenantId) {
+      await new Promise<void>((resolve) => {
+        const unsub = useConfigStore.subscribe((state) => {
+          if (state.activeTenantId) {
+            tenantId = state.activeTenantId
+            unsub()
+            resolve()
+          }
+        })
+      })
+    }
+
+    if (!tenantId) {
+      console.warn('[companies.init] tenantId missing')
+      set({ loading: false })
+      return
+    }
+
+    // Load companies
+    const compSnap = await getDocs(
+      query(companiesCol, where('tenantId', '==', tenantId))
+    )
+    const companies: Company[] = compSnap.docs.map((d) => ({
+      ...(d.data() as Company),
+      id: d.id,
+    }))
+
+    // Load properties
+    const propSnap = await getDocs(
+      query(propertiesCol, where('tenantId', '==', tenantId))
+    )
+    const properties: Property[] = propSnap.docs.map((d) => ({
+      ...(d.data() as Property),
+      id: d.id,
+    }))
+
+    set({ companies, properties, loading: false })
+  },
+
+  // -------------------------------------------------
+  // CREATE / UPDATE COMPANY
+  // -------------------------------------------------
+  upsertCompany: async (c) => {
+    let tenantId = useConfigStore.getState().activeTenantId
+
+    if (!tenantId) {
+      await new Promise<void>((resolve) => {
+        const unsub = useConfigStore.subscribe((state) => {
+          if (state.activeTenantId) {
+            tenantId = state.activeTenantId
+            unsub()
+            resolve()
+          }
+        })
+      })
+    }
+
+    if (!tenantId) {
+      throw new Error('tenantId missing during company upsert')
+    }
+
+    const now = Date.now()
+    const id = c.id || createId()
+
+    const clean: Company = {
+      id,
+      tenantId,
+      name: c.name ?? '',
+      contactName: c.contactName ?? '',
+      phone: c.phone ?? '',
+      email: c.email ?? '',
+      billingAddress: c.billingAddress ?? '',
+      billingCity: c.billingCity ?? '',
+      billingState: c.billingState ?? '',
+      billingZip: c.billingZip ?? '',
+      notes: c.notes ?? '',
+      conversations: c.conversations ?? [],
+      attachments: c.attachments ?? [],
+      createdAt: c.createdAt ?? now,
+      updatedAt: now,
+    }
+
+    await setDoc(doc(companiesCol, clean.id), clean)
+
+    // Reload companies
+    const snap = await getDocs(query(companiesCol, where('tenantId', '==', tenantId)))
+    const companies: Company[] = snap.docs.map((d) => ({
+      ...(d.data() as Company),
+      id: d.id,
+    }))
+
+    set({ companies })
+    return clean
+  },
+
+  // -------------------------------------------------
+  // REMOVE COMPANY (and its properties)
+  // -------------------------------------------------
+  removeCompany: async (id) => {
+    const tenantId = useConfigStore.getState().activeTenantId
+
+    // Delete company
+    await deleteDoc(doc(companiesCol, id))
+
+    // Delete all properties belonging to this company
+    const propSnap = await getDocs(
+      query(propertiesCol, where('companyId', '==', id))
+    )
+    const deletes = propSnap.docs.map((d) => deleteDoc(doc(propertiesCol, d.id)))
+    await Promise.all(deletes)
+
+    // Reload
+    const compSnap = await getDocs(query(companiesCol, where('tenantId', '==', tenantId)))
+    const companies: Company[] = compSnap.docs.map((d) => ({
+      ...(d.data() as Company),
+      id: d.id,
+    }))
+
+    const newPropSnap = await getDocs(query(propertiesCol, where('tenantId', '==', tenantId)))
+    const properties: Property[] = newPropSnap.docs.map((d) => ({
+      ...(d.data() as Property),
+      id: d.id,
+    }))
+
+    set({ companies, properties })
+  },
+
+  // -------------------------------------------------
+  // CREATE / UPDATE PROPERTY
+  // -------------------------------------------------
+  upsertProperty: async (p) => {
+    let tenantId = useConfigStore.getState().activeTenantId
+
+    if (!tenantId) {
+      await new Promise<void>((resolve) => {
+        const unsub = useConfigStore.subscribe((state) => {
+          if (state.activeTenantId) {
+            tenantId = state.activeTenantId
+            unsub()
+            resolve()
+          }
+        })
+      })
+    }
+
+    if (!tenantId) {
+      throw new Error('tenantId missing during property upsert')
+    }
+
+    const now = Date.now()
+    const id = p.id || createId()
+
+    const clean: Property = {
+      id,
+      companyId: p.companyId ?? '',
+      tenantId,
+      address: p.address ?? '',
+      unit: p.unit ?? '',
+      city: p.city ?? '',
+      state: p.state ?? '',
+      zip: p.zip ?? '',
+      workflowStatus: p.workflowStatus ?? 'new',
+      documentTracking: p.documentTracking ?? {},
+      scheduledDate: p.scheduledDate,
+      scheduledTime: p.scheduledTime,
+      quoteId: p.quoteId,
+      invoiceId: p.invoiceId,
+      contractId: p.contractId,
+      notes: p.notes ?? '',
+      attachments: p.attachments ?? [],
+      createdAt: p.createdAt ?? now,
+      updatedAt: now,
+    }
+
+    await setDoc(doc(propertiesCol, clean.id), clean)
+
+    // Reload properties
+    const snap = await getDocs(query(propertiesCol, where('tenantId', '==', tenantId)))
+    const properties: Property[] = snap.docs.map((d) => ({
+      ...(d.data() as Property),
+      id: d.id,
+    }))
+
+    set({ properties })
+    return clean
+  },
+
+  // -------------------------------------------------
+  // REMOVE PROPERTY
+  // -------------------------------------------------
+  removeProperty: async (id) => {
+    const tenantId = useConfigStore.getState().activeTenantId
+
+    await deleteDoc(doc(propertiesCol, id))
+
+    // Reload
+    const snap = await getDocs(query(propertiesCol, where('tenantId', '==', tenantId)))
+    const properties: Property[] = snap.docs.map((d) => ({
+      ...(d.data() as Property),
+      id: d.id,
+    }))
+
+    set({ properties })
+  },
+
+  // -------------------------------------------------
+  // HELPERS
+  // -------------------------------------------------
+  getPropertiesByCompany: (companyId) => {
+    return get().properties.filter((p) => p.companyId === companyId)
+  },
+
+  getScheduledJobs: () => {
+    return get().properties.filter((p) => p.scheduledDate && p.workflowStatus === 'scheduled')
+  },
+
+  searchCompanies: (term) => {
+    const q = term.toLowerCase()
+    return get().companies.filter((c) =>
+      [c.name, c.contactName, c.phone, c.email]
+        .filter(Boolean)
+        .some((v) => v!.toLowerCase().includes(q))
+    )
+  },
+}))

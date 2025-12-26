@@ -5,9 +5,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuotesStore } from '@store/useQuotesStore'
 import { useClientsStore } from '@store/useClientsStore'
-import StatusBadge from '@components/StatusBadge'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
-import type { LineItem } from '@db/index'
+import type { LineItem, WorkflowStatus } from '@db/index'
+
+// Workflow status configuration for display
+const workflowStatusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
+  new: { label: 'New', color: 'text-gray-300', bgColor: 'bg-gray-800 border-gray-600' },
+  docs_sent: { label: 'Docs Sent', color: 'text-yellow-300', bgColor: 'bg-yellow-900/50 border-yellow-700/50' },
+  waiting_prejob: { label: 'Waiting Pre-Job', color: 'text-orange-300', bgColor: 'bg-orange-900/50 border-orange-700/50' },
+  ready_to_schedule: { label: 'Ready to Schedule', color: 'text-cyan-300', bgColor: 'bg-cyan-900/50 border-cyan-700/50' },
+  scheduled: { label: 'Scheduled', color: 'text-blue-300', bgColor: 'bg-blue-900/50 border-blue-700/50' },
+  in_progress: { label: 'In Progress', color: 'text-indigo-300', bgColor: 'bg-indigo-900/50 border-indigo-700/50' },
+  completed: { label: 'Completed', color: 'text-green-300', bgColor: 'bg-green-900/50 border-green-700/50' },
+  invoiced: { label: 'Invoiced', color: 'text-purple-300', bgColor: 'bg-purple-900/50 border-purple-700/50' },
+  paid: { label: 'Paid', color: 'text-emerald-300', bgColor: 'bg-emerald-900/50 border-emerald-700/50' },
+};
 
 export default function QuotesBoard() {
   const navigate = useNavigate()
@@ -74,7 +86,9 @@ const sorted = useMemo(() => {
         (q.notes ?? '').toLowerCase().includes(t) ||
         matchingClientIds.includes((q as any).clientId)
 
-      const matchStatus = !status || q.status === status
+      // Use workflowStatus for filtering (fallback to 'new' if not set)
+      const quoteWorkflowStatus = (q as any).workflowStatus ?? 'new'
+      const matchStatus = !status || quoteWorkflowStatus === status
 
       return matchText && matchStatus
     })
@@ -167,16 +181,9 @@ const sorted = useMemo(() => {
           onChange={(e) => setStatus(e.target.value)}
         >
           <option value="">All Statuses</option>
-          {[
-            'pending',
-            'approved',
-            'scheduled',
-            'in_progress',
-            'completed',
-            'canceled',
-          ].map((s) => (
-            <option key={s} value={s}>
-              {s.replace('_', ' ')}
+          {Object.entries(workflowStatusConfig).map(([value, config]) => (
+            <option key={value} value={value}>
+              {config.label}
             </option>
           ))}
         </select>
@@ -220,6 +227,10 @@ const sorted = useMemo(() => {
           const preview = items.slice(0, 3)
           const extra = items.length - preview.length
 
+          // Get workflow status for display
+          const wfStatus = ((q as any).workflowStatus as string) || 'new'
+          const statusConfig = workflowStatusConfig[wfStatus] || workflowStatusConfig.new
+
           return (
             <div
               key={q.id}
@@ -238,7 +249,9 @@ const sorted = useMemo(() => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <StatusBadge status={q.status} />
+                  <span className={`text-[11px] px-2.5 py-1 rounded-full border ${statusConfig.bgColor} ${statusConfig.color}`}>
+                    {statusConfig.label}
+                  </span>
                   <div className="text-right">
                     <div className="text-xs text-gray-400">{dateLabel}</div>
                     <div className="text-sm font-semibold text-[#e8d487]">

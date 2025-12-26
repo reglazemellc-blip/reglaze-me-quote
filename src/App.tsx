@@ -25,6 +25,9 @@ import ServiceForm from "@pages/services/ServiceForm";
 import RemindersPage from "@pages/RemindersPage";
 import TestUI from "@pages/TestUI";
 import Documents from "@pages/Documents";
+import Calendar from "@pages/Calendar";
+import Companies from "@pages/Companies";
+import CompanyDetail from "@pages/CompanyDetail";
 
 import Header from "@components/Header";
 import OfflineToast from "@components/OfflineToast";
@@ -118,6 +121,14 @@ export default function App() {
 
   {/* Documents */}
   <Route path="/documents" element={<Documents />} />
+
+  {/* Calendar */}
+  <Route path="/calendar" element={<Calendar />} />
+
+  {/* Companies */}
+  <Route path="/companies" element={<Companies />} />
+  <Route path="/companies/new" element={<CompanyDetail />} />
+  <Route path="/companies/:id" element={<CompanyDetail />} />
 
   {/* PDF View */}
   <Route path="/print" element={<QuotePrint />} />

@@ -367,54 +367,78 @@ useEffect(() => {
           className="block bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/60 transition shadow"
         >
           <div className="flex justify-between items-start">
-            <div>
+            <div className="flex-1">
               <div className="text-lg font-semibold text-[#f5f3da]">
                 {c.name}
               </div>
 
               <div className="mt-1 text-[11px] text-gray-500">
-  Last activity: {Math.max(
-    c.createdAt ?? 0,
-    ...clientQuotes
-      .filter((q) => q.clientId === c.id)
-      .map((q) => q.updatedAt ?? q.createdAt ?? 0)
-  )
-    ? `${Math.floor(
-        (Date.now() -
-          Math.max(
-            c.createdAt ?? 0,
-            ...clientQuotes
-              .filter((q) => q.clientId === c.id)
-              .map((q) => q.updatedAt ?? q.createdAt ?? 0)
-          )) /
-          (1000 * 60 * 60 * 24)
-      )}d ago`
-    : "No activity yet"}
-</div>
+                Last activity: {Math.max(
+                  c.createdAt ?? 0,
+                  ...clientQuotes
+                    .filter((q) => q.clientId === c.id)
+                    .map((q) => q.updatedAt ?? q.createdAt ?? 0)
+                )
+                  ? `${Math.floor(
+                      (Date.now() -
+                        Math.max(
+                          c.createdAt ?? 0,
+                          ...clientQuotes
+                            .filter((q) => q.clientId === c.id)
+                            .map((q) => q.updatedAt ?? q.createdAt ?? 0)
+                        )) /
+                        (1000 * 60 * 60 * 24)
+                    )}d ago`
+                  : "No activity yet"}
+              </div>
 
-{c.status === "quoted" &&
-  quoteCount(c.id) > 0 && (
-    <div className="mt-2 text-[14px] leading-relaxed text-gray-200">
-      Quoted · {clientInvoices.some((i) => i.clientId === c.id) ? <span className="text-[#e8d487] font-medium">Invoiced</span> : "No invoice"} ·{" "}
-      {(() => {
-        const lastQuoteTime = Math.max(
-          0,
-          ...clientQuotes
-            .filter((q) => q.clientId === c.id)
-            .map((q) => q.updatedAt ?? q.createdAt ?? 0)
-        );
-
-        if (!lastQuoteTime) return "—";
-
-        const days = Math.floor(
-          (Date.now() - lastQuoteTime) / (1000 * 60 * 60 * 24)
-        );
-
-        return `${days}d ago`;
-      })()}
-    </div>
-)}
-          
+              {/* Quote Status Badges - Shows workflow status for each quote */}
+              {clientQuotes.filter((q) => q.clientId === c.id).length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {clientQuotes
+                    .filter((q) => q.clientId === c.id)
+                    .slice(0, 3) // Show max 3 quotes
+                    .map((q: any) => {
+                      const status = q.workflowStatus || 'new';
+                      const statusColors: Record<string, string> = {
+                        new: 'bg-gray-600/50 text-gray-300 border-gray-500/50',
+                        docs_sent: 'bg-yellow-600/50 text-yellow-300 border-yellow-500/50',
+                        waiting_prejob: 'bg-orange-600/50 text-orange-300 border-orange-500/50',
+                        ready_to_schedule: 'bg-cyan-600/50 text-cyan-300 border-cyan-500/50',
+                        scheduled: 'bg-blue-600/50 text-blue-300 border-blue-500/50',
+                        in_progress: 'bg-indigo-600/50 text-indigo-300 border-indigo-500/50',
+                        completed: 'bg-green-600/50 text-green-300 border-green-500/50',
+                        invoiced: 'bg-purple-600/50 text-purple-300 border-purple-500/50',
+                        paid: 'bg-emerald-600/50 text-emerald-300 border-emerald-500/50',
+                      };
+                      const statusLabels: Record<string, string> = {
+                        new: 'New',
+                        docs_sent: 'Docs Sent',
+                        waiting_prejob: 'Waiting',
+                        ready_to_schedule: 'Ready',
+                        scheduled: 'Scheduled',
+                        in_progress: 'In Progress',
+                        completed: 'Done',
+                        invoiced: 'Invoiced',
+                        paid: 'Paid',
+                      };
+                      return (
+                        <span
+                          key={q.id}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border ${statusColors[status] || statusColors.new}`}
+                          title={`${q.quoteNumber || q.id}: ${statusLabels[status] || status}`}
+                        >
+                          {q.quoteNumber ? q.quoteNumber.replace('Q-', '#') : 'Q'}: {statusLabels[status] || status}
+                        </span>
+                      );
+                    })}
+                  {clientQuotes.filter((q) => q.clientId === c.id).length > 3 && (
+                    <span className="text-[10px] text-gray-500">
+                      +{clientQuotes.filter((q) => q.clientId === c.id).length - 3} more
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
                 {c.phone && <div>{c.phone}</div>}

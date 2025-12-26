@@ -103,10 +103,12 @@ useEffect(() => {
         <nav className="hidden md:flex items-center gap-5 text-[0.9rem] leading-none">
           <IconLink to="/" label={navDashboard} svg={HomeIcon} />
           <IconLink to="/clients" label={navClients} svg={UsersIcon} />
+          <IconLink to="/companies" label="Companies" svg={BuildingIcon} />
           <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
           <IconLink to="/invoices" label={navInvoices} svg={InvoiceIcon} />
           <IconLink to="/contracts" label={navContracts} svg={ContractIcon} />
           <IconLink to="/documents" label="Documents" svg={DocumentsIcon} />
+          <IconLink to="/calendar" label="Calendar" svg={CalendarIcon} />
           <IconLink to="/services" label={navCatalog} svg={ServicesIcon} />
           <IconLink to="/settings" label={navSettings} svg={CogIcon} />
         </nav>
@@ -190,6 +192,10 @@ useEffect(() => {
   </motion.div>
 
   <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
+    <IconLink to="/companies" label="Companies" svg={BuildingIcon} />
+  </motion.div>
+
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
 
     <IconLink to="/quotes" label={navQuotes} svg={DocumentIcon} />
   </motion.div>
@@ -204,6 +210,10 @@ useEffect(() => {
 
   <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
     <IconLink to="/documents" label="Documents" svg={DocumentsIcon} />
+  </motion.div>
+
+  <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
+    <IconLink to="/calendar" label="Calendar" svg={CalendarIcon} />
   </motion.div>
 
   <motion.div initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10 }} onClick={() => setMobileOpen(false)}>
@@ -451,6 +461,48 @@ function DocumentsIcon(): JSX.Element {
       <path d="M13 2v6h6" stroke="url(#gold-documents)" />
       <path d="M9 13h6" stroke="url(#gold-documents)" />
       <path d="M9 17h4" stroke="url(#gold-documents)" />
+    </svg>
+  );
+}
+
+function CalendarIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
+      <defs>
+        <linearGradient id="gold-calendar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe18d" />
+          <stop offset="100%" stopColor="#d4af37" />
+        </linearGradient>
+      </defs>
+      <rect x="3" y="4" width="18" height="18" rx="2" stroke="url(#gold-calendar)" />
+      <path d="M16 2v4" stroke="url(#gold-calendar)" strokeLinecap="round" />
+      <path d="M8 2v4" stroke="url(#gold-calendar)" strokeLinecap="round" />
+      <path d="M3 10h18" stroke="url(#gold-calendar)" />
+      <path d="M8 14h.01" stroke="url(#gold-calendar)" strokeLinecap="round" />
+      <path d="M12 14h.01" stroke="url(#gold-calendar)" strokeLinecap="round" />
+      <path d="M16 14h.01" stroke="url(#gold-calendar)" strokeLinecap="round" />
+      <path d="M8 18h.01" stroke="url(#gold-calendar)" strokeLinecap="round" />
+      <path d="M12 18h.01" stroke="url(#gold-calendar)" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BuildingIcon(): JSX.Element {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" strokeWidth="1.8">
+      <defs>
+        <linearGradient id="gold-building" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffe18d" />
+          <stop offset="100%" stopColor="#d4af37" />
+        </linearGradient>
+      </defs>
+      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18" stroke="url(#gold-building)" />
+      <path d="M6 12H4a2 2 0 0 0-2 2v8h4" stroke="url(#gold-building)" />
+      <path d="M18 9h2a2 2 0 0 1 2 2v11h-4" stroke="url(#gold-building)" />
+      <path d="M10 6h4" stroke="url(#gold-building)" strokeLinecap="round" />
+      <path d="M10 10h4" stroke="url(#gold-building)" strokeLinecap="round" />
+      <path d="M10 14h4" stroke="url(#gold-building)" strokeLinecap="round" />
+      <path d="M10 18h4" stroke="url(#gold-building)" strokeLinecap="round" />
     </svg>
   );
 }

@@ -24,12 +24,34 @@ import {
   deleteObject,
 } from "firebase/storage";
 
-import type { Attachment, AttachmentType } from "@db/index";
+import type { Attachment, AttachmentType, WorkflowStatus } from "@db/index";
 import { useClientsStore } from "@store/useClientsStore";
 import { useContractsStore } from "@store/useContractsStore";
 import { useConfigStore } from "@store/useConfigStore";
 import ClientDrawer from "@components/ClientDrawer";
 import { useToastStore } from '@store/useToastStore'
+import { Calendar, FileCheck, FileText, Clock, Send, CheckCircle2, X } from 'lucide-react'
+
+// Time options for dropdown
+const timeOptions = [
+  "7:00 AM", "7:30 AM", "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM",
+  "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM",
+  "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM",
+  "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM"
+];
+
+// Workflow status configuration
+const workflowStatuses: { value: WorkflowStatus; label: string; color: string; bgColor: string }[] = [
+  { value: "new", label: "New", color: "text-gray-400", bgColor: "bg-gray-600" },
+  { value: "docs_sent", label: "Docs Sent", color: "text-yellow-400", bgColor: "bg-yellow-600" },
+  { value: "waiting_prejob", label: "Waiting Pre-Job", color: "text-orange-400", bgColor: "bg-orange-600" },
+  { value: "ready_to_schedule", label: "Ready to Schedule", color: "text-cyan-400", bgColor: "bg-cyan-600" },
+  { value: "scheduled", label: "Scheduled", color: "text-blue-400", bgColor: "bg-blue-600" },
+  { value: "in_progress", label: "In Progress", color: "text-indigo-400", bgColor: "bg-indigo-600" },
+  { value: "completed", label: "Completed", color: "text-green-400", bgColor: "bg-green-600" },
+  { value: "invoiced", label: "Invoiced", color: "text-purple-400", bgColor: "bg-purple-600" },
+  { value: "paid", label: "Paid", color: "text-emerald-400", bgColor: "bg-emerald-600" },
+]
 
 
 // -------------------------------------------------------------
@@ -56,6 +78,7 @@ type QuoteSummary = {
   id: string;
   quoteNumber?: string | null;
   status?: string;
+  workflowStatus?: string;
   total?: number;
   createdAt?: number;
 };
@@ -98,6 +121,11 @@ export default function ClientDetail() {
 
   // Edit drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Schedule modal state
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
 
   // -------------------------------------------------------------
   // Load client + their quotes
@@ -179,6 +207,7 @@ export default function ClientDetail() {
             id: d.id,
             quoteNumber: qd.quoteNumber ?? null,
             status: qd.status ?? "pending",
+            workflowStatus: qd.workflowStatus ?? "new",
             total:
               typeof qd.total === "number"
                 ? qd.total
@@ -527,30 +556,9 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
           </div>
 
           <div className="flex flex-wrap gap-2 justify-start md:justify-end">
-            <select
-              className="input text-xs md:text-sm"
-              value={client.status ?? 'new'}
-              onChange={async (e) => {
-                const next = e.target.value
-                setClient((prev: any) => ({ ...prev, status: next }))
-
-                await updateDoc(doc(db, 'clients', client.id), {
-                  status: next,
-                  updatedAt: Date.now(),
-    })
-  }}
-        >
-                <option value="new">New</option>
-                <option value="contacted">Contacted</option>
-                <option value="quoted">Quoted</option>
-                <option value="waiting">Waiting</option>
-                <option value="closed">Closed</option>
-              </select>
-
             <button
               className="btn-outline-gold px-4 py-1.5 text-xs md:text-sm"
               onClick={() => setDrawerOpen(true)}
-
             >
               Edit Client
             </button>
@@ -558,19 +566,244 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
             <button
               className="btn-gold px-4 py-1.5 text-xs md:text-sm"
               onClick={() => navigate(`/quotes/new?clientId=${client.id}`)}
-
-
             >
               New Quote
             </button>
             <button
               className="px-4 py-1.5 text-xs md:text-sm rounded-lg border border-red-500/70 text-red-400 hover:bg-red-500 hover:text-black transition"
               onClick={handleDeleteClient}
-
-
             >
               Delete
             </button>
+          </div>
+        </div>
+
+        {/* WORKFLOW STATUS PIPELINE */}
+        <div className="card p-4 md:p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-[#e8d487] flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Workflow Status
+            </h2>
+
+            {/* Status Dropdown */}
+            <select
+              className="input text-xs md:text-sm"
+              value={client.workflowStatus ?? client.status ?? 'new'}
+              onChange={async (e) => {
+                const next = e.target.value as WorkflowStatus
+                setClient((prev: any) => ({ ...prev, workflowStatus: next, status: next }))
+                await updateDoc(doc(db, 'clients', client.id), {
+                  workflowStatus: next,
+                  status: next,
+                  updatedAt: Date.now(),
+                })
+                useToastStore.getState().show(`Status updated to ${workflowStatuses.find(s => s.value === next)?.label}`)
+              }}
+            >
+              {workflowStatuses.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Pipeline Visualization */}
+          <div className="overflow-x-auto pb-2">
+            <div className="flex items-center gap-1 min-w-max">
+              {workflowStatuses.map((status, idx) => {
+                const currentIdx = workflowStatuses.findIndex(
+                  (s) => s.value === (client.workflowStatus ?? client.status ?? 'new')
+                )
+                const isCompleted = idx < currentIdx
+                const isCurrent = idx === currentIdx
+                const isPending = idx > currentIdx
+
+                return (
+                  <React.Fragment key={status.value}>
+                    <button
+                      onClick={async () => {
+                        setClient((prev: any) => ({ ...prev, workflowStatus: status.value, status: status.value }))
+                        await updateDoc(doc(db, 'clients', client.id), {
+                          workflowStatus: status.value,
+                          status: status.value,
+                          updatedAt: Date.now(),
+                        })
+                        useToastStore.getState().show(`Status updated to ${status.label}`)
+                      }}
+                      className={`
+                        flex flex-col items-center justify-center px-2 py-2 rounded-lg transition-all
+                        min-w-[70px] md:min-w-[80px]
+                        ${isCurrent
+                          ? `${status.bgColor} text-white ring-2 ring-[#e8d487] ring-offset-2 ring-offset-black`
+                          : isCompleted
+                            ? 'bg-green-900/50 text-green-300 border border-green-700/50'
+                            : 'bg-black/30 text-gray-500 border border-gray-700/50 hover:bg-black/50'
+                        }
+                      `}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle2 className="w-4 h-4 mb-1" />
+                      ) : isCurrent ? (
+                        <div className="w-3 h-3 rounded-full bg-white mb-1 animate-pulse" />
+                      ) : (
+                        <div className="w-3 h-3 rounded-full border border-gray-500 mb-1" />
+                      )}
+                      <span className="text-[10px] md:text-[11px] font-medium text-center leading-tight">
+                        {status.label}
+                      </span>
+                    </button>
+
+                    {idx < workflowStatuses.length - 1 && (
+                      <div className={`w-4 h-0.5 ${isCompleted ? 'bg-green-500' : 'bg-gray-700'}`} />
+                    )}
+                  </React.Fragment>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Document Tracking & Scheduling Info */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            {/* Document Status */}
+            <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="w-4 h-4 text-[#e8d487]" />
+                <span className="font-medium text-gray-300">Documents</span>
+              </div>
+              <div className="space-y-1 text-gray-400">
+                <div className="flex items-center justify-between">
+                  <span>Pre-Job Sent:</span>
+                  <span className={client.documentTracking?.preJobSent ? 'text-green-400' : 'text-gray-500'}>
+                    {client.documentTracking?.preJobSent
+                      ? new Date(client.documentTracking.preJobSent).toLocaleDateString()
+                      : 'Not sent'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Pre-Job Received:</span>
+                  <span className={client.documentTracking?.preJobReceived ? 'text-green-400' : 'text-gray-500'}>
+                    {client.documentTracking?.preJobReceived
+                      ? new Date(client.documentTracking.preJobReceived).toLocaleDateString()
+                      : 'Not received'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Prep & Care Sent:</span>
+                  <span className={client.documentTracking?.prepCareSent ? 'text-green-400' : 'text-gray-500'}>
+                    {client.documentTracking?.prepCareSent
+                      ? new Date(client.documentTracking.prepCareSent).toLocaleDateString()
+                      : 'Not sent'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Schedule Info */}
+            <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-4 h-4 text-[#e8d487]" />
+                <span className="font-medium text-gray-300">Schedule</span>
+              </div>
+              {client.scheduledDate ? (
+                <div className="text-gray-300">
+                  <div className="text-lg font-semibold text-[#e8d487]">
+                    {new Date(client.scheduledDate).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </div>
+                  {client.scheduledTime && (
+                    <div className="text-gray-400">@ {client.scheduledTime}</div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-gray-500">Not scheduled</div>
+              )}
+              <button
+                className="mt-2 text-[#e8d487] underline text-[11px]"
+                onClick={() => {
+                  setScheduleDate(client.scheduledDate || '');
+                  setScheduleTime(client.scheduledTime || '');
+                  setShowScheduleModal(true);
+                }}
+              >
+                {client.scheduledDate ? 'Change Schedule' : 'Set Schedule'}
+              </button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Send className="w-4 h-4 text-[#e8d487]" />
+                <span className="font-medium text-gray-300">Quick Actions</span>
+              </div>
+              <div className="space-y-2">
+                <button
+                  className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
+                  onClick={async () => {
+                    setClient((prev: any) => ({
+                      ...prev,
+                      documentTracking: {
+                        ...prev.documentTracking,
+                        preJobSent: Date.now()
+                      },
+                      workflowStatus: 'docs_sent'
+                    }))
+                    await updateDoc(doc(db, 'clients', client.id), {
+                      'documentTracking.preJobSent': Date.now(),
+                      workflowStatus: 'docs_sent',
+                      updatedAt: Date.now(),
+                    })
+                    useToastStore.getState().show('Marked Pre-Job as sent')
+                  }}
+                >
+                  Mark Pre-Job Sent
+                </button>
+                <button
+                  className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
+                  onClick={async () => {
+                    setClient((prev: any) => ({
+                      ...prev,
+                      documentTracking: {
+                        ...prev.documentTracking,
+                        preJobReceived: Date.now()
+                      },
+                      workflowStatus: 'ready_to_schedule'
+                    }))
+                    await updateDoc(doc(db, 'clients', client.id), {
+                      'documentTracking.preJobReceived': Date.now(),
+                      workflowStatus: 'ready_to_schedule',
+                      updatedAt: Date.now(),
+                    })
+                    useToastStore.getState().show('Marked Pre-Job as received - Ready to schedule!')
+                  }}
+                >
+                  Mark Pre-Job Received
+                </button>
+                <button
+                  className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
+                  onClick={async () => {
+                    setClient((prev: any) => ({
+                      ...prev,
+                      documentTracking: {
+                        ...prev.documentTracking,
+                        prepCareSent: Date.now()
+                      }
+                    }))
+                    await updateDoc(doc(db, 'clients', client.id), {
+                      'documentTracking.prepCareSent': Date.now(),
+                      updatedAt: Date.now(),
+                    })
+                    useToastStore.getState().show('Marked Prep & Care as sent')
+                  }}
+                >
+                  Mark Prep & Care Sent
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -892,47 +1125,73 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                 <p className="text-xs text-gray-400">No quotes yet.</p>
               ) : (
                 <div className="space-y-2 text-xs">
-                  {quotes.map((q) => (
-                    <div
-                      key={q.id}
-                      className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
-                    >
-                      <Link
-                        to={`/quotes/${q.id}`}
-                        className="text-[#e8d487] underline break-all"
+                  {quotes.map((q) => {
+                    // Status colors for workflow status
+                    const statusColors: Record<string, string> = {
+                      new: 'bg-gray-800 text-gray-300 border-gray-600',
+                      docs_sent: 'bg-yellow-900/50 text-yellow-300 border-yellow-700/50',
+                      waiting_prejob: 'bg-orange-900/50 text-orange-300 border-orange-700/50',
+                      ready_to_schedule: 'bg-cyan-900/50 text-cyan-300 border-cyan-700/50',
+                      scheduled: 'bg-blue-900/50 text-blue-300 border-blue-700/50',
+                      in_progress: 'bg-indigo-900/50 text-indigo-300 border-indigo-700/50',
+                      completed: 'bg-green-900/50 text-green-300 border-green-700/50',
+                      invoiced: 'bg-purple-900/50 text-purple-300 border-purple-700/50',
+                      paid: 'bg-emerald-900/50 text-emerald-300 border-emerald-700/50',
+                    };
+                    const statusLabels: Record<string, string> = {
+                      new: 'New',
+                      docs_sent: 'Docs Sent',
+                      waiting_prejob: 'Waiting',
+                      ready_to_schedule: 'Ready',
+                      scheduled: 'Scheduled',
+                      in_progress: 'In Progress',
+                      completed: 'Completed',
+                      invoiced: 'Invoiced',
+                      paid: 'Paid',
+                    };
+                    const wfStatus = q.workflowStatus || 'new';
+
+                    return (
+                      <div
+                        key={q.id}
+                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2 border border-[#2a2a2a]"
                       >
-                        {q.quoteNumber || q.id}
-                      </Link>
-                      <div className="text-[11px] text-gray-400 text-right ml-3">
-                        <div>{q.status || "pending"}</div>
-                        {typeof q.total === "number" && (
-                          <div>${q.total.toFixed(2)}</div>
-                        )}
+                        <Link
+                          to={`/quotes/${q.id}`}
+                          className="text-[#e8d487] underline break-all"
+                        >
+                          {q.quoteNumber || q.id}
+                        </Link>
+                        <div className="flex items-center gap-2 ml-3">
+                          <span className={`text-[10px] px-2 py-0.5 rounded border ${statusColors[wfStatus] || statusColors.new}`}>
+                            {statusLabels[wfStatus] || 'New'}
+                          </span>
+                          {typeof q.total === "number" && (
+                            <span className="text-[11px] text-gray-400">${q.total.toFixed(2)}</span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          className="text-[11px] text-red-400 ml-3"
+                          onClick={async () => {
+                            const ok = window.confirm("Delete this quote? This cannot be undone.")
+                            if (!ok) return
+
+                            try {
+                              await deleteDoc(doc(db, "quotes", q.id))
+                              setQuotes((prev) => prev.filter((x) => x.id !== q.id))
+                            } catch (err) {
+                              console.error(err)
+                              useToastStore.getState().show("Failed to delete quote. See console.")
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
                       </div>
-                     
-
-<button
-  type="button"
-  className="text-[11px] text-red-400 ml-3"
-  onClick={async () => {
-    const ok = window.confirm("Delete this quote? This cannot be undone.")
-    if (!ok) return
-
-    try {
-      await deleteDoc(doc(db, "quotes", q.id))
-      setQuotes((prev) => prev.filter((x) => x.id !== q.id))
-    } catch (err) {
-      console.error(err)
-      useToastStore.getState().show("Failed to delete quote. See console.")
-    }
-  }}
->
-  Delete
-</button>
-
-
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1019,6 +1278,107 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
           </div>
         </div>
       </div>
+
+      {/* SCHEDULE MODAL */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#e8d487]">Schedule Job</h3>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Date Picker */}
+              <div>
+                <label className="block text-sm text-gray-300 mb-2">Date</label>
+                <input
+                  type="date"
+                  className="input w-full"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                />
+              </div>
+
+              {/* Time Dropdown */}
+              <div>
+                <label className="block text-sm text-gray-300 mb-2">Time</label>
+                <select
+                  className="input w-full"
+                  value={scheduleTime}
+                  onChange={(e) => setScheduleTime(e.target.value)}
+                >
+                  <option value="">Select a time...</option>
+                  {timeOptions.map((time) => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  className="btn-gold flex-1"
+                  onClick={async () => {
+                    setClient((prev: any) => ({
+                      ...prev,
+                      scheduledDate: scheduleDate || undefined,
+                      scheduledTime: scheduleTime || undefined,
+                      workflowStatus: scheduleDate ? 'scheduled' : prev.workflowStatus
+                    }));
+                    await updateDoc(doc(db, 'clients', client.id), {
+                      scheduledDate: scheduleDate || null,
+                      scheduledTime: scheduleTime || null,
+                      workflowStatus: scheduleDate ? 'scheduled' : client.workflowStatus,
+                      updatedAt: Date.now(),
+                    });
+                    setShowScheduleModal(false);
+                    if (scheduleDate) {
+                      useToastStore.getState().show('Job scheduled!');
+                    }
+                  }}
+                >
+                  Save Schedule
+                </button>
+                <button
+                  className="btn-outline-gold flex-1"
+                  onClick={() => setShowScheduleModal(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {/* Clear Schedule */}
+              {client.scheduledDate && (
+                <button
+                  className="w-full text-red-400 text-sm underline mt-2"
+                  onClick={async () => {
+                    setClient((prev: any) => ({
+                      ...prev,
+                      scheduledDate: undefined,
+                      scheduledTime: undefined,
+                    }));
+                    await updateDoc(doc(db, 'clients', client.id), {
+                      scheduledDate: null,
+                      scheduledTime: null,
+                      updatedAt: Date.now(),
+                    });
+                    setShowScheduleModal(false);
+                    useToastStore.getState().show('Schedule cleared');
+                  }}
+                >
+                  Clear Schedule
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EDIT CLIENT DRAWER */}
       <ClientDrawer

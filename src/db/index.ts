@@ -4,7 +4,7 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 
 // ------------------ Shared Types ------------------
 
-export type AttachmentType = "photo" | "document" | "contract" | "care_sheet";
+export type AttachmentType = "photo" | "document" | "contract" | "care_sheet" | "pre_job" | "prep_care";
 
 export type Attachment = {
   id: string;
@@ -66,8 +66,28 @@ export type Client = {
   zip?: string;
 
   notes?: string;
+
+  // Legacy status (keeping for backwards compatibility)
   status?: 'new' | 'contacted' | 'quoted' | 'waiting' | 'closed'
 
+  // NEW: Workflow pipeline status
+  workflowStatus?: 'new' | 'docs_sent' | 'waiting_prejob' | 'ready_to_schedule' | 'scheduled' | 'in_progress' | 'completed' | 'invoiced' | 'paid';
+
+  // NEW: Document tracking
+  documentTracking?: {
+    preJobSent?: number;
+    preJobReceived?: number;
+    preJobAttachmentId?: string;
+    prepCareSent?: number;
+    homeownerPrepSent?: number;
+  };
+
+  // NEW: Scheduling
+  scheduledDate?: string;   // ISO date string (YYYY-MM-DD)
+  scheduledTime?: string;   // Time string (e.g., "9:00 AM")
+
+  // NEW: Optional link to a company (for property managed units)
+  companyId?: string;
 
   // legacy
   photos?: string[];
@@ -162,9 +182,24 @@ export type Quote = {
   // Jobsite readiness acknowledgment
   jobsiteReadyAcknowledged?: boolean;
   jobsiteReadyAcknowledgedAt?: number;
-  
+
   // Water shutoff election (voids warranty)
   waterShutoffElected?: boolean;
+
+  // NEW: Document tracking per quote (for workflow pipeline)
+  documentTracking?: {
+    preJobSent?: number;      // timestamp when pre-job was sent
+    preJobReceived?: number;  // timestamp when pre-job was received back
+    preJobAttachmentId?: string; // link to the received pre-job PDF
+    prepCareSent?: number;    // timestamp when prep & care was sent
+  };
+
+  // NEW: Workflow status for this specific quote/job
+  workflowStatus?: WorkflowStatus;
+
+  // NEW: Scheduling specific to this quote
+  scheduledDate?: string;   // ISO date string (YYYY-MM-DD)
+  scheduledTime?: string;   // Time string (e.g., "9:00 AM")
 };
 
 export type InvoiceStatus = "unpaid" | "partial" | "paid" | "refunded";
@@ -270,6 +305,97 @@ export type ServiceCatalog = {
       warning?: string;
     }>;
   }>;
+};
+
+// ------------------ Workflow & Property Management ------------------
+
+/**
+ * Workflow status for tracking jobs through the pipeline
+ */
+export type WorkflowStatus =
+  | "new"              // Just added, no action taken
+  | "docs_sent"        // Pre-job & prep docs sent to client/manager
+  | "waiting_prejob"   // Waiting for pre-job form to be returned
+  | "ready_to_schedule" // Have pre-job back, can schedule
+  | "scheduled"        // Date/time set for the job
+  | "in_progress"      // Currently working on the job
+  | "completed"        // Work finished
+  | "invoiced"         // Invoice sent
+  | "paid";            // Payment received
+
+/**
+ * Document tracking - what was sent and received
+ */
+export type DocumentTracking = {
+  preJobSent?: number;      // timestamp when pre-job was sent
+  preJobReceived?: number;  // timestamp when pre-job was received back
+  preJobAttachmentId?: string; // link to the received pre-job PDF
+  prepCareSent?: number;    // timestamp when prep & care was sent
+  homeownerPrepSent?: number; // timestamp when homeowner prep was sent
+};
+
+/**
+ * Property/Unit - individual apartment or location within a company
+ */
+export type Property = {
+  id: string;
+  companyId: string;        // parent company
+  tenantId: string;
+
+  // Location
+  address: string;          // Street address
+  unit?: string;            // Apt/Unit number (e.g., "1A", "Unit 5")
+  city?: string;
+  state?: string;
+  zip?: string;
+
+  // Workflow
+  workflowStatus: WorkflowStatus;
+  documentTracking?: DocumentTracking;
+
+  // Scheduling
+  scheduledDate?: string;   // ISO date string (YYYY-MM-DD)
+  scheduledTime?: string;   // Time string (e.g., "9:00 AM")
+
+  // Links to related records
+  quoteId?: string;
+  invoiceId?: string;
+  contractId?: string;
+
+  // Notes and attachments
+  notes?: string;
+  attachments?: Attachment[];
+
+  createdAt: number;
+  updatedAt: number;
+};
+
+/**
+ * Company - Property management company with multiple properties
+ */
+export type Company = {
+  id: string;
+  tenantId: string;
+
+  // Company info
+  name: string;             // e.g., "ABC Property Management"
+  contactName?: string;     // Primary contact person
+  phone?: string;
+  email?: string;
+
+  // Billing address (where invoices go)
+  billingAddress?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingZip?: string;
+
+  // Notes and conversations
+  notes?: string;
+  conversations?: ConversationEntry[];
+  attachments?: Attachment[];
+
+  createdAt: number;
+  updatedAt: number;
 };
 
 // ------------------ Local Dexie DB ------------------
