@@ -54,9 +54,56 @@ export type ChecklistItem = {
   checked: boolean;
   answer?: string;
   checkedAt?: number;
+  answerType?: 'text' | 'number' | 'date' | 'dropdown' | 'file';
   // Predefined answer options (if empty, just shows text input)
   answerOptions?: string[];
 };
+
+// Default checklist questions for fallback
+export const DEFAULT_CHECKLIST_QUESTIONS: ChecklistItem[] = [
+  {
+    id: "what-are-we-refinishing",
+    question: "What are we refinishing?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Tub", "Shower", "Tub & Shower", "Tile", "Countertop", "Other"],
+  },
+  {
+    id: "chips-cracks-peeling",
+    question: "Any chips, cracks, peeling, rust, or old coatings?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["None", "Minor chips", "Cracks", "Peeling/rust", "Previous coating", "Other"],
+  },
+  {
+    id: "color-change",
+    question: "Keeping white or changing color?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Keeping white", "Color change", "Not sure", "Other"],
+  },
+  {
+    id: "home-or-rental",
+    question: "Home or rental?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Own home", "Rental property", "Other"],
+  },
+  {
+    id: "job-town",
+    question: "What town is the job in?",
+    checked: false,
+    answerType: "text",
+    answerOptions: [],
+  },
+  {
+    id: "how-did-they-hear",
+    question: "How did they hear about us?",
+    checked: false,
+    answerType: "dropdown",
+    answerOptions: ["Google", "Facebook", "Referral", "Home Advisor", "Repeat Customer", "Other"],
+  },
+];
 
 // ------------------ Core Entities ------------------
 
@@ -320,10 +367,10 @@ export type Settings = {
     voicemail: string;
     followUpText: string;
   };
-  // Default intake checklist questions for new clients
-  defaultChecklistQuestions?: string[];
+  // Default intake checklist questions for new clients (full objects)
+  defaultChecklistQuestions?: ChecklistItem[];
   // Property Manager intake questions (separate flow)
-  propertyManagerChecklistQuestions?: string[];
+  propertyManagerChecklistQuestions?: ChecklistItem[];
   // Default answer options for each question (keyed by question text)
   defaultChecklistAnswerOptions?: Record<string, string[]>;
 };

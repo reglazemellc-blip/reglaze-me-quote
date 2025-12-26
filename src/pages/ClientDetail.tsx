@@ -31,7 +31,7 @@ import { useConfigStore } from "@store/useConfigStore";
 import { useSettingsStore } from "@store/useSettingsStore";
 import ClientDrawer from "@components/ClientDrawer";
 import { useToastStore } from '@store/useToastStore'
-import { Calendar, FileCheck, FileText, Clock, Send, CheckCircle2, X, Phone, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Calendar, FileCheck, FileText, Clock, Send, CheckCircle2, X, Phone, Pencil, Plus, Trash2, RefreshCw } from 'lucide-react'
 
 // Time options for dropdown
 const timeOptions = [
@@ -75,16 +75,6 @@ function createId() {
   }
   return Math.random().toString(36).slice(2);
 }
-
-type ConversationChannel = "call" | "text" | "email" | "in_person" | "other";
-
-type ConversationEntry = {
-  id: string;
-  message: string;
-  channel: ConversationChannel;
-  createdAt: number;
-  attachments?: { url: string; name: string }[];
-};
 
 type QuoteSummary = {
   id: string;
@@ -235,15 +225,6 @@ export default function ClientDetail() {
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Conversations
-  const [newChannel, setNewChannel] = useState<ConversationChannel>("text");
-  const [newMessage, setNewMessage] = useState("");
-  const [convUploading, setConvUploading] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState("");
-  const [editingChannel, setEditingChannel] =
-    useState<ConversationChannel>("text");
-
   // Quotes for this client
   const [quotes, setQuotes] = useState<QuoteSummary[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(true);
@@ -265,10 +246,63 @@ export default function ClientDetail() {
   // Checklist editing state
   const [editingChecklist, setEditingChecklist] = useState(false);
   const [newQuestionText, setNewQuestionText] = useState('');
+  const [newQuestionType, setNewQuestionType] = useState<'text' | 'dropdown'>('text');
+  const [newQuestionOptions, setNewQuestionOptions] = useState<string[]>([]);
+  const [newOptionText, setNewOptionText] = useState('');
   const [saveToDefaults, setSaveToDefaults] = useState(false);
+  const [syncingFromSettings, setSyncingFromSettings] = useState(false);
 
   // Settings for call script
   const { settings } = useSettingsStore();
+
+  // -------------------------------------------------------------
+  // Sync checklist from settings
+  // -------------------------------------------------------------
+  const syncChecklistFromSettings = async () => {
+    if (!client || !clientId || syncingFromSettings) return;
+    
+    setSyncingFromSettings(true);
+    try {
+      const defaultQuestions = settings?.defaultChecklistQuestions || DEFAULT_CHECKLIST_QUESTIONS;
+      
+      // Create fresh checklist from current defaults, preserving structure
+      const newChecklist: ChecklistItem[] = defaultQuestions.map((q, i) => {
+        if (typeof q === 'string') {
+          return {
+            id: `check_${i}`,
+            question: q,
+            checked: false,
+            answer: '',
+            answerType: 'text',
+            answerOptions: [],
+          };
+        } else {
+          return {
+            ...q,
+            id: `check_${i}`,
+            checked: false,
+            answer: '',
+          };
+        }
+      });
+      
+      // Update local state
+      setClient({ ...client, checklist: newChecklist });
+      
+      // Save to Firestore
+      await updateDoc(doc(db, 'clients', clientId), {
+        checklist: newChecklist,
+        updatedAt: Date.now(),
+      });
+      
+      useToastStore.getState().show('Checklist synced from settings', 'success');
+    } catch (error) {
+      console.error('Failed to sync checklist:', error);
+      useToastStore.getState().show('Failed to sync checklist', 'error');
+    } finally {
+      setSyncingFromSettings(false);
+    }
+  };
 
   // -------------------------------------------------------------
   // Load client + their quotes
@@ -329,12 +363,27 @@ export default function ClientDetail() {
         const defaultQuestions = useSettingsStore.getState().settings?.defaultChecklistQuestions || DEFAULT_CHECKLIST_QUESTIONS;
         const checklist: ChecklistItem[] = savedChecklist.length > 0 
           ? savedChecklist 
-          : defaultQuestions.map((q, i) => ({
-              id: `check_${i}`,
-              question: q,
-              checked: false,
-              answer: '',
-            }));
+          : defaultQuestions.map((q, i) => {
+              // Handle both old string format and new ChecklistItem format
+              if (typeof q === 'string') {
+                return {
+                  id: `check_${i}`,
+                  question: q,
+                  checked: false,
+                  answer: '',
+                  answerType: 'text',
+                  answerOptions: [],
+                };
+              } else {
+                // Copy all fields from the default ChecklistItem
+                return {
+                  ...q,
+                  id: `check_${i}`,
+                  checked: false,
+                  answer: '',
+                };
+              }
+            });
 
         setClient({
           id: snap.id,
@@ -540,143 +589,6 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
   }
 
   // -------------------------------------------------------------
-  // Conversations
-  // -------------------------------------------------------------
-  async function addConversation() {
-    if (!client) return;
-    if (!newMessage.trim()) return;
-
-    const entry: ConversationEntry = {
-      id: String(Date.now()),
-      message: newMessage.trim(),
-      channel: newChannel,
-      createdAt: Date.now(),
-      attachments: [],
-    };
-
-    const refDoc = doc(db, "clients", client.id);
-
-    const existing: ConversationEntry[] = client.conversations || [];
-    const updatedList = [...existing, entry];
-
-    await updateDoc(refDoc, {
-      conversations: updatedList,
-    });
-
-    setClient((prev: any) => ({
-      ...prev,
-      conversations: updatedList,
-    }));
-
-    setNewMessage("");
-  }
-
-  function startEditConversation(c: ConversationEntry) {
-    setEditingId(c.id);
-    setEditingText(c.message);
-    setEditingChannel(c.channel);
-  }
-
-  function cancelEditConversation() {
-    setEditingId(null);
-    setEditingText("");
-  }
-
-  async function saveEditConversation() {
-    if (!client || !editingId) return;
-    const text = editingText.trim();
-    if (!text) return;
-
-    const refDoc = doc(db, "clients", client.id);
-
-    const existing: ConversationEntry[] = client.conversations || [];
-    const updatedList = existing.map((c) =>
-      c.id === editingId
-        ? { ...c, message: text, channel: editingChannel }
-        : c
-    );
-
-    await updateDoc(refDoc, {
-      conversations: updatedList,
-    });
-
-    setClient((prev: any) => ({
-      ...prev,
-      conversations: updatedList,
-    }));
-
-    setEditingId(null);
-    setEditingText("");
-  }
-
-  async function deleteConversation(entry: ConversationEntry) {
-    if (!client) return;
-
-    const refDoc = doc(db, "clients", client.id);
-    const existing: ConversationEntry[] = client.conversations || [];
-    const updatedList = existing.filter((c) => c.id !== entry.id);
-
-    await updateDoc(refDoc, {
-      conversations: updatedList,
-    });
-
-    setClient((prev: any) => ({
-      ...prev,
-      conversations: updatedList,
-    }));
-
-    if (editingId === entry.id) {
-      setEditingId(null);
-      setEditingText("");
-    }
-  }
-
-  async function uploadConversationFile(
-    e: React.ChangeEvent<HTMLInputElement>,
-    conv: ConversationEntry
-  ) {
-    if (!client) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setConvUploading(true);
-
-    try {
-      const storageRef = ref(
-        storage,
-        `clients/${client.id}/conversations/${conv.id}_${file.name}`
-      );
-
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-
-      const updatedConv: ConversationEntry = {
-        ...conv,
-        attachments: [...(conv.attachments || []), { url, name: file.name }],
-      };
-
-      const existing: ConversationEntry[] = client.conversations || [];
-      const updatedList = existing.map((c) =>
-        c.id === conv.id ? updatedConv : c
-      );
-
-      const refDoc = doc(db, "clients", client.id);
-      await updateDoc(refDoc, { conversations: updatedList });
-
-      setClient((prev: any) => ({
-        ...prev,
-        conversations: updatedList,
-      }));
-    } catch (err) {
-      console.error(err);
-      useToastStore.getState().show("Failed to upload file.");
-    } finally {
-      setConvUploading(false);
-      e.target.value = "";
-    }
-  }
-
-  // -------------------------------------------------------------
   // Render
   // -------------------------------------------------------------
   if (loading)
@@ -689,7 +601,6 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
       <div className="text-center p-10 text-red-400">Client not found.</div>
     );
 
-  const conversations: ConversationEntry[] = client.conversations || [];
   const reminders = client.reminders || [];
 
   const allAttachments: Attachment[] = client.attachments || [];
@@ -1068,170 +979,6 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
 
           {/* RIGHT COLUMN -------------------------------------------------- */}
           <div className="space-y-4 md:space-y-5">
-            {/* CONVERSATIONS */}
-            <div className="card p-5 md:p-6 space-y-3">
-              <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
-                Conversations
-              </h2>
-
-              {/* composer */}
-              <div className="space-y-2">
-                <div className="flex flex-col md:flex-row md:items-center gap-2">
-                  <select
-                    className="input md:w-40 text-xs"
-                    value={newChannel}
-                    onChange={(e) =>
-                      setNewChannel(e.target.value as ConversationChannel)
-                    }
-                  >
-                    <option value="call">Call</option>
-                    <option value="text">Text</option>
-                    <option value="email">Email</option>
-                    <option value="in_person">In person</option>
-                    <option value="other">Other</option>
-                  </select>
-
-                  <textarea
-                    className="input flex-1 h-20 text-xs"
-                    placeholder="Paste conversation or notes…"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                  />
-                </div>
-
-                <button
-                  className="btn-gold text-xs px-3 py-1.5"
-                  onClick={addConversation}
-
-
-                >
-                  Add Conversation
-                </button>
-              </div>
-
-              {convUploading && (
-                <div className="text-[11px] text-gray-400">
-                  Uploading file…
-                </div>
-              )}
-
-              <div className="space-y-3 mt-1">
-                {conversations.length === 0 && (
-                  <p className="text-xs text-gray-400">
-                    No conversation logs.
-                  </p>
-                )}
-
-                {conversations.map((c) => (
-                  <div
-                    key={c.id}
-                    className="p-3 bg-black/40 rounded border border-[#2a2a2a] text-xs"
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1">
-                        <div className="text-[10px] text-gray-400">
-                          {new Date(c.createdAt).toLocaleString()} —{" "}
-                          {c.channel}
-                        </div>
-
-                        {editingId === c.id ? (
-                          <div className="mt-2 space-y-2">
-                            <select
-                              className="input w-40 text-[11px]"
-                              value={editingChannel}
-                              onChange={(e) =>
-                                setEditingChannel(
-                                  e.target.value as ConversationChannel
-                                )
-                              }
-                            >
-                              <option value="call">Call</option>
-                              <option value="text">Text</option>
-                              <option value="email">Email</option>
-                              <option value="in_person">In person</option>
-                              <option value="other">Other</option>
-                            </select>
-
-                            <textarea
-                              className="input w-full h-20 text-xs"
-                              value={editingText}
-                              onChange={(e) =>
-                                setEditingText(e.target.value)
-                              }
-                            />
-
-                            <div className="flex gap-2">
-                              <button
-                                className="btn-gold text-[11px] px-3"
-                                onClick={saveEditConversation}
-                              >
-                                Save
-                              </button>
-                              <button
-                                className="btn-outline-gold text-[11px] px-3"
-                                onClick={cancelEditConversation}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="whitespace-pre-line mt-1">
-                            {c.message}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1">
-                        <button
-                          className="text-[11px] text-gray-300"
-                          onClick={() => startEditConversation(c)}
-
-
-                        >
-                          ✎ Edit
-                        </button>
-                        <button
-                          className="text-[11px] text-red-400"
-                          onClick={() => deleteConversation(c)}
-
-
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-
-                    {(c.attachments || []).length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {c.attachments!.map((a: any, idx: number) => (
-                          <a
-                            key={idx}
-                            href={a.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block text-[#e8d487] underline text-[11px]"
-                          >
-                            {a.name}
-                          </a>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-2">
-                      <input
-                        type="file"
-                        onChange={(e) => uploadConversationFile(e, c)}
-
-
-                        className="text-[11px]"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* CALL SCRIPT */}
             {/* CALL SCRIPTS */}
             {(settings?.homeownerScripts || settings?.propertyManagerScripts || settings?.callScript) && (
@@ -1248,21 +995,39 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                 <h2 className="text-sm font-semibold border-l-2 border-[#e8d487] pl-2">
                   Intake Checklist
                 </h2>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setEditingChecklist(!editingChecklist);
-                  }}
-                  className={`text-xs flex items-center gap-1 px-2 py-1 rounded transition ${
-                    editingChecklist 
-                      ? 'bg-[#e8d487] text-black' 
-                      : 'text-[#e8d487] hover:bg-black/40'
-                  }`}
-                >
-                  <Pencil className="w-3 h-3" />
-                  {editingChecklist ? 'Done' : 'Edit'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (confirm('Replace this checklist with current settings defaults? This will erase all current answers and questions.')) {
+                        syncChecklistFromSettings();
+                      }
+                    }}
+                    disabled={syncingFromSettings}
+                    className="text-xs flex items-center gap-1 px-2 py-1 rounded transition text-gray-400 hover:text-[#e8d487] hover:bg-black/40 disabled:opacity-50"
+                    title="Sync from Settings"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${syncingFromSettings ? 'animate-spin' : ''}`} />
+                    Sync
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setEditingChecklist(!editingChecklist);
+                    }}
+                    className={`text-xs flex items-center gap-1 px-2 py-1 rounded transition ${
+                      editingChecklist 
+                        ? 'bg-[#e8d487] text-black' 
+                        : 'text-[#e8d487] hover:bg-black/40'
+                    }`}
+                  >
+                    <Pencil className="w-3 h-3" />
+                    {editingChecklist ? 'Done' : 'Edit'}
+                  </button>
+                </div>
               </summary>
 
               <div className="space-y-3">
@@ -1435,7 +1200,7 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
 
                 {/* Add new question (when editing) */}
                 {editingChecklist && (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 p-3 bg-black/20 rounded-lg border border-gray-700/50 space-y-3">
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -1443,83 +1208,137 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                         placeholder="Add a new question..."
                         value={newQuestionText}
                         onChange={(e) => setNewQuestionText(e.target.value)}
-                        onKeyDown={async (e) => {
-                          if (e.key === 'Enter' && newQuestionText.trim()) {
-                            const newItem: ChecklistItem = {
-                              id: `check_${Date.now()}`,
-                              question: newQuestionText.trim(),
-                              checked: false,
-                              answer: '',
-                            };
-                            const newChecklist = [...(client.checklist || []), newItem];
-                            setClient({ ...client, checklist: newChecklist });
-                            
-                            // Save to defaults if checkbox is checked
-                            if (saveToDefaults && settings) {
-                              const currentDefaults = settings.defaultChecklistQuestions || [];
-                              if (!currentDefaults.includes(newQuestionText.trim())) {
-                                await useSettingsStore.getState().update({
-                                  defaultChecklistQuestions: [...currentDefaults, newQuestionText.trim()]
-                                });
-                              }
-                              setSaveToDefaults(false);
-                            }
-                            
-                            setNewQuestionText('');
-                            await updateDoc(doc(db, 'clients', client.id), {
-                              checklist: newChecklist,
-                              updatedAt: Date.now(),
-                            });
-                          }
-                        }}
                       />
-                      <button
-                        type="button"
-                        className="px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition disabled:opacity-50"
-                        disabled={!newQuestionText.trim()}
-                        onClick={async () => {
-                          if (newQuestionText.trim()) {
-                            const newItem: ChecklistItem = {
-                              id: `check_${Date.now()}`,
-                              question: newQuestionText.trim(),
-                              checked: false,
-                              answer: '',
-                            };
-                            const newChecklist = [...(client.checklist || []), newItem];
-                            setClient({ ...client, checklist: newChecklist });
-                            
-                            // Save to defaults if checkbox is checked
-                            if (saveToDefaults && settings) {
-                              const currentDefaults = settings.defaultChecklistQuestions || [];
-                              if (!currentDefaults.includes(newQuestionText.trim())) {
-                                await useSettingsStore.getState().update({
-                                  defaultChecklistQuestions: [...currentDefaults, newQuestionText.trim()]
-                                });
-                              }
-                              setSaveToDefaults(false);
-                            }
-                            
-                            setNewQuestionText('');
-                            await updateDoc(doc(db, 'clients', client.id), {
-                              checklist: newChecklist,
-                              updatedAt: Date.now(),
-                            });
-                          }
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
                     </div>
+                    
                     {newQuestionText.trim() && (
-                      <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={saveToDefaults}
-                          onChange={(e) => setSaveToDefaults(e.target.checked)}
-                          className="w-3 h-3 rounded border-gray-600 bg-black/40 text-[#e8d487] focus:ring-[#e8d487] focus:ring-offset-0"
-                        />
-                        Also save to default questions for new clients
-                      </label>
+                      <>
+                        <div className="flex gap-2">
+                          <label className="text-xs text-gray-400">Answer Type:</label>
+                          <select
+                            className="flex-1 bg-black/40 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 focus:border-[#e8d487] focus:outline-none"
+                            value={newQuestionType}
+                            onChange={(e) => setNewQuestionType(e.target.value as 'text' | 'dropdown')}
+                          >
+                            <option value="text">Text</option>
+                            <option value="dropdown">Dropdown</option>
+                          </select>
+                        </div>
+                        
+                        {newQuestionType === 'dropdown' && (
+                          <div className="space-y-2">
+                            <label className="text-xs text-gray-400">Dropdown Options:</label>
+                            <div className="space-y-1">
+                              {newQuestionOptions.map((opt, idx) => (
+                                <div key={idx} className="flex items-center gap-2 text-xs">
+                                  <span className="flex-1 bg-black/40 px-2 py-1 rounded text-gray-200">{opt}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setNewQuestionOptions(newQuestionOptions.filter((_, i) => i !== idx))}
+                                    className="text-red-400 hover:text-red-300"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                className="flex-1 bg-black/40 border border-gray-700 rounded px-2 py-1 text-xs text-gray-200 placeholder-gray-400 focus:border-[#e8d487] focus:outline-none"
+                                placeholder="Add option..."
+                                value={newOptionText}
+                                onChange={(e) => setNewOptionText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newOptionText.trim()) {
+                                    setNewQuestionOptions([...newQuestionOptions, newOptionText.trim()]);
+                                    setNewOptionText('');
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (newOptionText.trim()) {
+                                    setNewQuestionOptions([...newQuestionOptions, newOptionText.trim()]);
+                                    setNewOptionText('');
+                                  }
+                                }}
+                                disabled={!newOptionText.trim()}
+                                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-xs transition disabled:opacity-50"
+                              >
+                                Add
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={saveToDefaults}
+                            onChange={(e) => setSaveToDefaults(e.target.checked)}
+                            className="w-3 h-3 rounded border-gray-600 bg-black/40 text-[#e8d487] focus:ring-[#e8d487] focus:ring-offset-0"
+                          />
+                          Also save to default questions for new clients
+                        </label>
+                        
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="flex-1 px-3 py-2 bg-[#e8d487] text-black rounded font-medium text-sm hover:bg-[#ffd700] transition"
+                            onClick={async () => {
+                              const newItem: ChecklistItem = {
+                                id: `check_${Date.now()}`,
+                                question: newQuestionText.trim(),
+                                checked: false,
+                                answer: '',
+                                answerType: newQuestionType,
+                                answerOptions: newQuestionType === 'dropdown' ? newQuestionOptions : [],
+                              };
+                              const newChecklist = [...(client.checklist || []), newItem];
+                              setClient({ ...client, checklist: newChecklist });
+                              
+                              // Save to defaults if checkbox is checked
+                              if (saveToDefaults && settings) {
+                                const currentDefaults = settings.defaultChecklistQuestions || [];
+                                const questionExists = currentDefaults.some((q) => 
+                                  typeof q === 'string' ? q === newQuestionText.trim() : q.question === newQuestionText.trim()
+                                );
+                                if (!questionExists) {
+                                  await useSettingsStore.getState().update({
+                                    defaultChecklistQuestions: [...currentDefaults, newItem]
+                                  });
+                                }
+                                setSaveToDefaults(false);
+                              }
+                              
+                              setNewQuestionText('');
+                              setNewQuestionType('text');
+                              setNewQuestionOptions([]);
+                              await updateDoc(doc(db, 'clients', client.id), {
+                                checklist: newChecklist,
+                                updatedAt: Date.now(),
+                              });
+                            }}
+                          >
+                            Add Question
+                          </button>
+                          <button
+                            type="button"
+                            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded text-sm transition"
+                            onClick={() => {
+                              setNewQuestionText('');
+                              setNewQuestionType('text');
+                              setNewQuestionOptions([]);
+                              setNewOptionText('');
+                              setSaveToDefaults(false);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}

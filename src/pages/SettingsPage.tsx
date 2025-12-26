@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useSettingsStore } from '@store/useSettingsStore'
 import { useConfigStore } from '@store/useConfigStore'
 import type { BusinessProfile, AppLabels, Theme, ContractTemplate } from '../config'
+import type { ChecklistItem } from '../db/index'
+import { DEFAULT_CHECKLIST_QUESTIONS } from '../db/index'
 
 
 import { storage } from '../firebase'
@@ -383,7 +385,7 @@ function CallScriptSection() {
     voicemail: '',
     followUpText: '',
   })
-  const [homeownerQuestions, setHomeownerQuestions] = useState<string[]>(settings?.defaultChecklistQuestions || [])
+  const [homeownerQuestions, setHomeownerQuestions] = useState<ChecklistItem[]>(settings?.defaultChecklistQuestions && settings.defaultChecklistQuestions.length > 0 ? settings.defaultChecklistQuestions : DEFAULT_CHECKLIST_QUESTIONS)
   
   // Property Manager state
   const [pmScripts, setPmScripts] = useState(settings?.propertyManagerScripts || {
@@ -392,7 +394,7 @@ function CallScriptSection() {
     voicemail: '',
     followUpText: '',
   })
-  const [pmQuestions, setPmQuestions] = useState<string[]>(settings?.propertyManagerChecklistQuestions || [])
+  const [pmQuestions, setPmQuestions] = useState<ChecklistItem[]>(settings?.propertyManagerChecklistQuestions || [])
   
   // Shared
   const [answerOptions, setAnswerOptions] = useState<Record<string, string[]>>(settings?.defaultChecklistAnswerOptions || {})
@@ -408,7 +410,7 @@ function CallScriptSection() {
         voicemail: '',
         followUpText: '',
       })
-      setHomeownerQuestions(settings.defaultChecklistQuestions || [])
+      setHomeownerQuestions(settings.defaultChecklistQuestions && settings.defaultChecklistQuestions.length > 0 ? settings.defaultChecklistQuestions : DEFAULT_CHECKLIST_QUESTIONS)
       setPmScripts(settings.propertyManagerScripts || {
         outbound: '',
         inbound: '',
@@ -426,8 +428,8 @@ function CallScriptSection() {
       await update({
         homeownerScripts,
         propertyManagerScripts: pmScripts,
-        defaultChecklistQuestions: homeownerQuestions.filter(q => q.trim()),
-        propertyManagerChecklistQuestions: pmQuestions.filter(q => q.trim()),
+        defaultChecklistQuestions: homeownerQuestions,
+        propertyManagerChecklistQuestions: pmQuestions,
         defaultChecklistAnswerOptions: answerOptions,
       })
       useToastStore.getState().show('Scripts & checklists saved!')
@@ -439,64 +441,58 @@ function CallScriptSection() {
   }
 
   // Current questions based on tab
-  const questions = activeTab === 'homeowner' ? homeownerQuestions : pmQuestions
+  const questions: ChecklistItem[] = activeTab === 'homeowner' ? homeownerQuestions : pmQuestions
   const setQuestions = activeTab === 'homeowner' ? setHomeownerQuestions : setPmQuestions
   const scripts = activeTab === 'homeowner' ? homeownerScripts : pmScripts
   const setScripts = activeTab === 'homeowner' ? setHomeownerScripts : setPmScripts
 
   const addQuestion = () => {
     if (newQuestion.trim()) {
-      setQuestions([...questions, newQuestion.trim()])
-      setNewQuestion('')
+      const newItem: ChecklistItem = {
+        id: Math.random().toString(36).slice(2),
+        question: newQuestion.trim(),
+        checked: false,
+        answerType: 'text',
+        answerOptions: [],
+      };
+      setQuestions([...questions, newItem]);
+      setNewQuestion('');
     }
   }
 
   const removeQuestion = (idx: number) => {
-    const questionToRemove = questions[idx]
-    setQuestions(questions.filter((_, i) => i !== idx))
-    const newOptions = { ...answerOptions }
-    delete newOptions[questionToRemove]
-    setAnswerOptions(newOptions)
+    setQuestions(questions.filter((_, i) => i !== idx));
   }
 
-  const updateQuestion = (idx: number, oldQuestion: string, newValue: string) => {
-    const updated = [...questions]
-    updated[idx] = newValue
-    setQuestions(updated)
-    if (oldQuestion !== newValue && answerOptions[oldQuestion]) {
-      const newOptions = { ...answerOptions }
-      newOptions[newValue] = newOptions[oldQuestion]
-      delete newOptions[oldQuestion]
-      setAnswerOptions(newOptions)
-    }
+  const updateQuestion = (idx: number, field: keyof ChecklistItem, value: any) => {
+    const updated = [...questions];
+    updated[idx] = { ...updated[idx], [field]: value };
+    setQuestions(updated);
   }
 
-  const addAnswerOption = (question: string) => {
+  const addAnswerOption = (idx: number) => {
     if (newOptionText.trim()) {
-      const currentOptions = answerOptions[question] || []
-      setAnswerOptions({
-        ...answerOptions,
-        [question]: [...currentOptions, newOptionText.trim()]
-      })
-      setNewOptionText('')
+      const updated = [...questions];
+      const opts = updated[idx].answerOptions || [];
+      updated[idx] = { ...updated[idx], answerOptions: [...opts, newOptionText.trim()] };
+      setQuestions(updated);
+      setNewOptionText('');
     }
   }
 
-  const removeAnswerOption = (question: string, optionIdx: number) => {
-    const currentOptions = answerOptions[question] || []
-    setAnswerOptions({
-      ...answerOptions,
-      [question]: currentOptions.filter((_, i) => i !== optionIdx)
-    })
+  const removeAnswerOption = (qIdx: number, optionIdx: number) => {
+    const updated = [...questions];
+    const opts = updated[qIdx].answerOptions || [];
+    updated[qIdx] = { ...updated[qIdx], answerOptions: opts.filter((_, i) => i !== optionIdx) };
+    setQuestions(updated);
   }
 
-  const updateAnswerOption = (question: string, optionIdx: number, value: string) => {
-    const currentOptions = [...(answerOptions[question] || [])]
-    currentOptions[optionIdx] = value
-    setAnswerOptions({
-      ...answerOptions,
-      [question]: currentOptions
-    })
+  const updateAnswerOption = (qIdx: number, optionIdx: number, value: string) => {
+    const updated = [...questions];
+    const opts = [...(updated[qIdx].answerOptions || [])];
+    opts[optionIdx] = value;
+    updated[qIdx] = { ...updated[qIdx], answerOptions: opts };
+    setQuestions(updated);
   }
 
   return (
@@ -599,25 +595,41 @@ function CallScriptSection() {
         </div>
         
         {questions.map((q, idx) => (
-          <div key={idx} className="border border-[#2a2414] rounded-lg overflow-hidden">
+          <div key={q.id} className="border border-[#2a2414] rounded-lg overflow-hidden">
             <div className="flex gap-2 items-center p-2 bg-black/20">
               <span className="text-xs text-gray-500 w-5">{idx + 1}.</span>
               <input
-                className="input flex-1 text-sm"
-                value={q}
-                onChange={(e) => updateQuestion(idx, q, e.target.value)}
+                className="input text-sm"
+                style={{ flex: 3, minWidth: 0 }}
+                value={q.question}
+                onChange={(e) => updateQuestion(idx, 'question', e.target.value)}
+                placeholder="Enter question..."
               />
-              <button
-                type="button"
-                onClick={() => setExpandedQuestion(expandedQuestion === q ? null : q)}
-                className={`px-2 py-1 text-xs rounded transition ${
-                  expandedQuestion === q 
-                    ? 'bg-[#e8d487] text-black' 
-                    : 'text-[#e8d487] hover:bg-black/40'
-                }`}
+              <select
+                className="input text-xs"
+                style={{ flex: 1, maxWidth: '110px' }}
+                value={q.answerType || 'text'}
+                onChange={e => updateQuestion(idx, 'answerType', e.target.value)}
               >
-                {answerOptions[q]?.length || 0} ▼
-              </button>
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+                <option value="dropdown">Dropdown</option>
+                <option value="file">File</option>
+              </select>
+              {(q.answerType === 'dropdown' || (q.answerOptions && q.answerOptions.length > 0)) && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedQuestion(expandedQuestion === q.id ? null : q.id)}
+                  className={`px-2 py-1 text-xs rounded transition ${
+                    expandedQuestion === q.id 
+                      ? 'bg-[#e8d487] text-black' 
+                      : 'text-[#e8d487] hover:bg-black/40'
+                  }`}
+                >
+                  {(q.answerOptions?.length || 0)} ▼
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => removeQuestion(idx)}
@@ -627,21 +639,21 @@ function CallScriptSection() {
               </button>
             </div>
             
-            {expandedQuestion === q && (
+            {(q.answerType === 'dropdown' || (q.answerOptions && q.answerOptions.length > 0)) && expandedQuestion === q.id && (
               <div className="p-3 bg-black/30 border-t border-[#2a2414] space-y-2">
                 <p className="text-xs text-gray-400">Dropdown options:</p>
                 
-                {(answerOptions[q] || []).map((opt, optIdx) => (
+                {(q.answerOptions || []).map((opt, optIdx) => (
                   <div key={optIdx} className="flex gap-2 items-center pl-4">
                     <span className="text-xs text-gray-600">•</span>
                     <input
                       className="input flex-1 text-sm py-1"
                       value={opt}
-                      onChange={(e) => updateAnswerOption(q, optIdx, e.target.value)}
+                      onChange={(e) => updateAnswerOption(idx, optIdx, e.target.value)}
                     />
                     <button
                       type="button"
-                      onClick={() => removeAnswerOption(q, optIdx)}
+                      onClick={() => removeAnswerOption(idx, optIdx)}
                       className="p-1 text-red-400 hover:text-red-300 text-xs"
                     >
                       ✕
@@ -658,14 +670,14 @@ function CallScriptSection() {
                     onChange={(e) => setNewOptionText(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        e.preventDefault()
-                        addAnswerOption(q)
+                        e.preventDefault();
+                        addAnswerOption(idx);
                       }
                     }}
                   />
                   <button
                     type="button"
-                    onClick={() => addAnswerOption(q)}
+                    onClick={() => addAnswerOption(idx)}
                     disabled={!newOptionText.trim()}
                     className="px-2 py-1 bg-[#e8d487] text-black rounded text-xs font-medium disabled:opacity-50"
                   >
@@ -673,18 +685,27 @@ function CallScriptSection() {
                   </button>
                 </div>
                 
-                {!(answerOptions[q] || []).includes('Other') && (
+                {!(q.answerOptions || []).includes('Other') && (
                   <button
                     type="button"
                     onClick={() => {
-                      setAnswerOptions({
-                        ...answerOptions,
-                        [q]: [...(answerOptions[q] || []), 'Other']
-                      })
+                      const updated = [...questions];
+                      const opts = updated[idx].answerOptions || [];
+                      updated[idx] = { ...updated[idx], answerOptions: [...opts, 'Other'] };
+                      setQuestions(updated);
                     }}
                     className="ml-4 text-xs text-[#e8d487] hover:text-[#ffd700]"
                   >
                     + Add "Other" option
+                  </button>
+                )}
+                {q.answerType !== 'dropdown' && (
+                  <button
+                    type="button"
+                    onClick={() => updateQuestion(idx, 'answerType', 'dropdown')}
+                    className="ml-4 text-xs text-[#e8d487] hover:text-[#ffd700] border border-[#e8d487] rounded px-2 py-1"
+                  >
+                    Set as Dropdown
                   </button>
                 )}
               </div>
