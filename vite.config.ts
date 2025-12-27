@@ -28,6 +28,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB limit for service worker caching
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
@@ -57,5 +58,19 @@ export default defineConfig({
       }
     })
   ],
-  server: { port: 5173 }
+  server: { port: 5173 },
+  build: {
+    chunkSizeWarningLimit: 1000, // Increase warning limit to 1000 KB
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor code into separate chunks
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          'ui-vendor': ['framer-motion', 'lucide-react'],
+          'pdf-vendor': ['jspdf', 'html2canvas'],
+        }
+      }
+    }
+  }
 })
