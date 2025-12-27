@@ -49,6 +49,9 @@ type ConfigState = {
   // Initialize config from Firestore/localStorage
   init: () => Promise<void>
 
+  // Load config (called after auth)
+  loadConfig: () => Promise<void>
+
   // Business Profile specific methods
   loadBusinessProfile: () => Promise<void>
   setLogo: (base64String: string) => Promise<void>
@@ -68,16 +71,10 @@ type ConfigState = {
   resetToDefaults: () => Promise<void>
 }
 
-function getStableTenantId() {
-  const KEY = 'app:tenantId'
-  let tenantId = localStorage.getItem(KEY)
-
-  if (!tenantId) {
-    tenantId = crypto.randomUUID()
-    localStorage.setItem(KEY, tenantId)
-  }
-
-  return tenantId
+function getStableTenantId(userId: string) {
+  // Use user's UID as the base for a unique tenant ID
+  // This ensures each user gets their own tenant, not shared via localStorage
+  return `tenant_${userId}`
 }
 
 
@@ -94,8 +91,56 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
   // ==================== INIT ====================
   init: async () => {
-    const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
-    const snap = await getDoc(ref)
+    // Keep loading true until we determine auth state
+    set({ loading: true })
+    
+    // Set up auth listener first (runs regardless of current auth state)
+    listenToAuthChanges(async (user) => {
+      // Not logged in → no tenant (prevents permission errors & drift)
+      if (!user) {
+        set({ activeTenantId: '', loading: false })
+        return
+      }
+
+      try {
+        // Tenant must be consistent across all devices for this user
+        const claimRef = doc(firestoreDb, 'tenantClaims', user.uid)
+        const snap = await getDoc(claimRef)
+
+        let tenantId: string
+        if (snap.exists()) {
+          // Use existing tenantId from claim
+          tenantId = (snap.data() as any)?.tenantId || user.uid
+        } else {
+          // NEW user: use their Firebase UID directly as tenantId
+          // This guarantees uniqueness per user
+          tenantId = user.uid
+          await setDoc(claimRef, { tenantId, claimedAt: Date.now() })
+        }
+        
+        console.log('[ConfigStore] User:', user.email, 'TenantId:', tenantId)
+        set({ activeTenantId: tenantId })
+
+        // Now load config after auth is confirmed
+        await get().loadConfig()
+      } catch (error) {
+        console.error('Error setting tenant:', error)
+        set({ loading: false })
+      }
+    })
+  },
+
+  // Load config from Firestore
+  loadConfig: async () => {
+    const { auth } = await import('../firebase')
+    if (!auth.currentUser) {
+      set({ loading: false })
+      return
+    }
+
+    try {
+      const ref = doc(firestoreDb, 'config', CONFIG_DOC_ID)
+      const snap = await getDoc(ref)
 
     let config: AppConfig
 
@@ -142,31 +187,10 @@ else if (config.businessProfile.logo) {
       loading: false,
       logo: config.businessProfile.logo || null,
     })
-       listenToAuthChanges(async (user) => {
-  // Not logged in → no tenant (prevents permission errors & drift)
-  if (!user) {
-    set({ activeTenantId: '' })
-    return
-  }
-
-  // Tenant must be consistent across all devices for this user
-  const claimRef = doc(firestoreDb, 'tenantClaims', user.uid)
-  const snap = await getDoc(claimRef)
-
-  if (snap.exists()) {
-    const claimedTenantId = (snap.data() as any)?.tenantId || ''
-    set({ activeTenantId: claimedTenantId })
-    return
-  }
-
-  // First-time claim: generate once, store it, and use it everywhere
-  const tenantId = getStableTenantId()
-  await setDoc(claimRef, { tenantId, claimedAt: Date.now() })
-  set({ activeTenantId: tenantId })
-})
-
-
-
+    } catch (error) {
+      console.error('Error loading config:', error)
+      set({ loading: false })
+    }
   },
 
     setActiveTenantId: (id: string) => {

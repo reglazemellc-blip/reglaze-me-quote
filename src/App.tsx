@@ -39,6 +39,7 @@ import { useToastStore } from "@store/useToastStore";
 
 import { useConfigStore } from "@store/useConfigStore";
 import Login from "./pages/Login";
+import { Navigate } from "react-router-dom";
 
 
 export default function App() {
@@ -137,6 +138,9 @@ export default function App() {
 
   {/* Test UI */}
   <Route path="/test" element={<TestUI />} />
+
+  {/* Login - redirect to home if already authenticated */}
+  <Route path="/login" element={<Navigate to="/" replace />} />
 
   {/* Not Found */}
   <Route path="*" element={<NotFound />} />

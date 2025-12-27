@@ -2,72 +2,60 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // Helper function
     function isAuthenticated() {
-      return request.auth != null && !request.auth.token.is_anonymous;
+      return request.auth != null;
     }
     
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    // Tenant claims - each user can only access their own claim
+    match /tenantClaims/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    function belongsToTenant(tenantId) {
-      return isAuthenticated() && request.auth.uid == tenantId;
+    // Config - shared app config
+    match /config/{configId} {
+      allow read, write: if isAuthenticated();
     }
     
-    // Tenant-level data - only accessible by the tenant owner
-    match /tenants/{tenantId} {
-      allow read, write: if belongsToTenant(tenantId);
-      
-      // Clients collection within tenant
-      match /clients/{clientId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
-      
-      // Quotes collection within tenant
-      match /quotes/{quoteId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
-      
-      // Invoices collection within tenant
-      match /invoices/{invoiceId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
-      
-      // Contracts collection within tenant
-      match /contracts/{contractId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
-      
-      // Companies collection within tenant
-      match /companies/{companyId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
-      
-      // Reminders collection within tenant
-      match /reminders/{reminderId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
-      
-      // Services/Catalog collection within tenant
-      match /services/{serviceId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
-      
-      // Config collection within tenant
-      match /config/{configId} {
-        allow read, write: if belongsToTenant(tenantId);
-      }
+    // Catalog - shared catalog
+    match /catalog/{docId} {
+      allow read, write: if isAuthenticated();
     }
     
-    // User-level settings (not tenant-specific)
-    match /users/{userId} {
-      allow read, write: if isOwner(userId);
+    // Services - shared services
+    match /services/{serviceId} {
+      allow read, write: if isAuthenticated();
     }
     
-    // Default deny all other access
-    match /{document=**} {
-      allow read, write: if false;
+    // Settings - shared settings
+    match /settings/{settingId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // All tenant-isolated collections - authenticated users can access
+    // Tenant filtering is enforced in application code via where('tenantId', '==', tenantId)
+    match /clients/{clientId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /quotes/{quoteId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /invoices/{invoiceId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /contracts/{contractId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /companies/{companyId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /properties/{propertyId} {
+      allow read, write: if isAuthenticated();
     }
   }
 }

@@ -226,6 +226,24 @@ useEffect(() => {
           >
             {PencilSquareIcon()}
           </button>
+
+          {/* Logout Button */}
+          <button
+            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+            title="Log Out"
+            onClick={async () => {
+              try {
+                const { logout } = await import('../auth')
+                await logout()
+                window.location.href = '/login'
+              } catch (error) {
+                console.error('Logout failed:', error)
+                alert('Failed to log out. Please try again.')
+              }
+            }}
+          >
+            Log Out
+          </button>
         </div>
       </div>
 

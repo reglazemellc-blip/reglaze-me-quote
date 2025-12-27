@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react'
 
 export default function OfflineToast(): JSX.Element | null {
   const [online, setOnline] = useState<boolean>(navigator.onLine)
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    const handleOnline = () => setOnline(true)
+    const handleOnline = () => {
+      setOnline(true)
+      setDismissed(false)
+    }
     const handleOffline = () => setOnline(false)
 
     window.addEventListener('online', handleOnline)
@@ -16,7 +20,7 @@ export default function OfflineToast(): JSX.Element | null {
     }
   }, [])
 
-  if (online) return null
+  if (online || dismissed) return null
 
   return (
     <div
@@ -29,10 +33,17 @@ export default function OfflineToast(): JSX.Element | null {
         shadow-[0_0_18px_rgba(255,215,0,0.25)]
         text-sm font-medium
         z-50
-        animate-pulse
+        flex items-center gap-4
       "
     >
-      You are offline. Changes are saved locally.
+      <span>⚠️ No internet connection. Changes will not be saved.</span>
+      <button
+        onClick={() => setDismissed(true)}
+        className="text-gray-400 hover:text-white transition-colors"
+        title="Dismiss"
+      >
+        ✕
+      </button>
     </div>
   )
 }
