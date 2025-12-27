@@ -808,12 +808,12 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                 )}
 
                 {photoAttachments.length > 0 && (
-                  <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="photo-gallery mt-3 flex overflow-x-auto gap-3 pb-2">
                     {photoAttachments.map((att) => (
-                      <div key={att.id} className="relative group">
+                      <div key={att.id} className="relative group flex-shrink-0">
                         <img
                           src={att.url}
-                          className="rounded border border-gray-700 w-full h-28 md:h-32 object-cover"
+                          className="rounded border border-gray-700 w-48 h-32 object-cover"
                         />
                         <button
                           className="absolute top-1 right-1 text-red-400 text-[10px] bg-black/70 rounded px-1 disabled:opacity-50"
