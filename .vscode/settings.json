@@ -7,12 +7,13 @@
         "scminput": false
     },
     "emmet.showExpandedAbbreviation": "never",
-    "editor.quickSuggestions": {
-        "other": "on",
-        "comments": "off",
-        "strings": "on"
-    },
-    "editor.wordBasedSuggestions": "off",
+"editor.quickSuggestions": {
+    "other": "on",
+    "comments": "off",
+    "strings": "on"
+},
+"css.validate": false,
+"editor.wordBasedSuggestions": "off",
     "editor.suggest.showWords": false,
     "github.copilot.editor.enableAutoCompletions": true,
     "inlineChat.mode": "live"

@@ -3,6 +3,7 @@ import { collection, doc, getDocs, setDoc, deleteDoc, getDoc, updateDoc } from "
 import { db } from "../firebase";
 import type { Quote } from "@db/index";
 import { useConfigStore } from "@store/useConfigStore";
+import { handleFirestoreOperation, validateRequired } from "@utils/errorHandling";
 
 const quotesCol = collection(db, "quotes");
 
@@ -23,15 +24,16 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
   // INIT — Load only this tenant's quotes
   // ============================================================
   init: async () => {
-    const snap = await getDocs(quotesCol);
+    return handleFirestoreOperation(async () => {
+      const snap = await getDocs(quotesCol);
+      const tenantId = useConfigStore.getState().activeTenantId;
 
-    const tenantId = useConfigStore.getState().activeTenantId;
+      const quotes = snap.docs
+        .map((d) => ({ ...(d.data() as Quote), id: d.id }))
+        .filter((q) => q.tenantId === tenantId);
 
-    const quotes = snap.docs
-      .map((d) => ({ ...(d.data() as Quote), id: d.id }))
-      .filter((q) => q.tenantId === tenantId);
-
-    set({ quotes, loading: false });
+      set({ quotes, loading: false });
+    }, 'Load quotes');
   },
 
   // ============================================================
@@ -39,13 +41,12 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
   // + Sync workflow status to client
   // ============================================================
   upsert: async (q: Quote) => {
-    if (!q.clientId) throw new Error("Quote missing clientId");
+    validateRequired(q, ['clientId', 'id']);
 
-    const tenantId = useConfigStore.getState().activeTenantId;
+    return handleFirestoreOperation(async () => {
+      const tenantId = useConfigStore.getState().activeTenantId;
+      const ref = doc(quotesCol, q.id);
 
-    const ref = doc(quotesCol, q.id);
-
-    try {
       // write with tenantId enforced
       await setDoc(
         ref,
@@ -75,10 +76,7 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
         .filter((q) => q.tenantId === tenantId);
 
       set({ quotes });
-    } catch (error) {
-      console.error('Failed to save quote:', error);
-      throw new Error('Failed to save quote. Please check your connection and try again.');
-    }
+    }, 'Save quote');
   },
 
   // ============================================================
@@ -89,6 +87,10 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
       await deleteDoc(doc(quotesCol, id));
 
       const tenantId = useConfigStore.getState().activeTenantId;
+return handleFirestoreOperation(async () => {
+      await deleteDoc(doc(quotesCol, id));
+
+      const tenantId = useConfigStore.getState().activeTenantId;
 
       const snap = await getDocs(quotesCol);
       const quotes = snap.docs
@@ -96,9 +98,4 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
         .filter((q) => q.tenantId === tenantId);
 
       set({ quotes });
-    } catch (error) {
-      console.error('Failed to delete quote:', error);
-      throw new Error('Failed to delete quote. Please check your connection and try again.');
-    }
-  },
-}));
+    }, 'Delete quote');

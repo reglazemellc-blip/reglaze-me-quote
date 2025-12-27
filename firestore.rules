@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null && !request.auth.token.is_anonymous;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function belongsToTenant(tenantId) {
+      return isAuthenticated() && request.auth.uid == tenantId;
+    }
+    
+    // Tenant-level data - only accessible by the tenant owner
+    match /tenants/{tenantId} {
+      allow read, write: if belongsToTenant(tenantId);
+      
+      // Clients collection within tenant
+      match /clients/{clientId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+      
+      // Quotes collection within tenant
+      match /quotes/{quoteId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+      
+      // Invoices collection within tenant
+      match /invoices/{invoiceId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+      
+      // Contracts collection within tenant
+      match /contracts/{contractId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+      
+      // Companies collection within tenant
+      match /companies/{companyId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+      
+      // Reminders collection within tenant
+      match /reminders/{reminderId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+      
+      // Services/Catalog collection within tenant
+      match /services/{serviceId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+      
+      // Config collection within tenant
+      match /config/{configId} {
+        allow read, write: if belongsToTenant(tenantId);
+      }
+    }
+    
+    // User-level settings (not tenant-specific)
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

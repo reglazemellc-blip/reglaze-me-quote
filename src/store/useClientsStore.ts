@@ -5,6 +5,7 @@
 import { create } from 'zustand'
 import { useConfigStore } from '@store/useConfigStore'
 import { auth } from '../firebase'
+import { handleFirestoreOperation, validateRequired } from '@utils/errorHandling'
 
 
 import {
@@ -133,6 +134,11 @@ init: async () => {
   }))
 
   set({ clients, loading: false })
+} catch (error) {
+  console.error('[clients.init] Failed to load clients:', error);
+  set({ loading: false });
+  throw new Error('Failed to load clients. Please check your connection and try again.');
+}
 },
 
 
@@ -217,47 +223,46 @@ init: async () => {
   // REMOVE CLIENT + THEIR QUOTES
   // -------------------------------------------------
   remove: async (id) => {
+    return handleFirestoreOperation(async () => {
       const tenantId = useConfigStore.getState().activeTenantId
 
-    await deleteDoc(doc(clientsCol, id))
+      await deleteDoc(doc(clientsCol, id))
 
-    // delete quotes belonging to client
-    const qSnap = await getDocs(query(quotesCol, where('clientId', '==', id)))
-    const deletes = qSnap.docs.map((d) => deleteDoc(doc(quotesCol, d.id)))
-    await Promise.all(deletes)
+      // delete quotes belonging to client
+      const qSnap = await getDocs(query(quotesCol, where('clientId', '==', id)))
+      const deletes = qSnap.docs.map((d) => deleteDoc(doc(quotesCol, d.id)))
+      await Promise.all(deletes)
    
-    // delete invoices belonging to client
-const iSnap = await getDocs(
-  query(
-    invoicesCol,
-    where('tenantId', '==', tenantId),
-    where('clientId', '==', id)
-  )
-)
+      // delete invoices belonging to client
+      const iSnap = await getDocs(
+        query(
+          invoicesCol,
+          where('tenantId', '==', tenantId),
+          where('clientId', '==', id)
+        )
+      )
 
-const invoiceDeletes = iSnap.docs.map((d) =>
-  deleteDoc(doc(invoicesCol, d.id))
-)
+      const invoiceDeletes = iSnap.docs.map((d) =>
+        deleteDoc(doc(invoicesCol, d.id))
+      )
 
-await Promise.all(invoiceDeletes)
+      await Promise.all(invoiceDeletes)
 
+      // reload
+      const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
+      const clients: Client[] = snap.docs.map((d) => ({
+        ...(d.data() as Client),
+        id: d.id,
+        photos: d.data().photos ?? [],
+        attachments: d.data().attachments ?? [],
+        conversations: d.data().conversations ?? [],
+        reminders: d.data().reminders ?? [],
+        status: (d.data() as any).status ?? 'new',
 
+      }))
 
-    // reload
-    
-const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
-    const clients: Client[] = snap.docs.map((d) => ({
-      ...(d.data() as Client),
-      id: d.id,
-      photos: d.data().photos ?? [],
-      attachments: d.data().attachments ?? [],
-      conversations: d.data().conversations ?? [],
-      reminders: d.data().reminders ?? [],
-      status: (d.data() as any).status ?? 'new',
-
-    }))
-
-    set({ clients })
+      set({ clients })
+    }, 'Delete client');
   },
 
   // -------------------------------------------------
@@ -276,104 +281,107 @@ const snap = await getDocs(query(clientsCol, where('tenantId', '==', tenantId)))
   // REMINDERS — ADD
   // -------------------------------------------------
   addReminder: async ({ clientId, remindAt, note, quoteId, snoozeDays }) => {
-    const state = get()
-    const client = state.clients.find((c) => c.id === clientId)
-    if (!client) return null
+    return handleFirestoreOperation(async () => {
+      const state = get()
+      const client = state.clients.find((c) => c.id === clientId)
+      if (!client) throw new Error('Client not found');
 
-    const now = Date.now()
-    const reminder: Reminder = {
-      id: createId(),
-      clientId,
-      quoteId,
-      remindAt,
-      snoozeDays,
-      done: false,
-      note: note ?? '',
-    }
+      const now = Date.now()
+      const reminder: Reminder = {
+        id: createId(),
+        clientId,
+        quoteId,
+        remindAt,
+        snoozeDays,
+        done: false,
+        note: note ?? '',
+      }
 
-    const current = client.reminders ?? []
-    const updatedReminders: Reminder[] = [...current, reminder]
+      const current = client.reminders ?? []
+      const updatedReminders: Reminder[] = [...current, reminder]
 
-    await updateDoc(doc(clientsCol, clientId), {
-  reminders: updatedReminders,
-  updatedAt: now,
-  tenantId: useConfigStore.getState().activeTenantId,
-})
+      await updateDoc(doc(clientsCol, clientId), {
+        reminders: updatedReminders,
+        updatedAt: now,
+        tenantId: useConfigStore.getState().activeTenantId,
+      })
 
+      // update local state
+      const updatedClients = state.clients.map((c) =>
+        c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
+      )
 
-    // update local state
-    const updatedClients = state.clients.map((c) =>
-      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
-    )
+      set({ clients: updatedClients })
 
-    set({ clients: updatedClients })
-
-    return reminder
+      return reminder
+    }, 'Add reminder');
   },
 
   // -------------------------------------------------
   // REMINDERS — UPDATE
   // -------------------------------------------------
   updateReminder: async ({ clientId, reminderId, patch }) => {
-    const state = get()
-    const client = state.clients.find((c) => c.id === clientId)
-    if (!client) return null
+    return handleFirestoreOperation(async () => {
+      const state = get()
+      const client = state.clients.find((c) => c.id === clientId)
+      if (!client) throw new Error('Client not found');
 
-    const current = client.reminders ?? []
-    let updatedReminder: Reminder | null = null
+      const current = client.reminders ?? []
+      let updatedReminder: Reminder | null = null
 
-    const updatedReminders: Reminder[] = current.map((r) => {
-      if (r.id !== reminderId) return r
-      const merged: Reminder = {
-        ...r,
-        ...patch,
-      }
-      updatedReminder = merged
-      return merged
-    })
+      const updatedReminders: Reminder[] = current.map((r) => {
+        if (r.id !== reminderId) return r
+        const merged: Reminder = {
+          ...r,
+          ...patch,
+        }
+        updatedReminder = merged
+        return merged
+      })
 
-    if (!updatedReminder) return null
+      if (!updatedReminder) throw new Error('Reminder not found');
 
-    const now = Date.now()
-    await updateDoc(doc(clientsCol, clientId), {
-  reminders: updatedReminders,
-  updatedAt: now,
-  tenantId: useConfigStore.getState().activeTenantId,
-})
+      const now = Date.now()
+      await updateDoc(doc(clientsCol, clientId), {
+        reminders: updatedReminders,
+        updatedAt: now,
+        tenantId: useConfigStore.getState().activeTenantId,
+      })
 
+      const updatedClients = state.clients.map((c) =>
+        c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
+      )
 
-    const updatedClients = state.clients.map((c) =>
-      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
-    )
+      set({ clients: updatedClients })
 
-    set({ clients: updatedClients })
-
-    return updatedReminder
+      return updatedReminder
+    }, 'Update reminder');
   },
 
   // -------------------------------------------------
   // REMINDERS — DELETE
   // -------------------------------------------------
-  deleteReminder: async ({ clientId, reminderId }) => {
-    const state = get()
-    const client = state.clients.find((c) => c.id === clientId)
-    if (!client) return
+  dereturn handleFirestoreOperation(async () => {
+      const state = get()
+      const client = state.clients.find((c) => c.id === clientId)
+      if (!client) throw new Error('Client not found');
 
-    const current = client.reminders ?? []
-    const updatedReminders = current.filter((r) => r.id !== reminderId)
-    const now = Date.now()
+      const current = client.reminders ?? []
+      const updatedReminders = current.filter((r) => r.id !== reminderId)
+      const now = Date.now()
 
-    await updateDoc(doc(clientsCol, clientId), {
-  reminders: updatedReminders,
-  updatedAt: now,
-  tenantId: useConfigStore.getState().activeTenantId,
-})
+      await updateDoc(doc(clientsCol, clientId), {
+        reminders: updatedReminders,
+        updatedAt: now,
+        tenantId: useConfigStore.getState().activeTenantId,
+      })
 
+      const updatedClients = state.clients.map((c) =>
+        c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
+      )
 
-    const updatedClients = state.clients.map((c) =>
-      c.id === clientId ? { ...c, reminders: updatedReminders, updatedAt: now } : c
-    )
-
-    set({ clients: updatedClients })
+      set({ clients: updatedClients })
+    }, 'Delete reminder');
   },
+});
 }))
