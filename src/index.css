@@ -2,9 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import mobile web fixes */
+@import './mobile-web-fixes.css';
+
+/* Prevent zoom on double-tap for all mobile browsers */
+* {
+  touch-action: manipulation;
+}
+
 body {
   background-color: #050505;
   overflow-x: hidden;
+  /* Prevent pull-to-refresh on mobile browsers */
+  overscroll-behavior-y: contain;
+  /* Smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 header {
@@ -241,6 +253,9 @@ input,
 select,
 textarea {
   font-size: 16px;
+  /* Prevent iOS zoom on focus */
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 @media (min-width: 640px) {
@@ -332,5 +347,43 @@ textarea {
     margin: 0;
     width: 100vw !important;
     max-width: 100vw !important;
+  }
+}
+/* 10. Mobile browser specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific fixes */
+  body {
+    /* Fix for iOS Safari bottom bar */
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Prevent rubber-band scrolling */
+  html {
+    overscroll-behavior: none;
+  }
+}
+
+/* 11. Ensure all interactive elements are tappable on mobile web */
+@media (max-width: 768px) {
+  a:not(.photo-gallery a), 
+  button, 
+  [role="button"], 
+  [tabindex]:not([tabindex="-1"]) {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+  
+  /* Cards should have more padding on mobile for easier tapping */
+  .card {
+    padding: 1rem;
+  }
+  
+  /* Ensure main content area has proper spacing */
+  main {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
   }
 }

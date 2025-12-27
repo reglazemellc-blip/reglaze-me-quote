@@ -1,0 +1,38 @@
+/* Mobile browser specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific fixes */
+  body {
+    /* Fix for iOS Safari bottom bar */
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Prevent rubber-band scrolling */
+  html {
+    overscroll-behavior: none;
+  }
+}
+
+/* Ensure all interactive elements are tappable on mobile web */
+@media (max-width: 768px) {
+  a:not(.photo-gallery a), 
+  button, 
+  [role="button"], 
+  [tabindex]:not([tabindex="-1"]) {
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+  
+  /* Cards should have more padding on mobile for easier tapping */
+  .card {
+    padding: 1rem;
+  }
+  
+  /* Ensure main content area has proper spacing */
+  main {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+}
