@@ -4,7 +4,10 @@
       "Bash(npm run typecheck:*)",
       "Bash(npm run build:*)",
       "Bash(cat:*)",
-      "Bash(wc -l \"c:\\\\Users\\\\jzipk\\\\reglaze-me-quote-main\\\\src\"/**/*.{tsx,ts})"
+      "Bash(wc -l \"c:\\\\Users\\\\jzipk\\\\reglaze-me-quote-main\\\\src\"/**/*.{tsx,ts})",
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)"
     ]
   }
 }
