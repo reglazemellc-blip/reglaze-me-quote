@@ -71,75 +71,66 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
   loading: true,
 
   // -------------------------------------------------
-  // LOAD ALL CLIENTS
+  // LOAD ALL CLIENTS (WAIT FOR TENANT, THEN LOAD)
   // -------------------------------------------------
-// -------------------------------------------------
-// LOAD ALL CLIENTS (WAIT FOR TENANT)
-// -------------------------------------------------
-// -------------------------------------------------
-// LOAD ALL CLIENTS (WAIT FOR TENANT, THEN LOAD)
-// -------------------------------------------------
-init: async () => {
-  if (!auth.currentUser) {
-  set({ loading: false })
-  return
-}
+  init: async () => {
+    try {
+      if (!auth.currentUser) {
+        set({ loading: false })
+        return
+      }
 
-  let tenantId = useConfigStore.getState().activeTenantId
+      let tenantId = useConfigStore.getState().activeTenantId
 
-  // ⏳ HARD WAIT for tenantId (cold reload safe)
-  if (!tenantId) {
-    await new Promise<void>((resolve) => {
-      const unsub = useConfigStore.subscribe((state) => {
-        if (state.activeTenantId) {
-          tenantId = state.activeTenantId
-          unsub()
-          resolve()
-        }
-      })
-    })
-  }
+      // ⏳ HARD WAIT for tenantId (cold reload safe)
+      if (!tenantId) {
+        await new Promise<void>((resolve) => {
+          const unsub = useConfigStore.subscribe((state) => {
+            if (state.activeTenantId) {
+              tenantId = state.activeTenantId
+              unsub()
+              resolve()
+            }
+          })
+        })
+      }
 
-    // ✅ Use tenantId resolved by hard wait
-  if (!tenantId) {
-  console.warn('[clients.init] tenantId missing — waiting to retry')
+      // ✅ Use tenantId resolved by hard wait
+      if (!tenantId) {
+        console.warn('[clients.init] tenantId missing — waiting to retry')
 
-  // retry once tenant becomes available
-  useConfigStore.subscribe((state) => {
-    if (state.activeTenantId) {
-      get().init()
+        // retry once tenant becomes available
+        useConfigStore.subscribe((state) => {
+          if (state.activeTenantId) {
+            get().init()
+          }
+        })
+
+        return
+      }
+
+      const snap = await getDocs(
+        query(clientsCol, where('tenantId', '==', tenantId))
+      )
+
+      const clients: Client[] = snap.docs.map((d) => ({
+        ...(d.data() as Client),
+        id: d.id,
+        tenantId: d.data().tenantId ?? '',
+        photos: d.data().photos ?? [],
+        attachments: d.data().attachments ?? [],
+        conversations: d.data().conversations ?? [],
+        reminders: d.data().reminders ?? [],
+        status: (d.data() as any).status ?? 'new',
+      }))
+
+      set({ clients, loading: false })
+    } catch (error) {
+      console.error('[clients.init] Failed to load clients:', error);
+      set({ loading: false });
+      throw new Error('Failed to load clients. Please check your connection and try again.');
     }
-  })
-
-  return
-}
-
-
-
-
-  const snap = await getDocs(
-    query(clientsCol, where('tenantId', '==', tenantId))
-  )
-
-  const clients: Client[] = snap.docs.map((d) => ({
-    ...(d.data() as Client),
-    id: d.id,
-    tenantId: d.data().tenantId ?? '',
-    photos: d.data().photos ?? [],
-    attachments: d.data().attachments ?? [],
-    conversations: d.data().conversations ?? [],
-    reminders: d.data().reminders ?? [],
-    status: (d.data() as any).status ?? 'new',
-
-  }))
-
-  set({ clients, loading: false })
-} catch (error) {
-  console.error('[clients.init] Failed to load clients:', error);
-  set({ loading: false });
-  throw new Error('Failed to load clients. Please check your connection and try again.');
-}
-},
+  },
 
 
 
@@ -361,7 +352,8 @@ init: async () => {
   // -------------------------------------------------
   // REMINDERS — DELETE
   // -------------------------------------------------
-  dereturn handleFirestoreOperation(async () => {
+  deleteReminder: async ({ clientId, reminderId }) => {
+    return handleFirestoreOperation(async () => {
       const state = get()
       const client = state.clients.find((c) => c.id === clientId)
       if (!client) throw new Error('Client not found');
@@ -383,5 +375,4 @@ init: async () => {
       set({ clients: updatedClients })
     }, 'Delete reminder');
   },
-});
-}))
+}));

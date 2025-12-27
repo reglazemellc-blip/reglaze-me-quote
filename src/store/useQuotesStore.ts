@@ -83,11 +83,7 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
   // REMOVE — Delete + reload only this tenant's quotes
   // ============================================================
   remove: async (id: string) => {
-    try {
-      await deleteDoc(doc(quotesCol, id));
-
-      const tenantId = useConfigStore.getState().activeTenantId;
-return handleFirestoreOperation(async () => {
+    return handleFirestoreOperation(async () => {
       await deleteDoc(doc(quotesCol, id));
 
       const tenantId = useConfigStore.getState().activeTenantId;
@@ -99,3 +95,5 @@ return handleFirestoreOperation(async () => {
 
       set({ quotes });
     }, 'Delete quote');
+  },
+}));
