@@ -1017,21 +1017,39 @@ const path = `tenants/${tenantId}/clients/${client.id}/attachments/${Date.now()}
                 ) : (
                   <div className="space-y-2">
                     {invoices.map((inv) => (
-                      <Link
+                      <div
                         key={inv.id}
-                        to={`/invoices/${inv.id}`}
-                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition cursor-pointer"
+                        className="flex items-center justify-between bg-black/40 rounded px-3 py-2.5 border border-[#2a2a2a] hover:bg-black/60 hover:border-[#e8d487]/30 transition"
                       >
-                        <span className="text-[#e8d487] text-sm font-medium">
-                          {inv.invoiceNumber ?? inv.id}
-                        </span>
-                        <div className="text-sm text-gray-300 text-right ml-3">
-                          <div>{inv.status}</div>
-                          {typeof inv.total === "number" && (
-                            <div>${inv.total.toFixed(2)}</div>
-                          )}
-                        </div>
-                      </Link>
+                        <Link
+                          to={`/invoices/${inv.id}`}
+                          className="flex items-center justify-between flex-1 cursor-pointer"
+                        >
+                          <span className="text-[#e8d487] text-sm font-medium">
+                            {inv.invoiceNumber ?? inv.id}
+                          </span>
+                          <div className="text-sm text-gray-300 text-right ml-3">
+                            <div>{inv.status}</div>
+                            {typeof inv.total === "number" && (
+                              <div>${inv.total.toFixed(2)}</div>
+                            )}
+                          </div>
+                        </Link>
+                        <button
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            if (!window.confirm("Delete this invoice?")) return;
+                            const { remove } = await import("@store/useInvoicesStore").then(m => m.useInvoicesStore.getState());
+                            await remove(inv.id);
+                            // Refresh invoices list
+                            const snap = await getDocs(query(collection(db, "invoices"), where("clientId", "==", client.id)));
+                            setInvoices(snap.docs.map(d => ({ id: d.id, ...d.data() as any })));
+                          }}
+                          className="ml-2 px-2 py-1 text-xs text-red-400 hover:text-red-300 transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}

@@ -73,6 +73,14 @@ header {
   transition-all;
 }
 
+/* Header icon button styling */
+.header-icon-btn {
+  @apply p-2 rounded-lg flex items-center justify-center
+  text-[#e8d487]
+  hover:bg-black/30
+  transition-all;
+}
+
 /* Inputs (match theme) */
 .input {
   @apply w-full px-3 py-2 rounded-lg

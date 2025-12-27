@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { collection, doc, getDocs, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import type { Quote } from "@db/index";
 import { useConfigStore } from "@store/useConfigStore";
@@ -36,6 +36,7 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
 
   // ============================================================
   // UPSERT — Save + reload only this tenant's quotes
+  // + Sync workflow status to client
   // ============================================================
   upsert: async (q: Quote) => {
     if (!q.clientId) throw new Error("Quote missing clientId");
@@ -51,6 +52,21 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
         { ...q, tenantId },
         { merge: true }
       );
+
+      // Sync workflow status to client (Quote is source of truth)
+      if (q.workflowStatus && q.clientId) {
+        const clientRef = doc(db, 'clients', q.clientId);
+        const clientSnap = await getDoc(clientRef);
+        
+        if (clientSnap.exists()) {
+          await updateDoc(clientRef, {
+            workflowStatus: q.workflowStatus,
+            scheduledDate: q.scheduledDate || null,
+            scheduledTime: q.scheduledTime || null,
+            updatedAt: Date.now(),
+          });
+        }
+      }
 
       // reload only this tenant's quotes
       const snap = await getDocs(quotesCol);

@@ -2,7 +2,8 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useSettingsStore } from '@store/useSettingsStore'
 import { useConfigStore } from '@store/useConfigStore'
 import ThemeEditor from './ThemeEditor'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { exportElementToPDF } from '@utils/pdf'
 import { useLayoutStore } from '@store/useLayoutStore'
 
@@ -20,6 +21,25 @@ export default function Header(): JSX.Element {
   const { config } = useConfigStore()
   const [open, setOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const helpRef = useRef<HTMLDivElement>(null)
+  const helpButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Close help menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (helpRef.current && !helpRef.current.contains(event.target as Node) &&
+          helpButtonRef.current && !helpButtonRef.current.contains(event.target as Node)) {
+        setHelpOpen(false)
+      }
+    }
+
+    if (helpOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [helpOpen])
+
 useEffect(() => {
   if (mobileOpen) window.scrollTo({ top: 0, behavior: 'smooth' });
 }, [mobileOpen]);
@@ -64,7 +84,7 @@ useEffect(() => {
         border-b-[0.5px]
         backdrop-blur-lg
         shadow-[0_0_25px_rgba(255,215,0,0.08)]
-        z-[3000] leading-none
+        z-[50] leading-none
 
       "
       style={{
@@ -115,6 +135,75 @@ useEffect(() => {
 
         {/* RIGHT ACTION BUTTONS */}
         <div className="flex items-center gap-3 leading-none">
+
+          {/* Help Button */}
+          <button
+            ref={helpButtonRef}
+            className="header-icon-btn"
+            title="Help & Support"
+            onClick={() => setHelpOpen(!helpOpen)}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+
+          {/* Help Dropdown - rendered via portal */}
+          {helpOpen && createPortal(
+            <div
+              ref={helpRef}
+              className="fixed top-16 right-4 w-64 bg-[#1a1a0f] border border-[#2a2414] rounded-lg shadow-xl z-[999999]"
+            >
+              <div className="p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-[#e8d487] mb-2">Help & Resources</h3>
+
+                <a
+                  href="#"
+                  className="block text-sm text-gray-300 hover:text-[#e8d487] transition py-2"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    alert('Quick Start Guide coming soon! Check Settings > Data to load sample data.')
+                    setHelpOpen(false)
+                  }}
+                >
+                  📄 Quick Start Guide
+                </a>
+
+                <a
+                  href="#"
+                  className="block text-sm text-gray-300 hover:text-[#e8d487] transition py-2"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    alert('FAQ coming soon! For now, check the onboarding wizard or load sample data.')
+                    setHelpOpen(false)
+                  }}
+                >
+                  ❓ Frequently Asked Questions
+                </a>
+
+                <a
+                  href="#"
+                  className="block text-sm text-gray-300 hover:text-[#e8d487] transition py-2"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    alert('Support coming soon! Email: support@reglazemellc.com')
+                    setHelpOpen(false)
+                  }}
+                >
+                  💬 Contact Support
+                </a>
+
+                <Link
+                  to="/settings"
+                  className="block text-sm text-gray-300 hover:text-[#e8d487] transition py-2"
+                  onClick={() => setHelpOpen(false)}
+                >
+                  ⚙️ Settings
+                </Link>
+              </div>
+            </div>,
+            document.body
+          )}
 
           <button className="header-icon-btn !leading-none hover:bg-black/5" title="Export PDF" onClick={handleExport}>
 

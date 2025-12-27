@@ -4,7 +4,7 @@ import { useConfigStore } from '@store/useConfigStore'
 import type { BusinessProfile, AppLabels, Theme, ContractTemplate } from '../config'
 import type { ChecklistItem } from '../db/index'
 import { DEFAULT_CHECKLIST_QUESTIONS } from '../db/index'
-
+import { loadSampleData, deleteSampleData, hasSampleData } from '../utils/demoData'
 
 import { storage } from '../firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -1015,6 +1015,51 @@ function ContractsTab({ config, updateContractTemplates }: any) {
 
 // ==================== DATA TAB ====================
 function DataTab({ exportJSON, importJSON, resetToDefaults }: any) {
+  const [sampleDataExists, setSampleDataExists] = useState(false)
+  const [loadingCheck, setLoadingCheck] = useState(true)
+  const { activeTenantId } = useConfigStore()
+
+  useEffect(() => {
+    checkSampleData()
+  }, [])
+
+  const checkSampleData = async () => {
+    setLoadingCheck(true)
+    const exists = await hasSampleData()
+    setSampleDataExists(exists)
+    setLoadingCheck(false)
+  }
+
+  const handleLoadSampleData = async () => {
+    if (!confirm('Load sample data (5 clients, 10 quotes)? This is helpful for testing and demos.')) return
+    
+    const result = await loadSampleData(activeTenantId)
+    
+    if (result.success) {
+      useToastStore.getState().show(result.message)
+      setSampleDataExists(true)
+      // Reload stores to show new data
+      window.location.reload()
+    } else {
+      useToastStore.getState().show(result.message)
+    }
+  }
+
+  const handleDeleteSampleData = async () => {
+    if (!confirm('Delete ALL sample data? This will remove all demo clients and quotes. This cannot be undone.')) return
+    
+    const result = await deleteSampleData()
+    
+    if (result.success) {
+      useToastStore.getState().show(result.message)
+      setSampleDataExists(false)
+      // Reload stores to reflect deletion
+      window.location.reload()
+    } else {
+      useToastStore.getState().show(result.message)
+    }
+  }
+
   const handleExport = async () => {
     const blob = await exportJSON()
     const url = URL.createObjectURL(blob)
@@ -1050,6 +1095,36 @@ function DataTab({ exportJSON, importJSON, resetToDefaults }: any) {
 
   return (
     <div className="space-y-6">
+      {/* Sample Data Section */}
+      <div>
+        <h2 className="text-lg font-semibold text-[#e8d487]">Sample Data</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          {sampleDataExists 
+            ? 'Demo data is loaded. Delete it when you\'re ready to add real clients.'
+            : 'Load sample data to see how the app works with realistic examples.'}
+        </p>
+        
+        {loadingCheck ? (
+          <div className="text-xs text-gray-400">Checking for sample data...</div>
+        ) : (
+          <div className="flex gap-2">
+            {!sampleDataExists && (
+              <button onClick={handleLoadSampleData} className="btn-outline-gold">
+                Load Sample Data
+              </button>
+            )}
+            {sampleDataExists && (
+              <button 
+                onClick={handleDeleteSampleData} 
+                className="btn-outline-gold text-red-500 border-red-500 hover:bg-red-500/10"
+              >
+                Delete Sample Data
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       <div>
         <h2 className="text-lg font-semibold text-[#e8d487]">Export Data</h2>
         <p className="text-xs text-gray-500 mb-3">Download all settings and data as JSON</p>

@@ -93,6 +93,12 @@ export default function InvoicesPage() {
             Manage invoices and track payments
           </p>
         </div>
+        <button
+          onClick={() => navigate('/invoices/new')}
+          className="btn-gold"
+        >
+          + New Invoice
+        </button>
       </div>
 
             {outstandingTotal > 0 && (
@@ -197,6 +203,24 @@ export default function InvoicesPage() {
                       Mark Paid
                     </button>
                   )}
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation()
+                      if (!window.confirm('Delete this invoice?')) return
+                      const { remove } = useInvoicesStore.getState()
+                      await remove(invoice.id)
+                      useToastStore.getState().show('Invoice deleted')
+                    }}
+                    className="
+                      px-3 py-2 text-xs font-medium rounded-lg
+                      bg-red-600 hover:bg-red-500 text-white
+                      transition whitespace-nowrap
+                    "
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             )

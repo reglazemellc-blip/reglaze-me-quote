@@ -1,656 +1,437 @@
-// -------------------------------------------------------------
-// Dashboard.tsx — PREMIUM DASHBOARD + ACTIONS + FILTERS
-// -------------------------------------------------------------
+// Dashboard.tsx — Workflow Hub with Embedded Calendar
 
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useClientsStore } from "@store/useClientsStore";
 import { useQuotesStore } from "@store/useQuotesStore";
+import { useInvoicesStore } from "@store/useInvoicesStore";
 import { useConfigStore } from "@store/useConfigStore";
-import { useNavigate } from "react-router-dom";
+import { useCompaniesStore } from "@store/useCompaniesStore";
+import { Calendar, ChevronLeft, ChevronRight, AlertCircle, Phone, DollarSign, Users, FileText, Clock, X } from "lucide-react";
+import OnboardingWizard from "@components/OnboardingWizard";
 
-// -------------------------------------------------------------
-// SMALL INLINE ICONS (no external libraries)
-// -------------------------------------------------------------
-type IconProps = { className?: string };
-
-const DocumentIcon = ({ className = "" }: IconProps) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M7 3h7l5 5v13H7z" />
-    <path d="M14 3v5h5" />
-  </svg>
-);
-
-const ClockIcon = ({ className = "" }: IconProps) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 7v5l3 2" />
-  </svg>
-);
-
-const CalendarIcon = ({ className = "" }: IconProps) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="4" width="18" height="17" rx="2" />
-    <path d="M8 2v4M16 2v4M3 10h18" />
-  </svg>
-);
-
-const UsersIcon = ({ className = "" }: IconProps) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <circle cx="9" cy="8" r="3" />
-    <path d="M4 18c0-2.2 2.2-4 5-4" />
-    <circle cx="17" cy="9" r="2.5" />
-    <path d="M15 18c0-1.8 1.7-3.3 4-3.5" />
-  </svg>
-);
-
-const MailIcon = ({ className = "" }: IconProps) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <path d="M4 7.5 12 12l8-4.5" />
-  </svg>
-);
-
-const AlertIcon = ({ className = "" }: IconProps) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 3 3 19h18z" />
-    <path d="M12 9v5" />
-    <circle cx="12" cy="16.5" r="0.5" />
-  </svg>
-);
-
-const BellIcon = ({ className = "" }: IconProps) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.6"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M18 16v-4a6 6 0 0 0-12 0v4" />
-    <path d="M5 16h14" />
-    <path d="M10 19a2 2 0 0 0 4 0" />
-  </svg>
-);
-
-// -------------------------------------------------------------
-// TYPES
-// -------------------------------------------------------------
-type ActionItem = {
-  label: string;
-  count: number;
-  description?: string;
-  onClick: () => void;
-};
-
-type RecentFilter = "all" | "pending" | "scheduled" | "unsent";
-
-// -------------------------------------------------------------
-// COMPONENT
-// -------------------------------------------------------------
 export default function Dashboard() {
   const { clients, init: initClients } = useClientsStore();
   const { quotes, init: initQuotes } = useQuotesStore();
+  const { invoices, init: initInvoices } = useInvoicesStore();
+  const { companies, properties, init: initCompanies } = useCompaniesStore();
   const { config } = useConfigStore();
-  const navigate = useNavigate();
+  
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showGettingStarted, setShowGettingStarted] = useState(false);
 
-  const labels = config?.labels;
-
-  // -------------------------------------------------------------
-  // INIT STORE DATA
-  // -------------------------------------------------------------
   useEffect(() => {
     initClients();
     initQuotes();
-  }, [initClients, initQuotes]);
+    initInvoices();
+    initCompanies();
 
-  const safeQuotes = quotes || [];
-  const safeClients = clients || [];
+    // Check if onboarding should be shown
+    const onboardingComplete = localStorage.getItem('onboarding_complete');
+    const onboardingSkipped = localStorage.getItem('onboarding_skipped');
+    
+    if (!onboardingComplete && !onboardingSkipped) {
+      setShowOnboarding(true);
+    } else if (onboardingSkipped && !onboardingComplete) {
+      // Show getting started checklist if skipped but not completed
+      const checklist = {
+        businessInfo: !!config?.businessProfile?.companyName && !!config?.businessProfile?.email,
+        logo: !!config?.businessProfile?.logo,
+        firstClient: clients.length > 0,
+        firstQuote: quotes.length > 0,
+      };
+      const allComplete = Object.values(checklist).every(Boolean);
+      setShowGettingStarted(!allComplete);
+    }
+  }, [initClients, initQuotes, initInvoices, initCompanies]);
 
-  // -------------------------------------------------------------
-  // KEY METRIC CALCULATIONS
-  // -------------------------------------------------------------
-  const totalQuotes = safeQuotes.length;
-  const totalClients = safeClients.length;
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
 
-  const pending = safeQuotes.filter((q) => q.status === "pending").length;
-  const scheduled = safeQuotes.filter((q) => q.status === "scheduled").length;
+  const handleOnboardingSkip = () => {
+    setShowOnboarding(false);
+    setShowGettingStarted(true);
+  };
 
-  const unsent = safeQuotes.filter((q) => !q.sentAt).length;
+  const handleDismissGettingStarted = () => {
+    setShowGettingStarted(false);
+    localStorage.setItem('getting_started_dismissed', 'true');
+  };
 
-  const expiringSoon = useMemo(() => {
-    const now = Date.now();
-    const in7 = now + 7 * 24 * 60 * 60 * 1000;
-    return safeQuotes.filter(
-      (q) => q.expiresAt && q.expiresAt < in7 && q.expiresAt > now
-    ).length;
-  }, [safeQuotes]);
+  // Clients that need contact
+  const needsContact = useMemo(() => {
+    return clients.filter((c) => !quotes.some((q) => q.clientId === c.id));
+  }, [clients, quotes]);
 
-  const remindersDue = useMemo(() => {
-    const now = Date.now();
-    return safeClients.reduce((count, c) => {
-      const rs = c.reminders ?? [];
-      return count + rs.filter((r) => !r.done && r.remindAt <= now).length;
-    }, 0);
-  }, [safeClients]);
-
-  // -------------------------------------------------------------
-  // LIST DATA: RECENT + SCHEDULED
-  // -------------------------------------------------------------
-  const recentQuotes = useMemo(
-    () =>
-      [...safeQuotes]
-        .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
-        .slice(0, 5),
-    [safeQuotes]
-  );
-
-  const scheduledQuotes = useMemo(
-    () =>
-      safeQuotes
-        .filter((q) => q.status === "scheduled")
-        .sort((a, b) => (a.updatedAt ?? 0) - (b.updatedAt ?? 0))
-        .slice(0, 5),
-    [safeQuotes]
-  );
-
-  // Quick filter for Recent
-  const [recentFilter, setRecentFilter] = useState<RecentFilter>("all");
-
-  const filteredRecentQuotes = useMemo(() => {
-    return recentQuotes.filter((q) => {
-      switch (recentFilter) {
-        case "pending":
-          return q.status === "pending";
-        case "scheduled":
-          return q.status === "scheduled";
-        case "unsent":
-          return !q.sentAt;
-        case "all":
-        default:
-          return true;
+  // Awaiting quote
+  const awaitingQuote = useMemo(() => {
+    const clientsWithUnsentQuotes = new Set<string>();
+    quotes.forEach((q) => {
+      if ((!q.workflowStatus || q.workflowStatus === "new") && q.clientId) {
+        clientsWithUnsentQuotes.add(q.clientId);
       }
     });
-  }, [recentQuotes, recentFilter]);
+    return clients.filter((c) => clientsWithUnsentQuotes.has(c.id));
+  }, [clients, quotes]);
 
-  // -------------------------------------------------------------
-  // HELPERS
-  // -------------------------------------------------------------
-  const formatCurrency = (value: number | undefined | null) => {
-    const n = typeof value === "number" ? value : 0;
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 2,
-    }).format(n);
-  };
+  // Follow Up
+  const followUp = useMemo(() => {
+    return quotes.filter((q) => {
+      const status = q.workflowStatus;
+      return status && status !== "new" && status !== "scheduled" && 
+             status !== "in_progress" && status !== "completed" && 
+             status !== "invoiced" && status !== "paid";
+    });
+  }, [quotes]);
 
-  const formatDate = (ts: number | undefined | null) => {
-    if (!ts) return "";
-    return new Date(ts).toLocaleDateString();
-  };
+  // Jobs this week
+  const jobsThisWeek = useMemo(() => {
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
 
-  const statusLabel = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "Pending";
-      case "approved":
-        return "Approved";
-      case "scheduled":
-        return "Scheduled";
-      case "in_progress":
-        return "In Progress";
-      case "completed":
-        return "Completed";
-      case "canceled":
-        return "Canceled";
-      default:
-        return status || "Unknown";
+    return clients.filter((c) => {
+      if (!c.scheduledDate) return false;
+      const schedDate = new Date(c.scheduledDate);
+      return schedDate >= startOfWeek && schedDate <= endOfWeek;
+    }).length + quotes.filter((q) => {
+      if (!q.scheduledDate) return false;
+      const schedDate = new Date(q.scheduledDate);
+      return schedDate >= startOfWeek && schedDate <= endOfWeek;
+    }).length;
+  }, [clients, quotes]);
+
+  // Pending invoices
+  const pendingInvoices = useMemo(() => {
+    return invoices.filter((inv) => inv.status !== 'paid');
+  }, [invoices]);
+
+  // Calendar month data
+  const calendarDays = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startPadding = firstDay.getDay();
+    const days = [];
+
+    for (let i = 0; i < startPadding; i++) {
+      days.push({ day: null, jobs: [] });
     }
-  };
 
-  const statusClass = (status: string) => {
-    let base = "px-2 py-0.5 text-[10px] rounded-full border ";
-    switch (status) {
-      case "pending":
-        return base + "border-yellow-500/60 text-yellow-300";
-      case "approved":
-        return base + "border-emerald-500/60 text-emerald-300";
-      case "scheduled":
-        return base + "border-sky-500/60 text-sky-300";
-      case "in_progress":
-        return base + "border-blue-500/60 text-blue-300";
-      case "completed":
-        return base + "border-gray-500/60 text-gray-300";
-      case "canceled":
-        return base + "border-red-500/60 text-red-300";
-      default:
-        return base + "border-gray-500/60 text-gray-300";
-    }
-  };
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayJobs: any[] = [];
 
-  const displayQuoteNumber = (q: { id?: string; quoteNumber?: string | null }) => {
-    if (q.quoteNumber) return q.quoteNumber;
-    const id = q.id || "";
-    if (!id) return "";
-    if (id.length <= 10) return id;
-    return `${id.slice(0, 6)}…${id.slice(-4)}`;
-  };
-
-  const pillClasses = (value: RecentFilter) =>
-    `px-2 py-0.5 rounded-full border text-[10px] cursor-pointer transition ${
-      recentFilter === value
-        ? "border-[#e8d487] text-[#e8d487] bg-black/60"
-        : "border-[#2a2414] text-gray-400 hover:border-[#e8d487]/60 hover:text-[#e8d487]"
-    }`;
-
-  // -------------------------------------------------------------
-  // TODAY'S ACTIONS
-  // -------------------------------------------------------------
-  const todaysActions: ActionItem[] = useMemo(() => {
-    const now = new Date();
-    const start = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    ).getTime();
-    const end = start + 24 * 60 * 60 * 1000;
-
-    const scheduledTodayCount = safeQuotes.filter(
-      (q) =>
-        q.status === "scheduled" &&
-        q.updatedAt &&
-        q.updatedAt >= start &&
-        q.updatedAt < end
-    ).length;
-
-    const items: ActionItem[] = [];
-
-    if (pending > 0) {
-      items.push({
-        label: "Pending quotes",
-        count: pending,
-        description: "Quotes waiting for approval or scheduling.",
-        onClick: () => navigate("/quotes?status=pending"),
+      clients.forEach((c) => {
+        if (c.scheduledDate === dateStr) {
+          dayJobs.push({ name: c.name, link: `/clients/${c.id}`, time: c.scheduledTime });
+        }
       });
-    }
 
-    if (unsent > 0) {
-      items.push({
-        label: "Unsent quotes",
-        count: unsent,
-        description: "Quotes drafted but not sent to clients.",
-        onClick: () => navigate("/quotes?filter=unsent"),
+      quotes.forEach((q) => {
+        if (q.scheduledDate === dateStr) {
+          const client = clients.find((c) => c.id === q.clientId);
+          if (!dayJobs.find((j) => j.link === `/clients/${client?.id}`)) {
+            dayJobs.push({ name: q.clientName || client?.name, link: `/quotes/${q.id}`, time: q.scheduledTime });
+          }
+        }
       });
+
+      days.push({ day, jobs: dayJobs });
     }
 
-    if (scheduledTodayCount > 0) {
-      items.push({
-        label: "Jobs scheduled today",
-        count: scheduledTodayCount,
-        description: "Work scheduled to happen today.",
-        onClick: () => navigate("/quotes?status=scheduled"),
-      });
-    }
+    return days;
+  }, [currentDate, clients, quotes]);
 
-    if (expiringSoon > 0) {
-      items.push({
-        label: "Quotes expiring soon",
-        count: expiringSoon,
-        description: "Quotes expiring in the next 7 days.",
-        onClick: () => navigate("/quotes?filter=expiring"),
-      });
-    }
+  const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    if (remindersDue > 0) {
-      items.push({
-        label: "Reminders due",
-        count: remindersDue,
-        description: "Follow-ups you scheduled with clients.",
-        onClick: () => navigate("/reminders"),
-      });
-    }
-
-    return items;
-  }, [safeQuotes, pending, unsent, expiringSoon, remindersDue, navigate]);
-
-  // -------------------------------------------------------------
-  // UI STYLES
-  // -------------------------------------------------------------
-  const box =
-    "flex flex-col items-center justify-center rounded-xl p-4 md:p-5 bg-black/30 border border-[#2a2414] hover:bg-black/50 transition transform hover:-translate-y-0.5 hover:shadow-lg cursor-pointer";
-
-  const label = "text-xs tracking-wide text-gray-400";
-  const number = "text-3xl font-semibold text-[#e8d487]";
-
-  const actionBtn =
-    "px-4 md:px-5 py-2 rounded-lg border border-[#e8d487] text-[#e8d487] hover:bg-[#e8d487] hover:text-black transition transform hover:-translate-y-0.5";
-
-  const sectionCard =
-    "rounded-xl bg-black/40 border border-[#2a2414] p-4 space-y-3";
-
-  const sectionTitle = "text-sm font-semibold text-[#e8d487]";
-
-  const listItem =
-    "flex items-center justify-between text-xs py-1.5 border-b border-[#2a2414]/70 last:border-b-0";
-
-  const listMain = "flex flex-col";
-  const listLabel = "text-[11px] text-gray-300";
-  const listSub = "text-[10px] text-gray-500";
-
-  // -------------------------------------------------------------
-  // RENDER
-  // -------------------------------------------------------------
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 md:space-y-8">
-      {/* HEADER ROW */}
-      <div className="flex justify-between items-center">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-semibold text-[#e8d487]">
-            {labels?.dashboardTitle || 'Dashboard'}
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+      {/* Onboarding Wizard */}
+      {showOnboarding && (
+        <OnboardingWizard 
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+        />
+      )}
+
+      {/* Getting Started Checklist */}
+      {showGettingStarted && !showOnboarding && (
+        <div className="bg-[#2a2414] border border-[#e8d487]/30 rounded-xl p-6 relative">
+          <button
+            onClick={handleDismissGettingStarted}
+            className="absolute top-4 right-4 text-gray-400 hover:text-white transition"
+          >
+            <X size={20} />
+          </button>
+          
+          <h3 className="text-lg font-semibold text-[#e8d487] mb-3">Getting Started</h3>
+          <p className="text-sm text-gray-400 mb-4">Complete these steps to get the most out of your workspace</p>
+          
+          <div className="space-y-2">
+            <ChecklistItem 
+              completed={!!config?.businessProfile?.companyName && !!config?.businessProfile?.email}
+              label="Add business information"
+              link="/settings"
+            />
+            <ChecklistItem 
+              completed={!!config?.businessProfile?.logo}
+              label="Upload your logo"
+              link="/settings"
+            />
+            <ChecklistItem 
+              completed={clients.length > 0}
+              label="Create your first client"
+              link="/clients"
+            />
+            <ChecklistItem 
+              completed={quotes.length > 0}
+              label="Create your first quote"
+              link="/quotes/new"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-[#e8d487]">
+            {config?.labels?.dashboardTitle || "Dashboard"}
           </h2>
-          <p className="text-xs text-gray-500">
-            {labels?.dashboardSubtitle || 'Business overview'}
-          </p>
+          <p className="text-sm text-gray-400">Your workflow hub</p>
         </div>
-
-        <div className="flex gap-3 flex-wrap">
-
-          {/* IMPORTANT: this is the only behavior change */}
-          <button
-            onClick={() =>
-              navigate("/clients", { state: { openClientDrawer: true } })
-            }
-            className={actionBtn}
-          >
-            + {labels?.clientNewButton || 'New Client'}
-          </button>
-
-          <button
-            onClick={() => navigate("/quotes/new")}
-            className={actionBtn}
-          >
-            + {labels?.quoteNewButton || 'New Quote'}
-          </button>
+        <div className="flex gap-3">
+          <Link to="/clients" state={{ openClientDrawer: true }} className="btn-gold">
+            + New Client
+          </Link>
+          <Link to="/quotes/new" className="btn-gold">
+            + New Quote
+          </Link>
         </div>
       </div>
 
-      {/* MAIN KPI ROW — 4 BOXES */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
-
-        <div className={box} onClick={() => navigate("/quotes")}>
-          <DocumentIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>{(labels?.quotesTitle || 'QUOTES').toUpperCase()}</div>
-          <div className={number}>{totalQuotes}</div>
-        </div>
-
-        <div
-          className={box}
-          onClick={() => navigate("/quotes?status=pending")}
-        >
-          <ClockIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>{(labels?.statusPending || 'PENDING').toUpperCase()}</div>
-          <div className={number}>{pending}</div>
-        </div>
-
-        <div
-          className={box}
-          onClick={() => navigate("/quotes?status=scheduled")}
-        >
-          <CalendarIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>{(labels?.statusScheduled || 'SCHEDULED').toUpperCase()}</div>
-          <div className={number}>{scheduled}</div>
-        </div>
-
-        <div className={box} onClick={() => navigate("/clients")}>
-          <UsersIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>{(labels?.clientsTitle || 'CLIENTS').toUpperCase()}</div>
-          <div className={number}>{totalClients}</div>
-        </div>
-      </div>
-
-      {/* SECONDARY ROW — 3 BOXES */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
-        <div
-          className={box}
-          onClick={() => navigate("/quotes?filter=unsent")}
-        >
-          <MailIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>UNSENT</div>
-          <div className={number}>{unsent}</div>
-        </div>
-
-        <div
-          className={box}
-          onClick={() => navigate("/quotes?filter=expiring")}
-        >
-          <AlertIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>EXPIRING 7 DAYS</div>
-          <div className={number}>{expiringSoon}</div>
-        </div>
-
-        <div className={box} onClick={() => navigate("/reminders")}>
-          <BellIcon className="w-4 h-4 mb-1 text-[#e8d487]" />
-          <div className={label}>REMINDERS DUE</div>
-          <div className={number}>{remindersDue}</div>
-        </div>
-      </div>
-
-      {/* TODAY'S ACTIONS */}
-      <div className={sectionCard}>
-        <div className="flex items-center justify-between">
-          <div className={sectionTitle}>Today&apos;s Actions</div>
-        </div>
-
-        {todaysActions.length === 0 ? (
-          <div className="text-[11px] text-gray-500">
-            You&apos;re all caught up for today. 🎉
+      {/* Quick Actions Cards */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Link to="/clients" className="bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/50 transition group">
+          <div className="flex items-center gap-3 mb-2">
+            <Users className="text-[#e8d487]" size={20} />
+            <span className="text-sm text-gray-400">Total Clients</span>
           </div>
-        ) : (
-          <div className="space-y-1">
-            {todaysActions.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={item.onClick}
-                className={
-                  listItem +
-                  " w-full text-left hover:bg-black/40 px-2 rounded-md transition"
-                }
-              >
-                <div className={listMain}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-gray-200">
-                      {item.label}
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full border border-[#e8d487]/80 text-[#e8d487]">
-                      {item.count}
-                    </span>
+          <div className="text-3xl font-bold text-white">{clients.length}</div>
+        </Link>
+
+        <div className="bg-black/40 border border-[#2a2414] rounded-xl p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Calendar className="text-[#e8d487]" size={20} />
+            <span className="text-sm text-gray-400">Jobs This Week</span>
+          </div>
+          <div className="text-3xl font-bold text-white">{jobsThisWeek}</div>
+        </div>
+
+        <Link to="/quotes" className="bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/50 transition">
+          <div className="flex items-center gap-3 mb-2">
+            <FileText className="text-[#e8d487]" size={20} />
+            <span className="text-sm text-gray-400">Total Quotes</span>
+          </div>
+          <div className="text-3xl font-bold text-white">{quotes.length}</div>
+        </Link>
+
+        <Link to="/invoices" className="bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/50 transition">
+          <div className="flex items-center gap-3 mb-2">
+            <DollarSign className="text-[#e8d487]" size={20} />
+            <span className="text-sm text-gray-400">Pending Invoices</span>
+          </div>
+          <div className="text-3xl font-bold text-white">{pendingInvoices.length}</div>
+        </Link>
+      </section>
+
+      {/* Action Required */}
+      <section className="bg-black/40 border border-[#2a2414] rounded-xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertCircle className="text-[#e8d487]" size={24} />
+          <h3 className="text-xl font-semibold text-[#e8d487]">Action Required</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Needs Contact */}
+          <div className="bg-black/30 border border-[#2a2414] rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-white">Needs Contact</h4>
+              <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs rounded-full border border-red-700/30">
+                {needsContact.length}
+              </span>
+            </div>
+            {needsContact.length === 0 ? (
+              <p className="text-sm text-gray-500">All caught up!</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {needsContact.slice(0, 5).map((client) => (
+                  <Link key={client.id} to={`/clients/${client.id}`} className="block text-sm text-gray-300 hover:text-[#e8d487] transition">
+                    {client.name}
+                    {client.createdAt && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        {Math.floor((Date.now() - client.createdAt) / (1000 * 60 * 60 * 24))}d ago
+                      </span>
+                    )}
+                  </Link>
+                ))}
+                {needsContact.length > 5 && (
+                  <Link to="/clients" className="text-xs text-[#e8d487] hover:underline">
+                    View all {needsContact.length} →
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Awaiting Quote */}
+          <div className="bg-black/30 border border-[#2a2414] rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-white">Awaiting Quote</h4>
+              <span className="px-2 py-1 bg-yellow-900/30 text-yellow-400 text-xs rounded-full border border-yellow-700/30">
+                {awaitingQuote.length}
+              </span>
+            </div>
+            {awaitingQuote.length === 0 ? (
+              <p className="text-sm text-gray-500">All caught up!</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {awaitingQuote.slice(0, 5).map((client) => (
+                  <Link key={client.id} to={`/clients/${client.id}`} className="block text-sm text-gray-300 hover:text-[#e8d487] transition">
+                    {client.name}
+                  </Link>
+                ))}
+                {awaitingQuote.length > 5 && (
+                  <Link to="/clients" className="text-xs text-[#e8d487] hover:underline">
+                    View all {awaitingQuote.length} →
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Follow Up */}
+          <div className="bg-black/30 border border-[#2a2414] rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold text-white">Follow Up</h4>
+              <span className="px-2 py-1 bg-blue-900/30 text-blue-400 text-xs rounded-full border border-blue-700/30">
+                {followUp.length}
+              </span>
+            </div>
+            {followUp.length === 0 ? (
+              <p className="text-sm text-gray-500">All caught up!</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {followUp.slice(0, 5).map((quote) => {
+                  const client = clients.find((c) => c.id === quote.clientId);
+                  return (
+                    <Link key={quote.id} to={`/quotes/${quote.id}`} className="block text-sm text-gray-300 hover:text-[#e8d487] transition">
+                      {client?.name || "Unknown Client"}
+                    </Link>
+                  );
+                })}
+                {followUp.length > 5 && (
+                  <Link to="/quotes" className="text-xs text-[#e8d487] hover:underline">
+                    View all {followUp.length} →
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Calendar */}
+      <section className="bg-black/40 border border-[#2a2414] rounded-xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-[#e8d487]" size={24} />
+            <h3 className="text-xl font-semibold text-[#e8d487]">{monthName}</h3>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+              className="p-2 hover:bg-black/30 rounded transition"
+            >
+              <ChevronLeft size={20} className="text-gray-400" />
+            </button>
+            <button
+              onClick={() => setCurrentDate(new Date())}
+              className="px-3 py-1 text-sm text-gray-400 hover:text-[#e8d487] transition"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+              className="p-2 hover:bg-black/30 rounded transition"
+            >
+              <ChevronRight size={20} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-2">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+            <div key={day} className="text-center text-xs text-gray-500 font-semibold p-2">
+              {day}
+            </div>
+          ))}
+          {calendarDays.map((dayData, idx) => (
+            <div
+              key={idx}
+              className={`min-h-[80px] p-2 rounded-lg border ${
+                dayData.day ? 'border-[#2a2414] bg-black/20' : 'border-transparent'
+              } ${dayData.jobs.length > 0 ? 'bg-[#e8d487]/10 border-[#e8d487]/30' : ''}`}
+            >
+              {dayData.day && (
+                <>
+                  <div className="text-sm text-gray-400 mb-1">{dayData.day}</div>
+                  <div className="space-y-1">
+                    {dayData.jobs.map((job: any, jidx: number) => (
+                      <Link
+                        key={jidx}
+                        to={job.link}
+                        className="block text-xs text-[#e8d487] hover:text-white transition truncate"
+                      >
+                        {job.time && <Clock size={10} className="inline mr-1" />}
+                        {job.name}
+                      </Link>
+                    ))}
                   </div>
-                  {item.description && (
-                    <div className={listSub}>{item.description}</div>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// Helper component for getting started checklist
+function ChecklistItem({ completed, label, link }: { completed: boolean; label: string; link: string }) {
+  return (
+    <Link 
+      to={link}
+      className="flex items-center gap-3 p-3 bg-black/30 rounded-lg hover:bg-black/40 transition group"
+    >
+      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
+        completed ? 'bg-[#e8d487] border-[#e8d487]' : 'border-gray-500'
+      }`}>
+        {completed && (
+          <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
         )}
       </div>
-
-      {/* ACTIVITY SECTIONS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* RECENT QUOTES */}
-        <div className={sectionCard}>
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col gap-1">
-              <div className={sectionTitle}>Recent Quotes</div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setRecentFilter("all")}
-                  className={pillClasses("all")}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setRecentFilter("pending")}
-                  className={pillClasses("pending")}
-                >
-                  Pending
-                </button>
-                <button
-                  onClick={() => setRecentFilter("scheduled")}
-                  className={pillClasses("scheduled")}
-                >
-                  Scheduled
-                </button>
-                <button
-                  onClick={() => setRecentFilter("unsent")}
-                  className={pillClasses("unsent")}
-                >
-                  Unsent
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigate("/quotes")}
-              className="text-[11px] text-gray-400 hover:text-[#e8d487] transition"
-            >
-              View all
-            </button>
-          </div>
-
-          {filteredRecentQuotes.length === 0 ? (
-            <div className="text-[11px] text-gray-500">
-              No quotes match this filter.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filteredRecentQuotes.map((q) => (
-                <button
-                  key={q.id}
-                  onClick={() => navigate(`/quotes/${q.id}`)}
-                  className={
-                    listItem +
-                    " w-full text-left hover:bg-black/40 px-2 rounded-md transition"
-                  }
-                >
-                  <div className={listMain}>
-                    <div className={listLabel}>
-                      {q.clientName || "Unnamed Client"} —{" "}
-                      {displayQuoteNumber(q)}
-                    </div>
-                    <div className={listSub}>
-                      {formatDate(q.createdAt)} • {formatCurrency(q.total)}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={statusClass(q.status)}>
-                      {statusLabel(q.status)}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* SCHEDULED QUOTES */}
-        <div className={sectionCard}>
-          <div className="flex items-center justify-between">
-            <div className={sectionTitle}>Scheduled Quotes</div>
-            <button
-              onClick={() => navigate("/quotes?status=scheduled")}
-              className="text-[11px] text-gray-400 hover:text-[#e8d487] transition"
-            >
-              View all
-            </button>
-          </div>
-
-          {scheduledQuotes.length === 0 ? (
-            <div className="text-[11px] text-gray-500">
-              No scheduled quotes yet.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {scheduledQuotes.map((q) => (
-                <button
-                  key={q.id}
-                  onClick={() => navigate(`/quotes/${q.id}`)}
-                  className={
-                    listItem +
-                    " w-full text-left hover:bg-black/40 px-2 rounded-md transition"
-                  }
-                >
-                  <div className={listMain}>
-                    <div className={listLabel}>
-                      {q.clientName || "Unnamed Client"} —{" "}
-                      {displayQuoteNumber(q)}
-                    </div>
-                    <div className={listSub}>
-                      Updated {formatDate(q.updatedAt)} •{" "}
-                      {formatCurrency(q.total)}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className={statusClass(q.status)}>
-                      {statusLabel(q.status)}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      <span className={`text-sm ${completed ? 'text-gray-400 line-through' : 'text-gray-300 group-hover:text-[#e8d487]'}`}>
+        {label}
+      </span>
+    </Link>
   );
 }

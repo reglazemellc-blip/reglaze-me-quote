@@ -16,6 +16,7 @@ import Catalog from "@pages/Catalog";
 import SettingsPage from "@pages/SettingsPage";
 import InvoicesPage from "@pages/InvoicesPage";
 import InvoiceDetail from "@pages/InvoiceDetail";
+import InvoiceNew from "@pages/InvoiceNew";
 import ContractsPage from "@pages/ContractsPage";
 import ContractDetail from "@pages/ContractDetail";
 
@@ -96,6 +97,7 @@ export default function App() {
 
   {/* Invoices */}
   <Route path="/invoices" element={<InvoicesPage />} />
+  <Route path="/invoices/new" element={<InvoiceNew />} />
   <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
   {/* Contracts */}
