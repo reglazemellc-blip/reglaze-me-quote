@@ -58,6 +58,13 @@ export default function MobileTestingChecklist() {
       instructions: 'Tap ? icon. Dropdown should appear above all content, easy to tap options.',
       passed: null,
     },
+    {
+      id: 'zfold-cover',
+      label: 'Z Fold cover screen usable',
+      page: 'all',
+      instructions: 'Resize to 374px width. Check no horizontal scroll, all content fits, buttons work.',
+      passed: null,
+    },
   ])
 
   const [isMinimized, setIsMinimized] = useState(false)
@@ -148,7 +155,7 @@ export default function MobileTestingChecklist() {
 
       <div className="p-4 border-t border-[#2a2414] text-xs text-gray-400">
         <p>💡 Test on Chrome DevTools (F12 → Toggle device toolbar)</p>
-        <p className="mt-1">Device: iPhone 12 Pro (390x844)</p>
+        <p className="mt-1">Devices: iPhone 12 Pro (390x844) • Z Fold Cover (374x800)</p>
       </div>
     </div>
   )

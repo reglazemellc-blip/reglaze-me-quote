@@ -266,3 +266,71 @@ textarea {
     border-radius: 0;
   }
 }
+/* 9. Ultra-narrow screens (Z Fold cover screen: 374px) */
+@media (max-width: 390px) {
+  /* Prevent horizontal overflow */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Tighter spacing */
+  .card {
+    padding: 0.75rem !important;
+  }
+  
+  /* Stack buttons vertically */
+  .btn-group {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .btn-group > * {
+    width: 100%;
+  }
+  
+  /* Smaller text for tight spaces */
+  h1 {
+    font-size: 1.25rem;
+  }
+  
+  h2 {
+    font-size: 1.125rem;
+  }
+  
+  h3 {
+    font-size: 1rem;
+  }
+  
+  /* Ensure inputs fit */
+  input,
+  select,
+  textarea,
+  .input {
+    min-width: 0;
+    width: 100%;
+  }
+  
+  /* Responsive tables - force scroll */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Header adjustments */
+  header {
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  /* Hide secondary navigation text, keep icons */
+  .nav-text-secondary {
+    display: none;
+  }
+  
+  /* Onboarding full width */
+  .onboarding-modal {
+    margin: 0;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+}

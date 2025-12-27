@@ -219,12 +219,12 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 sm:p-4">
-      <div className="onboarding-modal bg-[#1a1a0f] border border-[#2a2414] rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-0 sm:p-4">
+      <div className="onboarding-modal bg-[#1a1a0f] border-0 sm:border border-[#2a2414] rounded-none sm:rounded-lg w-full max-w-2xl max-h-[100vh] sm:max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-[#2a2414]">
-          <h2 className="text-xl sm:text-2xl font-semibold text-[#e8d487]">Welcome to {config?.businessProfile?.companyName || 'Reglaze Me'}</h2>
+        <div className="p-3 sm:p-4 md:p-6 border-b border-[#2a2414]">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-semibold text-[#e8d487]">Welcome to {config?.businessProfile?.companyName || 'Reglaze Me'}</h2>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">Let's get your workspace set up in 4 quick steps</p>
 
           {/* Progress Bar */}
@@ -241,20 +241,20 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         </div>
 
         {/* Content */}
-        <div className="onboarding-content p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="onboarding-content p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6">
           
           {/* STEP 1: Business Info */}
           {step === 1 && (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <h3 className="text-base sm:text-lg font-semibold text-[#e8d487] mb-2">Your Business Information</h3>
+                <h3 className="text-sm sm:text-base md:text-lg font-semibold text-[#e8d487] mb-2">Your Business Information</h3>
                 <p className="text-xs sm:text-sm text-gray-400">This will appear on quotes and invoices</p>
               </div>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Business Name *</span>
+                <span className="text-xs sm:text-sm text-gray-300">Business Name *</span>
                 <input
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="e.g., Reglaze Me LLC"
@@ -263,9 +263,9 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Email *</span>
+                <span className="text-xs sm:text-sm text-gray-300">Email *</span>
                 <input
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   type="email"
                   value={businessEmail}
                   onChange={(e) => setBusinessEmail(e.target.value)}
@@ -274,9 +274,9 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Phone *</span>
+                <span className="text-xs sm:text-sm text-gray-300">Phone *</span>
                 <input
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   value={businessPhone}
                   onChange={(e) => setBusinessPhone(e.target.value)}
                   placeholder="(555) 123-4567"
@@ -338,9 +338,9 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </div>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Client Name *</span>
+                <span className="text-xs sm:text-sm text-gray-300">Client Name *</span>
                 <input
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="e.g., John Smith"
@@ -348,9 +348,9 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Phone</span>
+                <span className="text-xs sm:text-sm text-gray-300">Phone</span>
                 <input
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
                   placeholder="(555) 123-4567"
@@ -358,9 +358,9 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Email</span>
+                <span className="text-xs sm:text-sm text-gray-300">Email</span>
                 <input
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   type="email"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
@@ -379,9 +379,9 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </div>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Total Amount *</span>
+                <span className="text-xs sm:text-sm text-gray-300">Total Amount *</span>
                 <input
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   type="number"
                   value={quoteTotal}
                   onChange={(e) => setQuoteTotal(e.target.value)}
@@ -390,9 +390,9 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               </label>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-gray-300">Notes (Optional)</span>
+                <span className="text-xs sm:text-sm text-gray-300">Notes (Optional)</span>
                 <textarea
-                  className="onboarding-input input"
+                  className="onboarding-input input text-sm"
                   rows={3}
                   value={quoteNotes}
                   onChange={(e) => setQuoteNotes(e.target.value)}
@@ -411,12 +411,12 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-6 border-t border-[#2a2414] flex flex-col sm:flex-row justify-between gap-3">
+        <div className="p-3 sm:p-4 md:p-6 border-t border-[#2a2414] flex flex-col sm:flex-row justify-between gap-2 sm:gap-3">
           <div className="flex gap-2 flex-wrap">
             {step > 1 && (
               <button
                 onClick={handleBack}
-                className="btn-outline-gold text-sm flex-1 sm:flex-none"
+                className="btn-outline-gold text-xs sm:text-sm flex-1 sm:flex-none min-w-0"
                 disabled={saving}
               >
                 ← Back
@@ -424,19 +424,19 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
             )}
             <button
               onClick={handleSkip}
-              className="text-sm text-gray-400 hover:text-gray-300 px-4 flex-1 sm:flex-none"
+              className="text-xs sm:text-sm text-gray-400 hover:text-gray-300 px-3 sm:px-4 flex-1 sm:flex-none min-w-0"
               disabled={saving}
             >
-              Skip for Now
+              Skip
             </button>
           </div>
 
           <button
             onClick={handleNext}
-            className="btn-gold w-full sm:w-auto"
+            className="btn-gold text-xs sm:text-sm w-full sm:w-auto"
             disabled={saving || (step === 1 && (!businessName || !businessEmail || !businessPhone))}
           >
-            {saving ? 'Saving...' : step === 4 ? 'Complete Setup' : 'Next →'}
+            {saving ? 'Saving...' : step === 4 ? 'Complete' : 'Next →'}
           </button>
         </div>
 
