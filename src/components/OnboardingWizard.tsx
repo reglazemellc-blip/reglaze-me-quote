@@ -219,13 +219,13 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-      <div className="bg-[#1a1a0f] border border-[#2a2414] rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 sm:p-4">
+      <div className="onboarding-modal bg-[#1a1a0f] border border-[#2a2414] rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="p-6 border-b border-[#2a2414]">
-          <h2 className="text-2xl font-semibold text-[#e8d487]">Welcome to {config?.businessProfile?.companyName || 'Reglaze Me'}</h2>
-          <p className="text-sm text-gray-400 mt-1">Let's get your workspace set up in 4 quick steps</p>
+        <div className="p-4 sm:p-6 border-b border-[#2a2414]">
+          <h2 className="text-xl sm:text-2xl font-semibold text-[#e8d487]">Welcome to {config?.businessProfile?.companyName || 'Reglaze Me'}</h2>
+          <p className="text-xs sm:text-sm text-gray-400 mt-1">Let's get your workspace set up in 4 quick steps</p>
 
           {/* Progress Bar */}
           <div className="mt-4 bg-[#2a2414] h-2 rounded-full overflow-hidden">
@@ -241,20 +241,20 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="onboarding-content p-4 sm:p-6 space-y-4 sm:space-y-6">
           
           {/* STEP 1: Business Info */}
           {step === 1 && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-semibold text-[#e8d487] mb-2">Your Business Information</h3>
-                <p className="text-sm text-gray-400">This will appear on quotes and invoices</p>
+                <h3 className="text-base sm:text-lg font-semibold text-[#e8d487] mb-2">Your Business Information</h3>
+                <p className="text-xs sm:text-sm text-gray-400">This will appear on quotes and invoices</p>
               </div>
 
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Business Name *</span>
                 <input
-                  className="input"
+                  className="onboarding-input input"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="e.g., Reglaze Me LLC"
@@ -265,7 +265,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Email *</span>
                 <input
-                  className="input"
+                  className="onboarding-input input"
                   type="email"
                   value={businessEmail}
                   onChange={(e) => setBusinessEmail(e.target.value)}
@@ -276,7 +276,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Phone *</span>
                 <input
-                  className="input"
+                  className="onboarding-input input"
                   value={businessPhone}
                   onChange={(e) => setBusinessPhone(e.target.value)}
                   placeholder="(555) 123-4567"
@@ -340,7 +340,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Client Name *</span>
                 <input
-                  className="input"
+                  className="onboarding-input input"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="e.g., John Smith"
@@ -350,7 +350,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Phone</span>
                 <input
-                  className="input"
+                  className="onboarding-input input"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
                   placeholder="(555) 123-4567"
@@ -360,7 +360,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Email</span>
                 <input
-                  className="input"
+                  className="onboarding-input input"
                   type="email"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
@@ -381,7 +381,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Total Amount *</span>
                 <input
-                  className="input"
+                  className="onboarding-input input"
                   type="number"
                   value={quoteTotal}
                   onChange={(e) => setQuoteTotal(e.target.value)}
@@ -392,7 +392,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
               <label className="flex flex-col gap-1">
                 <span className="text-sm text-gray-300">Notes (Optional)</span>
                 <textarea
-                  className="input"
+                  className="onboarding-input input"
                   rows={3}
                   value={quoteNotes}
                   onChange={(e) => setQuoteNotes(e.target.value)}
@@ -411,12 +411,12 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-[#2a2414] flex justify-between">
-          <div className="flex gap-2">
+        <div className="p-4 sm:p-6 border-t border-[#2a2414] flex flex-col sm:flex-row justify-between gap-3">
+          <div className="flex gap-2 flex-wrap">
             {step > 1 && (
               <button
                 onClick={handleBack}
-                className="btn-outline-gold text-sm"
+                className="btn-outline-gold text-sm flex-1 sm:flex-none"
                 disabled={saving}
               >
                 ← Back
@@ -424,7 +424,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
             )}
             <button
               onClick={handleSkip}
-              className="text-sm text-gray-400 hover:text-gray-300 px-4"
+              className="text-sm text-gray-400 hover:text-gray-300 px-4 flex-1 sm:flex-none"
               disabled={saving}
             >
               Skip for Now
@@ -433,7 +433,7 @@ export default function OnboardingWizard({ onComplete, onSkip }: OnboardingWizar
 
           <button
             onClick={handleNext}
-            className="btn-gold"
+            className="btn-gold w-full sm:w-auto"
             disabled={saving || (step === 1 && (!businessName || !businessEmail || !businessPhone))}
           >
             {saving ? 'Saving...' : step === 4 ? 'Complete Setup' : 'Next →'}

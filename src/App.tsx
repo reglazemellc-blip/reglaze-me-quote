@@ -35,7 +35,7 @@ import OfflineToast from "@components/OfflineToast";
 import GoldToast from "@components/GoldToast";
 import Toast from "@components/Toast";
 import { useToastStore } from "@store/useToastStore";
-
+import MobileTestingChecklist from "@components/MobileTestingChecklist";
 
 import { useConfigStore } from "@store/useConfigStore";
 import Login from "./pages/Login";
@@ -146,6 +146,9 @@ export default function App() {
       {message && <Toast message={message} onClose={hide} />}
 
     </div>
+    
+    {/* REMOVE THIS BEFORE PRODUCTION */}
+    {import.meta.env.DEV && <MobileTestingChecklist />}
   </>
 );
 

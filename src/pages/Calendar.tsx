@@ -212,7 +212,7 @@ export default function Calendar() {
               return (
                 <div
                   key={day}
-                  className={`h-24 rounded border p-1 overflow-hidden ${
+                  className={`calendar-day h-24 rounded border p-1 overflow-hidden ${
                     isToday
                       ? 'border-[#e8d487] bg-[#e8d487]/10'
                       : 'border-gray-800 bg-black/30'
