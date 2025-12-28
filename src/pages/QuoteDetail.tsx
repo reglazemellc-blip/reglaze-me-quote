@@ -190,13 +190,18 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
 
     async function load() {
       try {
+        console.log('[QuoteDetail] Loading quote:', quoteId);
         const snap = await getDoc(doc(db, "quotes", quoteId));
+        console.log('[QuoteDetail] Snap exists:', snap.exists());
 
         if (!snap.exists()) {
+          console.log('[QuoteDetail] Quote not found');
           useToastStore.getState().show("Quote not found");
           navigate("/quotes");
           return;
         }
+
+        console.log('[QuoteDetail] Quote data:', snap.data());
 
         const data = snap.data() as any;
 
