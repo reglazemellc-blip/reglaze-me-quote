@@ -7,7 +7,8 @@ import { useQuotesStore } from "@store/useQuotesStore";
 import { useInvoicesStore } from "@store/useInvoicesStore";
 import { useConfigStore } from "@store/useConfigStore";
 import { useCompaniesStore } from "@store/useCompaniesStore";
-import { Calendar, ChevronLeft, ChevronRight, AlertCircle, Phone, DollarSign, Users, FileText, Clock, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, AlertCircle, Phone, Users, FileText, DollarSign, Clock as ClockIcon } from "lucide-react";
+
 import OnboardingWizard from "@components/OnboardingWizard";
 
 export default function Dashboard() {
@@ -16,10 +17,10 @@ export default function Dashboard() {
   const { invoices, init: initInvoices } = useInvoicesStore();
   const { companies, properties, init: initCompanies } = useCompaniesStore();
   const { config } = useConfigStore();
-  
+
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showGettingStarted, setShowGettingStarted] = useState(false);
 
   useEffect(() => {
     initClients();
@@ -31,19 +32,13 @@ export default function Dashboard() {
     const onboardingComplete = localStorage.getItem('onboarding_complete');
     const onboardingSkipped = localStorage.getItem('onboarding_skipped');
     
-    if (!onboardingComplete && !onboardingSkipped) {
+       if (!onboardingComplete && !onboardingSkipped) {
       setShowOnboarding(true);
     } else if (onboardingSkipped && !onboardingComplete) {
-      // Show getting started checklist if skipped but not completed
-      const checklist = {
-        businessInfo: !!config?.businessProfile?.companyName && !!config?.businessProfile?.email,
-        logo: !!config?.businessProfile?.logo,
-        firstClient: clients.length > 0,
-        firstQuote: quotes.length > 0,
-      };
-      const allComplete = Object.values(checklist).every(Boolean);
-      setShowGettingStarted(!allComplete);
+      // user skipped onboarding — do nothing
     }
+
+
   }, [initClients, initQuotes, initInvoices, initCompanies]);
 
   const handleOnboardingComplete = () => {
@@ -52,13 +47,11 @@ export default function Dashboard() {
 
   const handleOnboardingSkip = () => {
     setShowOnboarding(false);
-    setShowGettingStarted(true);
+    
   };
 
-  const handleDismissGettingStarted = () => {
-    setShowGettingStarted(false);
-    localStorage.setItem('getting_started_dismissed', 'true');
-  };
+  
+
 
   // Clients that need contact
   const needsContact = useMemo(() => {
@@ -158,44 +151,8 @@ export default function Dashboard() {
           onSkip={handleOnboardingSkip}
         />
       )}
-
-      {/* Getting Started Checklist */}
-      {showGettingStarted && !showOnboarding && (
-        <div className="bg-[#2a2414] border border-[#e8d487]/30 rounded-xl p-6 relative">
-          <button
-            onClick={handleDismissGettingStarted}
-            className="absolute top-4 right-4 text-gray-400 hover:text-white transition"
-          >
-            <X size={20} />
-          </button>
-          
-          <h3 className="text-lg font-semibold text-[#e8d487] mb-3">Getting Started</h3>
-          <p className="text-sm text-gray-400 mb-4">Complete these steps to get the most out of your workspace</p>
-          
-          <div className="space-y-2">
-            <ChecklistItem 
-              completed={!!config?.businessProfile?.companyName && !!config?.businessProfile?.email}
-              label="Add business information"
-              link="/settings"
-            />
-            <ChecklistItem 
-              completed={!!config?.businessProfile?.logo}
-              label="Upload your logo"
-              link="/settings"
-            />
-            <ChecklistItem 
-              completed={clients.length > 0}
-              label="Create your first client"
-              link="/clients"
-            />
-            <ChecklistItem 
-              completed={quotes.length > 0}
-              label="Create your first quote"
-              link="/quotes/new"
-            />
-          </div>
-        </div>
-      )}
+        
+        
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -398,7 +355,8 @@ export default function Dashboard() {
                         to={job.link}
                         className="block text-xs text-[#e8d487] hover:text-white transition truncate"
                       >
-                        {job.time && <Clock size={10} className="inline mr-1" />}
+                        {job.time && <ClockIcon size={10} className="inline mr-1" />}
+
                         {job.name}
                       </Link>
                     ))}
@@ -413,25 +371,3 @@ export default function Dashboard() {
   );
 }
 
-// Helper component for getting started checklist
-function ChecklistItem({ completed, label, link }: { completed: boolean; label: string; link: string }) {
-  return (
-    <Link 
-      to={link}
-      className="flex items-center gap-3 p-3 bg-black/30 rounded-lg hover:bg-black/40 transition group"
-    >
-      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
-        completed ? 'bg-[#e8d487] border-[#e8d487]' : 'border-gray-500'
-      }`}>
-        {completed && (
-          <svg className="w-3 h-3 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-          </svg>
-        )}
-      </div>
-      <span className={`text-sm ${completed ? 'text-gray-400 line-through' : 'text-gray-300 group-hover:text-[#e8d487]'}`}>
-        {label}
-      </span>
-    </Link>
-  );
-}

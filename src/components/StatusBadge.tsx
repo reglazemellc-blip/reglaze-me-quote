@@ -1,5 +1,6 @@
 // src/components/StatusBadge.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
+
 import type { QuoteStatus } from "@db/index";
 import { useConfigStore } from "@store/useConfigStore";
 
