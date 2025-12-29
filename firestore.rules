@@ -34,28 +34,41 @@ service cloud.firestore {
     
     // All tenant-isolated collections - authenticated users can access
     // Tenant filtering is enforced in application code via where('tenantId', '==', tenantId)
-    match /clients/{clientId} {
-      allow read, write: if isAuthenticated();
-    }
     
+    match /clients/{clientId} {
+      allow read, write: if isAuthenticated() && 
+      request.auth.uid == 
+      request.resource.data.tenantId;
+    
+    }
     match /quotes/{quoteId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isAuthenticated() && 
+      request.auth.uid == 
+      request.resource.data.tenantId;
     }
     
     match /invoices/{invoiceId} {
-      allow read, write: if isAuthenticated();
+       allow read, write: if isAuthenticated() && 
+      request.auth.uid == 
+      request.resource.data.tenantId;
     }
     
     match /contracts/{contractId} {
-      allow read, write: if isAuthenticated();
+       allow read, write: if isAuthenticated() && 
+      request.auth.uid == 
+      request.resource.data.tenantId;
     }
     
     match /companies/{companyId} {
-      allow read, write: if isAuthenticated();
+       allow read, write: if isAuthenticated() && 
+      request.auth.uid == 
+      request.resource.data.tenantId;
     }
     
     match /properties/{propertyId} {
-      allow read, write: if isAuthenticated();
+       allow read, write: if isAuthenticated() && 
+      request.auth.uid == 
+      request.resource.data.tenantId;
     }
   }
 }

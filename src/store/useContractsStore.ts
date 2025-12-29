@@ -2,11 +2,12 @@
  * Contracts Store
  * Manages contracts with Firestore sync
  */
-
 import { create } from 'zustand'
 import { collection, doc, getDocs, setDoc, deleteDoc, deleteField, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
+import { useConfigStore } from '@store/useConfigStore'
 import type { Contract, ContractStatus } from '@db/index'
+
 
 const contractsCol = collection(db, 'contracts')
 
@@ -33,8 +34,11 @@ export const useContractsStore = create<ContractsState>((set, get) => ({
 
   init: async () => {
     try {
+      const tenantId = useConfigStore.getState().activeTenantId
       const snap = await getDocs(contractsCol)
-      const contracts = snap.docs.map((d) => ({ ...(d.data() as Contract), id: d.id }))
+      const contracts = snap.docs
+        .map((d) => ({ ...(d.data() as Contract), id: d.id }))
+        .filter((c) => c.tenantId === tenantId)
       set({ contracts, loading: false })
     } catch (error) {
       console.error('Error loading contracts:', error)
@@ -44,12 +48,16 @@ export const useContractsStore = create<ContractsState>((set, get) => ({
 
   upsert: async (contract: Contract) => {
     try {
+            const tenantId = useConfigStore.getState().activeTenantId
       const ref = doc(contractsCol, contract.id)
-      await setDoc(ref, contract, { merge: true })
+      await setDoc(ref, { ...contract, tenantId }, { merge: true })
 
       const snap = await getDocs(contractsCol)
-      const contracts = snap.docs.map((d) => ({ ...(d.data() as Contract), id: d.id }))
+      const contracts = snap.docs
+        .map((d) => ({ ...(d.data() as Contract), id: d.id }))
+        .filter((c) => c.tenantId === tenantId)
       set({ contracts })
+
     } catch (error) {
       console.error('Failed to save contract:', error);
       throw new Error('Failed to save contract. Please check your connection and try again.');
@@ -58,11 +66,17 @@ export const useContractsStore = create<ContractsState>((set, get) => ({
 
   remove: async (id: string) => {
     try {
-      await deleteDoc(doc(contractsCol, id))
+            await deleteDoc(doc(contractsCol, id))
 
-      const snap = await getDocs(contractsCol)
-      const contracts = snap.docs.map((d) => ({ ...(d.data() as Contract), id: d.id }))
-      set({ contracts })
+         // Refresh contracts list
+    const tenantId = useConfigStore.getState().activeTenantId
+    const snap = await getDocs(contractsCol)
+    const contracts = snap.docs
+      .map((d) => ({ ...(d.data() as Contract), id: d.id }))
+      .filter((c) => c.tenantId === tenantId)
+    set({ contracts })
+
+
     } catch (error) {
       console.error('Failed to delete contract:', error);
       throw new Error('Failed to delete contract. Please check your connection and try again.');
@@ -125,6 +139,7 @@ export const useContractsStore = create<ContractsState>((set, get) => ({
   },
 
   getByQuote: (quoteId: string) => {
-    return get().contracts.find((c) => c.quoteId === quoteId)
+    // Replace 'quoteId' with the correct property name if different, e.g., 'relatedQuoteId'
+    return get().contracts.find((c) => (c as any).quoteId === quoteId)
   },
 }))

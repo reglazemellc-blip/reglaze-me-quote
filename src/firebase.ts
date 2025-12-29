@@ -1,7 +1,7 @@
 // Firebase initialization
 
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { 
   getAuth, 
@@ -40,9 +40,17 @@ if (missingKeys.length > 0) {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.warn('Auth persistence not set:', err.code || err);
+});
 
 
 
 export const db = getFirestore(app);
+
+enableIndexedDbPersistence(db).catch((err) => {
+  console.warn('Firestore persistence not enabled:', err.code || err);
+});
+
 
 export const storage = getStorage(app);

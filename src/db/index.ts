@@ -314,7 +314,7 @@ export type Invoice = {
   invoiceNumber?: string;
   clientId: string;
   quoteId?: string;
-
+tenantId: string
   total: number;
   amountPaid: number;
   status: InvoiceStatus;
@@ -329,16 +329,16 @@ export type Invoice = {
 
   createdAt: number;
   updatedAt: number;
-  tenantId: string;
+  
 
 };
 
 export type ContractStatus = "draft" | "sent" | "signed" | "completed" | "canceled";
 
 export type Contract = {
-  id: string;
-  clientId: string;
-  quoteId?: string;
+  id: string
+  clientId: string
+  tenantId: string
 
    contractNumber?: string
 
