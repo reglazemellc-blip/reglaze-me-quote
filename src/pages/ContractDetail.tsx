@@ -27,7 +27,7 @@ const editId = isNew ? null : id;
   const { contracts, upsert, remove, addSignature, removeSignature, init: initContracts } = useContractsStore()
   const { clients, init: initClients } = useClientsStore()
   const { quotes, init: initQuotes } = useQuotesStore()
-  const { config, init: initConfig } = useConfigStore()
+  const { config } = useConfigStore()
 
 
 
@@ -41,8 +41,7 @@ const editId = isNew ? null : id;
   initContracts()
   initClients()
   initQuotes()
-  initConfig()
-}, [initContracts, initClients, initQuotes, initConfig])
+}, [initContracts, initClients, initQuotes])
 
 
   // Form state

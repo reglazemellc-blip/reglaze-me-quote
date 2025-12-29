@@ -50,9 +50,12 @@ export default function App() {
 
 
   // Initialize config on app mount
-  useEffect(() => {
-    initConfig();
-  }, [initConfig]);
+   useEffect(() => {
+    const cleanup = initConfig();
+    return cleanup;
+  }, []);
+
+
 
   // Show loading state while config initializes
     if (configLoading) {

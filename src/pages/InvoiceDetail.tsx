@@ -24,7 +24,8 @@ export default function InvoiceDetail() {
  const { clients, init: initClients } = useClientsStore()
 const { quotes, init: initQuotes } = useQuotesStore()
 const { invoices, init: initInvoices, recordPayment } = useInvoicesStore()
-const { config, init: initConfig } = useConfigStore()
+const { config } = useConfigStore()
+
 
 
 
@@ -36,8 +37,7 @@ const { config, init: initConfig } = useConfigStore()
   initClients()
   initQuotes()
   initInvoices()
-  initConfig()
-}, [initClients, initQuotes, initInvoices, initConfig])
+}, [initClients, initQuotes, initInvoices])
 
 
 

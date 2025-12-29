@@ -47,9 +47,9 @@ type ConfigState = {
 
 
   // Initialize config from Firestore/localStorage
-  init: () => Promise<void>
+    init: () => (() => void);
 
-  // Load config (called after auth)
+    // Load config (called after auth)
   loadConfig: () => Promise<void>
 
   // Business Profile specific methods
@@ -78,6 +78,7 @@ function getStableTenantId(userId: string) {
 }
 
 
+
 const CONFIG_DOC_ID = 'app-config'
 const LOCAL_LOGO_KEY = 'businessProfile.logo'
 
@@ -90,13 +91,14 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
 
   // ==================== INIT ====================
-  init: async () => {
+    init: () => {
     console.log('🚀 CONFIG INIT CALLED')
     // Keep loading true until we determine auth state
     set({ loading: true })
     
     // Set up auth listener first (runs regardless of current auth state)
-    listenToAuthChanges(async (user) => {
+        const unsubscribe = listenToAuthChanges(async (user) => {
+
       // Not logged in → no tenant (prevents permission errors & drift)
       if (!user) {
         set({ activeTenantId: '', loading: false })
@@ -129,6 +131,8 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
         set({ loading: false })
       }
     })
+        return unsubscribe
+
   },
 
   // Load config from Firestore

@@ -107,7 +107,7 @@ export default function QuoteDetail() {
 const { getByQuote, upsertInvoice } = useInvoicesStore();
 
   
-  const { config, init: initConfig } = useConfigStore();
+ 
 
 
   const [loading, setLoading] = useState(true);
@@ -120,9 +120,8 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
 
- useEffect(() => {
-  initConfig();
-}, [initConfig]);
+ const { config } = useConfigStore();
+
 
 
 
