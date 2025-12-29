@@ -41,13 +41,7 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-// Enable persistent auth so user keeps the same UID after refresh
-setPersistence(auth, browserLocalPersistence)
-  .then(() => signInAnonymously(auth))
-  .catch((err) => {
-    console.error("Auth persistence or anonymous login failed:", err);
-    // TODO: Show user-friendly error message via toast
-  });
+
 
 export const db = getFirestore(app);
 

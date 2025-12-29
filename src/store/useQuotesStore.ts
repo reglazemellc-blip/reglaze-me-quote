@@ -30,7 +30,7 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
 
       const quotes = snap.docs
         .map((d) => ({ ...(d.data() as Quote), id: d.id }))
-        .filter((q) => q.tenantId === tenantId);
+     //   .filter((q) => q.tenantId === tenantId);
 
       set({ quotes, loading: false });
     }, 'Load quotes');

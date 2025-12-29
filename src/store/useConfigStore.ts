@@ -91,6 +91,7 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
 
   // ==================== INIT ====================
   init: async () => {
+    console.log('🚀 CONFIG INIT CALLED')
     // Keep loading true until we determine auth state
     set({ loading: true })
     
