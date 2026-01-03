@@ -121,10 +121,15 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       }
       const now = Date.now()
       const id = c.id || createId()
+      const name = (c.name ?? '').trim()
+      if (!name) {
+        console.error('Company validation failed: name is required')
+        throw new Error('Invalid data')
+      }
       const clean: Company = {
         id,
         tenantId,
-        name: c.name ?? '',
+        name,
         contactName: c.contactName ?? '',
         phone: c.phone ?? '',
         email: c.email ?? '',
@@ -133,12 +138,13 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
         billingState: c.billingState ?? '',
         billingZip: c.billingZip ?? '',
         notes: c.notes ?? '',
-        conversations: c.conversations ?? [],
-        attachments: c.attachments ?? [],
+        conversations: (c.conversations ?? []).filter(Boolean),
+        attachments: (c.attachments ?? []).filter(Boolean),
         createdAt: c.createdAt ?? now,
         updatedAt: now,
       }
-      await setDoc(doc(companiesCol, clean.id), clean)
+      const payload = JSON.parse(JSON.stringify(clean))
+      await setDoc(doc(companiesCol, clean.id), payload)
       // Reload companies
       const snap = await getDocs(query(companiesCol, where('tenantId', '==', tenantId)))
       const companies: Company[] = snap.docs.map((d) => ({
@@ -200,22 +206,44 @@ export const useCompaniesStore = create<CompaniesState>((set, get) => ({
       }
       const now = Date.now()
       const id = p.id || createId()
+      const companyId = (p.companyId ?? '').trim()
+      const address = (p.address ?? '').trim()
+      const name = (p.name ?? p.address ?? '').trim()
+      if (!companyId) {
+        console.error('Property validation failed: companyId is required')
+        throw new Error('Invalid data')
+      }
+      if (!address) {
+        console.error('Property validation failed: address is required')
+        throw new Error('Invalid data')
+      }
+      if (!name) {
+        console.error('Property validation failed: name is required')
+        throw new Error('Invalid data')
+      }
       const clean: Property = {
         id,
-        companyId: p.companyId ?? '',
+        companyId,
         tenantId,
-        address: p.address ?? '',
+        name,
+        address,
         unit: p.unit ?? '',
         city: p.city ?? '',
         state: p.state ?? '',
         zip: p.zip ?? '',
+        propertyManagerName: p.propertyManagerName ?? null,
+        propertyManagerPhone: p.propertyManagerPhone ?? null,
+        propertyManagerEmail: p.propertyManagerEmail ?? null,
+        maintenanceName: p.maintenanceName ?? null,
+        maintenancePhone: p.maintenancePhone ?? null,
+        maintenanceEmail: p.maintenanceEmail ?? null,
         workflowStatus: p.workflowStatus ?? 'new',
         documentTracking: p.documentTracking ?? {},
-        scheduledDate: p.scheduledDate,
-        scheduledTime: p.scheduledTime,
-        quoteId: p.quoteId,
-        invoiceId: p.invoiceId,
-        contractId: p.contractId,
+        scheduledDate: p.scheduledDate ?? null,
+        scheduledTime: p.scheduledTime ?? null,
+        quoteId: p.quoteId ?? null,
+        invoiceId: p.invoiceId ?? null,
+        contractId: p.contractId ?? null,
         notes: p.notes ?? '',
         attachments: p.attachments ?? [],
         createdAt: p.createdAt ?? now,

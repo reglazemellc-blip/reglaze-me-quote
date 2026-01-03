@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { collection, doc, getDocs, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, deleteDoc, getDoc, updateDoc, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import type { Quote } from "@db/index";
 import { useConfigStore } from "@store/useConfigStore";
@@ -14,6 +14,7 @@ type QuotesState = {
   init: () => Promise<void>;
   upsert: (q: Quote) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  getQuotesByProperty: (propertyId: string) => Promise<Quote[]>;
 };
 
 export const useQuotesStore = create<QuotesState>((set, get) => ({
@@ -43,6 +44,14 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
   // ============================================================
   upsert: async (q: Quote) => {
     validateRequired(q, ['clientId', 'id']);
+
+    if (q.companyId && !q.propertyId) {
+      throw new Error('Property ID is required when companyId is provided');
+    }
+
+    if (q.propertyId && !q.companyId) {
+      throw new Error('Company ID is required when propertyId is provided');
+    }
 
     return handleFirestoreOperation(async () => {
       const tenantId = useConfigStore.getState().activeTenantId;
@@ -78,6 +87,19 @@ export const useQuotesStore = create<QuotesState>((set, get) => ({
 
       set({ quotes });
     }, 'Save quote');
+  },
+
+  // ============================================================
+  // QUERY — Fetch quotes for a property via Firestore
+  // ============================================================
+  getQuotesByProperty: async (propertyId: string) => {
+    return handleFirestoreOperation(async () => {
+      const tenantId = useConfigStore.getState().activeTenantId;
+      const propertyQuotesQuery = query(quotesCol, where('tenantId', '==', tenantId), where('propertyId', '==', propertyId));
+      const snap = await getDocs(propertyQuotesQuery);
+
+      return snap.docs.map((d) => ({ ...(d.data() as Quote), id: d.id }));
+    }, 'Load quotes by property');
   },
 
   // ============================================================

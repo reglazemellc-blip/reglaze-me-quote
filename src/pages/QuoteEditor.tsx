@@ -24,6 +24,7 @@ import { db as firestoreDb } from "../firebase";
 import { useServicesStore } from "@store/useServicesStore";
 import { useClientsStore } from "@store/useClientsStore";
 import { useConfigStore } from "@store/useConfigStore";
+import { useCompaniesStore } from "@store/useCompaniesStore";
 
 import {
   Quote,
@@ -180,6 +181,7 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   // Stores
   const { services, init: initServices } = useServicesStore();
   const { clients, init: initClients } = useClientsStore();
+  const { properties, init: initCompanies } = useCompaniesStore();
   const { config } = useConfigStore();
 
   const labels = config?.labels;
@@ -194,6 +196,11 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   const [clientCity, setClientCity] = useState("");
   const [clientState, setClientState] = useState("");
   const [clientZip, setClientZip] = useState("");
+
+  const [propertyId, setPropertyId] = useState<string | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
+  const [unitLabel, setUnitLabel] = useState("");
+  const propertyPrefilledRef = useRef(false);
 
  
   const [clientDrawerOpen, setClientDrawerOpen] = useState(false);
@@ -236,7 +243,8 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   useEffect(() => {
     initClients();
     initServices();
-  }, [initClients, initServices]);
+    initCompanies();
+  }, [initClients, initServices, initCompanies]);
 
   // -------------------------------------------------------------
   // Click-outside close for service dropdowns + client menu
@@ -359,9 +367,17 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
           setPdfUrl(data.pdfUrl ?? null);
           setSentAt(data.sentAt ?? null);
           setExpiresAt(data.expiresAt ?? null);
+
+          setPropertyId((data.propertyId as string | undefined) ?? null);
+          setCompanyId((data.companyId as string | undefined) ?? null);
+          setUnitLabel((data.unitLabel as string | undefined) ?? "");
         } else {
           const clientFromUrl = searchParams.get("clientId") ?? "";
+          const propertyFromUrl = searchParams.get("propertyId") ?? "";
+          const companyFromUrl = searchParams.get("companyId") ?? "";
           setClientId(clientFromUrl);
+          setPropertyId(propertyFromUrl || null);
+          setCompanyId(companyFromUrl || null);
           setQuoteNumber(null);
 
           const settings = await getOrInitSettings();
@@ -397,6 +413,29 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
 
     run();
   }, [isEdit, quoteIdParam, navigate, searchParams, clients]);
+
+  const property = useMemo(() => {
+    if (!propertyId) return null;
+    return properties.find((p) => p.id === propertyId) || null;
+  }, [propertyId, properties]);
+
+  useEffect(() => {
+    if (property && !companyId) {
+      setCompanyId(property.companyId || null);
+    }
+  }, [property, companyId]);
+
+  useEffect(() => {
+    if (isEdit) return;
+    if (!propertyId || !property) return;
+    if (propertyPrefilledRef.current) return;
+
+    setClientStreet(property.address || "");
+    setClientCity(property.city || "");
+    setClientState(property.state || "");
+    setClientZip(property.zip || "");
+    propertyPrefilledRef.current = true;
+  }, [isEdit, propertyId, property]);
 
   // -------------------------------------------------------------
   // Client filtering for autocomplete
@@ -598,6 +637,15 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         dueDate = now + (60 * 24 * 60 * 60 * 1000);
       }
 
+      const effectiveCompanyId = propertyId
+        ? companyId || property?.companyId || ""
+        : companyId || undefined;
+
+      if (propertyId && !effectiveCompanyId) {
+        useToastStore.getState().show("Company is required for property quotes.");
+        return;
+      }
+
       const clientSnapshot: QuoteClientSnapshot = {
         id: finalClientId,
         name: clientName.trim(),
@@ -640,6 +688,9 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         quoteNumber: finalQuoteNumber || undefined,
         dueTerms,
         dueDate,
+        companyId: propertyId ? effectiveCompanyId : companyId || undefined,
+        propertyId: propertyId || undefined,
+        unitLabel: propertyId ? unitLabel || "" : undefined,
         attachments,
         pdfUrl,
         sentAt,
@@ -838,6 +889,19 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
                 onChange={(e) => setClientZip(e.target.value)}
               />
             </div>
+
+            {propertyId && (
+              <div className="md:col-span-2">
+                <label className="text-xs text-gray-400 block mb-1">
+                  Unit / Apartment #
+                </label>
+                <input
+                  className="input w-full"
+                  value={unitLabel}
+                  onChange={(e) => setUnitLabel(e.target.value)}
+                />
+              </div>
+            )}
           </div>
         </div>
 

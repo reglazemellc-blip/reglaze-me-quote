@@ -127,12 +127,12 @@ export default function Companies() {
           />
 
           {/* NEW COMPANY BUTTON */}
-          <button
-            className="btn-gold whitespace-nowrap"
-            onClick={() => navigate("/companies/new")}
+          <Link
+            to="/companies/new"
+            className="btn-gold whitespace-nowrap text-center"
           >
             + New Company
-          </button>
+          </Link>
         </div>
       </div>
 

@@ -247,6 +247,11 @@ export type Quote = {
   // link to client doc
   clientId: string;
 
+  // optional links to company/property contexts
+  companyId?: string;
+  propertyId?: string;
+  unitLabel?: string;
+
   // legacy flat fields
   clientName: string;
   clientPhone?: string;
@@ -469,12 +474,23 @@ export type Property = {
   companyId: string;        // parent company
   tenantId: string;
 
+  // Display name (e.g., property or building name)
+  name?: string;
+
   // Location
   address: string;          // Street address
   unit?: string;            // Apt/Unit number (e.g., "1A", "Unit 5")
   city?: string;
   state?: string;
   zip?: string;
+
+  // Contacts
+  propertyManagerName?: string;
+  propertyManagerPhone?: string;
+  propertyManagerEmail?: string;
+  maintenanceName?: string;
+  maintenancePhone?: string;
+  maintenanceEmail?: string;
 
   // Workflow
   workflowStatus: WorkflowStatus;

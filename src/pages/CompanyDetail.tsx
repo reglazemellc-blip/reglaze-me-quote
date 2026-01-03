@@ -56,12 +56,18 @@ export default function CompanyDetail() {
   const [saving, setSaving] = useState(false);
   const [showAddProperty, setShowAddProperty] = useState(false);
   const [newProperty, setNewProperty] = useState<Partial<Property>>({
+    name: "",
     address: "",
-    unit: "",
     city: "",
     state: "",
     zip: "",
     notes: "",
+    propertyManagerName: "",
+    propertyManagerPhone: "",
+    propertyManagerEmail: "",
+    maintenanceName: "",
+    maintenancePhone: "",
+    maintenanceEmail: "",
   });
 
   const [statusFilter, setStatusFilter] = useState<WorkflowStatus | "all">("all");
@@ -74,8 +80,19 @@ export default function CompanyDetail() {
 
   // Load company data
   useEffect(() => {
-    if (id === "new") {
+    if (!id || id === "new") {
       setIsNew(true);
+      setCompany({
+        name: "",
+        contactName: "",
+        phone: "",
+        email: "",
+        billingAddress: "",
+        billingCity: "",
+        billingState: "",
+        billingZip: "",
+        notes: "",
+      });
       return;
     }
 
@@ -151,6 +168,11 @@ export default function CompanyDetail() {
 
   // Add new property
   const handleAddProperty = async () => {
+    if (!newProperty.name?.trim()) {
+      useToastStore.getState().show("Property name is required");
+      return;
+    }
+
     if (!newProperty.address?.trim()) {
       useToastStore.getState().show("Property address is required");
       return;
@@ -163,7 +185,7 @@ export default function CompanyDetail() {
         workflowStatus: "new",
       });
       useToastStore.getState().show("Property added!");
-      setNewProperty({ address: "", unit: "", city: "", state: "", zip: "", notes: "" });
+      setNewProperty({ name: "", address: "", city: "", state: "", zip: "", notes: "", propertyManagerName: "", propertyManagerPhone: "", propertyManagerEmail: "", maintenanceName: "", maintenancePhone: "", maintenanceEmail: "" });
       setShowAddProperty(false);
     } catch (err) {
       console.error("Failed to add property:", err);
@@ -429,18 +451,19 @@ export default function CompanyDetail() {
                   <input
                     type="text"
                     className="input w-full"
-                    placeholder="Address *"
-                    value={newProperty.address || ""}
-                    onChange={(e) => setNewProperty({ ...newProperty, address: e.target.value })}
+                    placeholder="Property Name *"
+                    value={newProperty.name || ""}
+                    onChange={(e) => setNewProperty({ ...newProperty, name: e.target.value })}
                   />
                 </div>
-                <div>
+                <div />
+                <div className="md:col-span-2">
                   <input
                     type="text"
                     className="input w-full"
-                    placeholder="Unit #"
-                    value={newProperty.unit || ""}
-                    onChange={(e) => setNewProperty({ ...newProperty, unit: e.target.value })}
+                    placeholder="Address *"
+                    value={newProperty.address || ""}
+                    onChange={(e) => setNewProperty({ ...newProperty, address: e.target.value })}
                   />
                 </div>
                 <div>
@@ -470,13 +493,70 @@ export default function CompanyDetail() {
                     onChange={(e) => setNewProperty({ ...newProperty, zip: e.target.value })}
                   />
                 </div>
+
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Property Manager Name"
+                      value={newProperty.propertyManagerName || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, propertyManagerName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Property Manager Phone"
+                      value={newProperty.propertyManagerPhone || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, propertyManagerPhone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="email"
+                      className="input w-full"
+                      placeholder="Property Manager Email"
+                      value={newProperty.propertyManagerEmail || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, propertyManagerEmail: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Maintenance Name"
+                      value={newProperty.maintenanceName || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, maintenanceName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Maintenance Phone"
+                      value={newProperty.maintenancePhone || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, maintenancePhone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="email"
+                      className="input w-full"
+                      placeholder="Maintenance Email"
+                      value={newProperty.maintenanceEmail || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, maintenanceEmail: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <button
                   className="btn-secondary"
                   onClick={() => {
                     setShowAddProperty(false);
-                    setNewProperty({ address: "", unit: "", city: "", state: "", zip: "", notes: "" });
+                    setNewProperty({ name: "", address: "", city: "", state: "", zip: "", notes: "", propertyManagerName: "", propertyManagerPhone: "", propertyManagerEmail: "", maintenanceName: "", maintenancePhone: "", maintenanceEmail: "" });
                   }}
                 >
                   Cancel
@@ -558,24 +638,29 @@ function PropertyCard({
   onDelete: (id: string) => void;
 }) {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const navigate = useNavigate();
+  const displayName = property.name?.trim() || property.address || "Unnamed Property";
 
   const currentStatus = workflowStatuses.find((s) => s.value === property.workflowStatus) || workflowStatuses[0];
 
   return (
-    <div className="p-4 bg-black/20 hover:bg-black/40 transition">
+    <div
+      className="p-4 bg-black/20 hover:bg-black/40 transition cursor-pointer"
+      onClick={() => navigate(`/properties/${property.id}`)}
+    >
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-gray-500" />
-            <span className="font-medium text-white">
-              {property.address}
-              {property.unit && <span className="text-[#e8d487] ml-2">Unit {property.unit}</span>}
-            </span>
+            <span className="font-medium text-white">{displayName}</span>
           </div>
 
-          {(property.city || property.state || property.zip) && (
+          {(property.address || property.city || property.state || property.zip || property.unit) && (
             <div className="mt-1 text-sm text-gray-400">
-              {[property.city, property.state, property.zip].filter(Boolean).join(", ")}
+              {[property.address, property.city, property.state, property.zip]
+                .filter(Boolean)
+                .join(", ")}
+              {property.unit && <span className="text-[#e8d487] ml-2">Unit {property.unit}</span>}
             </div>
           )}
 
@@ -603,9 +688,12 @@ function PropertyCard({
 
         {/* Status Dropdown */}
         <div className="flex items-center gap-2">
-          <div className="relative">
+                <div className="md:col-span-2">
             <button
-              onClick={() => setShowStatusMenu(!showStatusMenu)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowStatusMenu(!showStatusMenu);
+              }}
               className={`px-3 py-1 text-xs rounded-full ${currentStatus.color} text-white flex items-center gap-1`}
             >
               {currentStatus.label}
@@ -617,7 +705,8 @@ function PropertyCard({
                 {workflowStatuses.map((status) => (
                   <button
                     key={status.value}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       onStatusChange(property, status.value);
                       setShowStatusMenu(false);
                     }}
@@ -632,7 +721,66 @@ function PropertyCard({
           </div>
 
           <button
-            onClick={() => onDelete(property.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(property.id);
+                <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Property Manager Name"
+                      value={newProperty.propertyManagerName || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, propertyManagerName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Property Manager Phone"
+                      value={newProperty.propertyManagerPhone || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, propertyManagerPhone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="email"
+                      className="input w-full"
+                      placeholder="Property Manager Email"
+                      value={newProperty.propertyManagerEmail || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, propertyManagerEmail: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Maintenance Name"
+                      value={newProperty.maintenanceName || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, maintenanceName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="Maintenance Phone"
+                      value={newProperty.maintenancePhone || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, maintenancePhone: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="email"
+                      className="input w-full"
+                      placeholder="Maintenance Email"
+                      value={newProperty.maintenanceEmail || ""}
+                      onChange={(e) => setNewProperty({ ...newProperty, maintenanceEmail: e.target.value })}
+                    />
+                  </div>
+                </div>
+            }}
             className="p-1.5 text-gray-500 hover:text-red-400 transition"
             title="Delete property"
           >
