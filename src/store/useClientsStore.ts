@@ -221,7 +221,8 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
 
       // delete quotes belonging to client
       const qSnap = await getDocs(query(quotesCol, where('clientId', '==', id)))
-      const deletes = qSnap.docs.map((d) => deleteDoc(doc(quotesCol, d.id)))
+      const deletes = qSnap.docs
+      .map((d) => deleteDoc(doc(quotesCol, d.id)))
       await Promise.all(deletes)
    
       // delete invoices belonging to client
@@ -232,6 +233,8 @@ export const useClientsStore = create<ClientsState>((set, get) => ({
           where('clientId', '==', id)
         )
       )
+
+      
 
       const invoiceDeletes = iSnap.docs.map((d) =>
         deleteDoc(doc(invoicesCol, d.id))

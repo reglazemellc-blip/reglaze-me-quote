@@ -97,12 +97,17 @@ const { config } = useConfigStore()
     }
   }
 
-  const handleRecordPayment = async () => {
+    const handleRecordPayment = async () => {
+    if (!navigator.onLine) {
+      useToastStore.getState().show("Offline: cannot record payments until you're back online")
+      return
+    }
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) {
       useToastStore.getState().show("Please enter a valid payment amount")
       return
     }
+
 
     if (amount > balance) {
       const confirm = window.confirm(
@@ -239,25 +244,29 @@ const { config } = useConfigStore()
             <FileText className="w-4 h-4" />
             Generate PDF
           </button>
-          {quote && (
-            <button
-              onClick={() => navigate(`/quotes/${quote.id}`)}
-              className="btn-secondary flex items-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              View Quote
-            </button>
-          )}
-          <button
+  {quote && (
+    <button
+      onClick={() => navigate(`/quotes/${quote.id}`)}
+      className="btn-secondary flex items-center gap-2"
+    >
+      <FileText className="w-4 h-4" />
+      View Quote
+    </button>
+  )}
+  <button
     onClick={async () => {
+      if (!navigator.onLine) {
+        useToastStore.getState().show("Offline: cannot delete invoices until you're back online")
+        return
+      }
       if (!window.confirm("Delete this invoice permanently?")) return;
       await useInvoicesStore.getState().remove(invoice.id);
       useToastStore.getState().show("Invoice deleted");
       navigate("/invoices");
     }}
-    className="btn-danger flex items-center gap-2"
+    className="btn-danger px-4 py-1 text-sm"
   >
-    Delete
+    Delete Invoice
   </button>
 </div>
 
@@ -401,3 +410,4 @@ const { config } = useConfigStore()
     </div>
   )
 }
+
