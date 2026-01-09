@@ -512,6 +512,12 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   // Save CLIENT (button in header)
   // -------------------------------------------------------------
   const handleSaveClient = async () => {
+    // Phase 1: If propertyId is present, skip client save entirely
+    if (propertyId) {
+      useToastStore.getState().show("Client save is not available for property quotes.");
+      return;
+    }
+
     if (!clientName.trim()) {
       useToastStore.getState().show("Client name is required.");
       return;
@@ -532,12 +538,13 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
       const newRef = doc(clientsCol);
       finalId = newRef.id;
 
-          const newClient: Client = {
+      // Remove undefined fields before writing
+      const newClient: Client = {
         id: finalId,
         name: clientName.trim(),
-        phone: clientPhone || undefined,
-        email: clientEmail || undefined,
-        address: addressString || undefined,
+        ...(clientPhone ? { phone: clientPhone } : {}),
+        ...(clientEmail ? { email: clientEmail } : {}),
+        ...(addressString ? { address: addressString } : {}),
         notes: "",
         photos: [],
         attachments: [],
@@ -548,21 +555,18 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         tenantId: useConfigStore.getState().activeTenantId,
       };
 
-
       await setDoc(newRef, newClient);
     } else {
       const ref = doc(clientsCol, finalId);
-      await setDoc(
-        ref,
-        {
-          name: clientName.trim(),
-          phone: clientPhone || undefined,
-          email: clientEmail || undefined,
-          address: addressString || undefined,
-          updatedAt: now,
-        },
-        { merge: true }
-      );
+      // Remove undefined fields before writing
+      const update: Partial<Client> = {
+        name: clientName.trim(),
+        ...(clientPhone ? { phone: clientPhone } : {}),
+        ...(clientEmail ? { email: clientEmail } : {}),
+        ...(addressString ? { address: addressString } : {}),
+        updatedAt: now,
+      };
+      await setDoc(ref, update, { merge: true });
     }
 
     setClientId(finalId);
@@ -574,7 +578,8 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
   // Save quote (auto-create client if needed)
   // -------------------------------------------------------------
   const handleSave = async () => {
-    if (!clientName.trim()) {
+    // Phase 1: If propertyId is present, do not require clientName or create/update client
+    if (!propertyId && !clientName.trim()) {
       useToastStore.getState().show("Please enter a client name.");
       return;
     }
@@ -592,18 +597,19 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         clientZip
       );
 
-      // Auto-create client if no id
-      if (!finalClientId) {
+      // Only auto-create client if NOT property mode
+      if (!propertyId && !finalClientId) {
         const clientsCol = collection(firestoreDb, "clients");
         const newRef = doc(clientsCol);
         finalClientId = newRef.id;
 
-               const newClient: Client = {
+        // Remove undefined fields before writing
+        const newClient: Client = {
           id: finalClientId,
           name: clientName.trim(),
-          phone: clientPhone || undefined,
-          email: clientEmail || undefined,
-          address: addressString || undefined,
+          ...(clientPhone ? { phone: clientPhone } : {}),
+          ...(clientEmail ? { email: clientEmail } : {}),
+          ...(addressString ? { address: addressString } : {}),
           notes: "",
           photos: [],
           attachments: [],
@@ -613,7 +619,6 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
           updatedAt: now,
           tenantId: useConfigStore.getState().activeTenantId,
         };
-
 
         await setDoc(newRef, { ...newClient, tenantId: useConfigStore.getState().activeTenantId });
 
@@ -646,13 +651,17 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         return;
       }
 
-      const clientSnapshot: QuoteClientSnapshot = {
-        id: finalClientId,
-        name: clientName.trim(),
-        phone: clientPhone || undefined,
-        email: clientEmail || undefined,
-        address: addressString || undefined,
-      };
+      // Only snapshot client if NOT property mode
+      let clientSnapshot: QuoteClientSnapshot | undefined = undefined;
+      if (!propertyId) {
+        clientSnapshot = {
+          id: finalClientId,
+          name: clientName.trim(),
+          ...(clientPhone ? { phone: clientPhone } : {}),
+          ...(clientEmail ? { email: clientEmail } : {}),
+          ...(addressString ? { address: addressString } : {}),
+        };
+      }
 
       // Generate quote number for new quotes if not already set
       let finalQuoteNumber = quoteNumber;
@@ -660,14 +669,14 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         finalQuoteNumber = await generateQuoteNumber();
       }
 
-           const payload: Partial<Quote> = {
+      const payload: Partial<Quote> = {
         // id will be set when writing
-        clientId: finalClientId,
-        clientName: clientName.trim(),
-        clientPhone,
-        clientEmail,
-        clientAddress: addressString || undefined,
-        client: clientSnapshot,
+        clientId: propertyId ? "" : finalClientId,
+        clientName: propertyId ? "" : clientName.trim(),
+        clientPhone: propertyId ? "" : clientPhone,
+        clientEmail: propertyId ? "" : clientEmail,
+        clientAddress: propertyId ? undefined : (addressString || undefined),
+        client: propertyId ? undefined : clientSnapshot,
         tenantId: useConfigStore.getState().activeTenantId,
 
         items: items.map((it) => ({
@@ -698,7 +707,6 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         createdAt: now,
         updatedAt: now,
       };
-
 
       const quotesCol = collection(firestoreDb, "quotes");
 

@@ -82,6 +82,9 @@ const sorted = useMemo(() => {
     const finishedStatuses = ['completed', 'invoiced', 'paid']
 
     return sorted.filter((q) => {
+      // Skip property-linked quotes
+      if ((q as any).propertyId) return false
+
       const matchText =
         !t ||
         q.id.toLowerCase().includes(t) ||
