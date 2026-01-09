@@ -81,10 +81,16 @@ useEffect(() => {
     );
 
     setClientQuotes(
-      qSnap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as any),
-      }))
+      qSnap.docs
+        .filter((d) => {
+          const data = d.data() as any;
+          const pid = data.propertyId;
+          return pid === undefined || pid === null || pid === "";
+        })
+        .map((d) => ({
+          id: d.id,
+          ...(d.data() as any),
+        }))
     );
 
     setClientInvoices(
@@ -127,10 +133,16 @@ useEffect(() => {
         );
 
         setClientQuotes(
-          qSnap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as any),
-          }))
+          qSnap.docs
+            .filter((d) => {
+              const data = d.data() as any;
+              const pid = data.propertyId;
+              return pid === undefined || pid === null || pid === "";
+            })
+            .map((d) => ({
+              id: d.id,
+              ...(d.data() as any),
+            }))
         );
 
         const iSnap = await getDocs(
@@ -169,7 +181,7 @@ useEffect(() => {
   // Quote Count per Client
   // -------------------------------------------------------------
   const quoteCount = (clientId: string) =>
-    clientQuotes.filter((q) => q.clientId === clientId).length;
+    clientQuotes.filter((q) => (q.propertyId === undefined || q.propertyId === null || q.propertyId === "") && q.clientId === clientId).length;
 
 
   // -------------------------------------------------------------
@@ -177,7 +189,7 @@ useEffect(() => {
   // -------------------------------------------------------------
   const lastActivity = (c: any) => {
     const lastQuote = clientQuotes
-      .filter((q) => q.clientId === c.id)
+      .filter((q) => (q.propertyId === undefined || q.propertyId === null || q.propertyId === "") && q.clientId === c.id)
       .sort((a, b) => (b.updatedAt ?? b.createdAt ?? 0) - (a.updatedAt ?? a.createdAt ?? 0))[0];
 
     const lastConv = (c.conversations ?? []).sort(
@@ -386,7 +398,7 @@ useEffect(() => {
 
               {/* Quote Summary - Clean compact display */}
               {(() => {
-                const quotes = clientQuotes.filter((q) => q.clientId === c.id);
+                const quotes = clientQuotes.filter((q) => (q.propertyId === undefined || q.propertyId === null || q.propertyId === "") && q.clientId === c.id);
                 if (quotes.length === 0) return null;
                 
                 const finishedStatuses = ['completed', 'invoiced', 'paid'];
