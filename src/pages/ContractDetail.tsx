@@ -87,7 +87,8 @@ const editId = isNew ? null : id;
       if (existing) {
         setContract(existing)
         setClientId(existing.clientId)
-        setQuoteId(existing.quoteId || '')
+        const existingQuoteId = (existing as { quoteId?: string }).quoteId
+        setQuoteId(existingQuoteId || '')
         setTemplateId(existing.templateId)
         setTerms(existing.terms)
         setScope(existing.scope)

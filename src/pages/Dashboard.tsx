@@ -53,31 +53,36 @@ export default function Dashboard() {
   
 
 
+  const homeownerQuotes = useMemo(
+    () => quotes.filter((q) => q.propertyId === undefined || q.propertyId === null || q.propertyId === ""),
+    [quotes]
+  );
+
   // Clients that need contact
   const needsContact = useMemo(() => {
-    return clients.filter((c) => !quotes.some((q) => q.clientId === c.id));
-  }, [clients, quotes]);
+    return clients.filter((c) => !homeownerQuotes.some((q) => q.clientId === c.id));
+  }, [clients, homeownerQuotes]);
 
   // Awaiting quote
   const awaitingQuote = useMemo(() => {
     const clientsWithUnsentQuotes = new Set<string>();
-    quotes.forEach((q) => {
+    homeownerQuotes.forEach((q) => {
       if ((!q.workflowStatus || q.workflowStatus === "new") && q.clientId) {
         clientsWithUnsentQuotes.add(q.clientId);
       }
     });
     return clients.filter((c) => clientsWithUnsentQuotes.has(c.id));
-  }, [clients, quotes]);
+  }, [clients, homeownerQuotes]);
 
   // Follow Up
   const followUp = useMemo(() => {
-    return quotes.filter((q) => {
+    return homeownerQuotes.filter((q) => {
       const status = q.workflowStatus;
       return status && status !== "new" && status !== "scheduled" && 
              status !== "in_progress" && status !== "completed" && 
              status !== "invoiced" && status !== "paid";
     });
-  }, [quotes]);
+  }, [homeownerQuotes]);
 
   // Jobs this week
   const jobsThisWeek = useMemo(() => {
@@ -90,12 +95,12 @@ export default function Dashboard() {
       if (!c.scheduledDate) return false;
       const schedDate = new Date(c.scheduledDate);
       return schedDate >= startOfWeek && schedDate <= endOfWeek;
-    }).length + quotes.filter((q) => {
+    }).length + homeownerQuotes.filter((q) => {
       if (!q.scheduledDate) return false;
       const schedDate = new Date(q.scheduledDate);
       return schedDate >= startOfWeek && schedDate <= endOfWeek;
     }).length;
-  }, [clients, quotes]);
+  }, [clients, homeownerQuotes]);
 
   // Pending invoices
   const pendingInvoices = useMemo(() => {
@@ -125,7 +130,7 @@ export default function Dashboard() {
         }
       });
 
-      quotes.forEach((q) => {
+      homeownerQuotes.forEach((q) => {
         if (q.scheduledDate === dateStr) {
           const client = clients.find((c) => c.id === q.clientId);
           if (!dayJobs.find((j) => j.link === `/clients/${client?.id}`)) {
@@ -138,7 +143,7 @@ export default function Dashboard() {
     }
 
     return days;
-  }, [currentDate, clients, quotes]);
+  }, [currentDate, clients, homeownerQuotes]);
 
   const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -195,7 +200,7 @@ export default function Dashboard() {
             <FileText className="text-[#e8d487]" size={20} />
             <span className="text-sm text-gray-400">Total Quotes</span>
           </div>
-          <div className="text-3xl font-bold text-white">{quotes.length}</div>
+          <div className="text-3xl font-bold text-white">{homeownerQuotes.length}</div>
         </Link>
 
         <Link to="/invoices" className="bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/50 transition">
