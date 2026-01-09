@@ -13,7 +13,7 @@ export default function ClientNew() {
   const navigate = useNavigate();
   const upsert = useClientsStore((s) => s.upsert);
 
-  const [name, setName] = useState("joe");
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
