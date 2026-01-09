@@ -728,7 +728,11 @@ export default function QuoteEditor({ mode = "edit" }: { mode?: "create" | "edit
         useToastStore.getState().show("Quote created.");
       }
 
-      navigate("/quotes");
+      if (propertyId) {
+        navigate(`/properties/${propertyId}`);
+      } else {
+        navigate("/quotes");
+      }
     } catch (err) {
       console.error(err);
       useToastStore.getState().show("Failed to save quote.");
