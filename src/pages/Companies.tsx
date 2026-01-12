@@ -263,27 +263,21 @@ export default function Companies() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                      <span className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {propCount} {propCount === 1 ? "property" : "properties"}
-                      </span>
                       <button
-                        className="btn-outline-gold btn-sm inline-flex items-center gap-2 px-3 py-1 text-sm"
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
                           handleExpand(c.id);
                         }}
+                        className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap inline-flex items-center gap-1"
                       >
                         {expandedCompanyId === c.id ? (
-                          <>
-                            <ChevronUp size={16} /> Properties
-                          </>
+                          <ChevronUp size={12} />
                         ) : (
-                          <>
-                            <ChevronDown size={16} /> Properties
-                          </>
+                          <ChevronDown size={12} />
                         )}
+                        {propCount} {propCount === 1 ? "property" : "properties"}
                       </button>
                     </div>
                   </div>
