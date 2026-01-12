@@ -7,7 +7,7 @@ import { useConfigStore } from "@store/useConfigStore";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import SearchBar from "@components/SearchBar";
-import { ChevronDown, Building2, MapPin } from "lucide-react";
+import { ChevronDown, ChevronUp, Building2, MapPin } from "lucide-react";
 
 // -------------------------------------------------------------
 // Sorting Options
@@ -28,6 +28,11 @@ export default function Companies() {
   const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
 
   const navigate = useNavigate();
+
+  // Handle expand/collapse of company properties
+  const handleExpand = (companyId: string) => {
+    setExpandedCompanyId((prev) => (prev === companyId ? null : companyId));
+  };
 
   // -------------------------------------------------------------
   // Load Companies on Mount
@@ -260,18 +265,27 @@ export default function Companies() {
                     <div className="flex flex-col items-end gap-2">
                       <span className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
-                        {propCount} {propCount === 1 ? "unit" : "units"}
+                        {propCount} {propCount === 1 ? "property" : "properties"}
                       </span>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setExpandedCompanyId((prev) => (prev === c.id ? null : c.id));
-                        }}
-                        className="text-xs px-2 py-1 rounded border border-[#2a2a2a] text-gray-200 hover:bg-black/40"
-                      >
-                        {expandedCompanyId === c.id ? "Collapse" : "Expand"}
-                      </button>
+                     <button
+  className="btn-gold btn-sm inline-flex items-center gap-1"
+  onClick={(e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    handleExpand(c.id); // or whatever your expand handler is
+  }}
+>
+  {expandedCompanyId === c.id ? (
+    <>
+      <ChevronUp size={16} /> Properties
+    </>
+  ) : (
+    <>
+      <ChevronDown size={16} /> Properties
+    </>
+  )}
+</button>
+
                     </div>
                   </div>
                 </Link>
@@ -281,19 +295,30 @@ export default function Companies() {
                     {companyProps.length === 0 ? (
                       <div className="text-gray-400">No properties yet.</div>
                     ) : (
-                      companyProps.map((p) => (
-                        <div key={p.id} className="flex items-center justify-between">
-                          <div className="text-gray-200 truncate">
-                            {p.address || p.name || "—"}
+                      companyProps.map((p) => {
+                        const displayName = p.name || p.address || "—";
+                        const secondaryAddress =
+                          p.address && p.address !== displayName ? p.address : null;
+
+                        return (
+                          <div key={p.id} className="flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-gray-200 truncate">{displayName}</div>
+                              {secondaryAddress && (
+                                <div className="text-xs text-gray-400 truncate">
+                                  {secondaryAddress}
+                                </div>
+                              )}
+                            </div>
+                            <Link
+                              to={`/properties/${p.id}`}
+                              className="text-[#e8d487] text-xs underline hover:text-[#f5f3da]"
+                            >
+                              Open
+                            </Link>
                           </div>
-                          <Link
-                            to={`/properties/${p.id}`}
-                            className="text-[#e8d487] text-xs underline hover:text-[#f5f3da]"
-                          >
-                            Open
-                          </Link>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 )}
