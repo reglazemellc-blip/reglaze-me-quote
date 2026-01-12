@@ -637,6 +637,11 @@ function PropertyCard({
   onStatusChange: (property: Property, status: WorkflowStatus) => void;
   onDelete: (id: string) => void;
 }) {
+  const [newProperty, setNewProperty] = useState(() => ({ ...property }));
+useEffect(() => {
+  setNewProperty({ ...property });
+}, [property]);
+
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const navigate = useNavigate();
   const displayName = property.name?.trim() || property.address || "Unnamed Property";
