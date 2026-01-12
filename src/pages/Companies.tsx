@@ -270,14 +270,14 @@ export default function Companies() {
                           e.preventDefault();
                           handleExpand(c.id);
                         }}
-                        className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap inline-flex items-center gap-1"
+                        className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap inline-flex items-center gap-1 cursor-pointer hover:bg-black/30"
                       >
                         {expandedCompanyId === c.id ? (
                           <ChevronUp size={12} />
                         ) : (
                           <ChevronDown size={12} />
                         )}
-                        {propCount} {propCount === 1 ? "property" : "properties"}
+                        {propCount} {propCount === 1 ? "Property" : "Properties"}
                       </button>
                     </div>
                   </div>
@@ -289,12 +289,17 @@ export default function Companies() {
                       <div className="text-gray-400">No properties yet.</div>
                     ) : (
                       companyProps.map((p) => {
-                        const displayName = p.name || p.address || "—";
+                        const displayName =
+                          p.name || p.propertyName || p.address || "—";
                         const secondaryAddress =
                           p.address && p.address !== displayName ? p.address : null;
 
                         return (
-                          <div key={p.id} className="flex items-center justify-between gap-3">
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between gap-3 p-2 rounded hover:bg-black/40 cursor-pointer"
+                            onClick={() => navigate(`/properties/${p.id}`)}
+                          >
                             <div className="flex-1 min-w-0">
                               <div className="text-gray-200 truncate">{displayName}</div>
                               {secondaryAddress && (
@@ -303,12 +308,6 @@ export default function Companies() {
                                 </div>
                               )}
                             </div>
-                            <Link
-                              to={`/properties/${p.id}`}
-                              className="text-[#e8d487] text-xs underline hover:text-[#f5f3da]"
-                            >
-                              Open
-                            </Link>
                           </div>
                         );
                       })
