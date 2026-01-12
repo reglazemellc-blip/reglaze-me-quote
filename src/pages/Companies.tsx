@@ -267,25 +267,24 @@ export default function Companies() {
                         <MapPin className="w-3 h-3" />
                         {propCount} {propCount === 1 ? "property" : "properties"}
                       </span>
-                     <button
-  className="btn-gold btn-sm inline-flex items-center gap-1"
-  onClick={(e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    handleExpand(c.id); // or whatever your expand handler is
-  }}
->
-  {expandedCompanyId === c.id ? (
-    <>
-      <ChevronUp size={16} /> Properties
-    </>
-  ) : (
-    <>
-      <ChevronDown size={16} /> Properties
-    </>
-  )}
-</button>
-
+                      <button
+                        className="btn-outline-gold btn-sm inline-flex items-center gap-2 px-3 py-1 text-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleExpand(c.id);
+                        }}
+                      >
+                        {expandedCompanyId === c.id ? (
+                          <>
+                            <ChevronUp size={16} /> Properties
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={16} /> Properties
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </Link>
