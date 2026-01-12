@@ -25,6 +25,7 @@ export default function Companies() {
 
   const [term, setTerm] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("newest");
+  const [expandedCompanyId, setExpandedCompanyId] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
@@ -206,63 +207,97 @@ export default function Companies() {
             const scheduledCount = statusSummary["scheduled"] || 0;
             const completedCount = statusSummary["completed"] || 0;
             const invoicedCount = statusSummary["invoiced"] || 0;
+            const companyProps = properties.filter((p) => p.companyId === c.id);
 
             return (
-              <Link
-                key={c.id}
-                to={`/companies/${c.id}`}
-                className="block bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/60 transition shadow"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-5 h-5 text-[#e8d487]" />
-                      <div className="text-lg font-semibold text-[#f5f3da]">
-                        {c.name}
+              <div key={c.id} className="space-y-2">
+                <Link
+                  to={`/companies/${c.id}`}
+                  className="block bg-black/40 border border-[#2a2414] rounded-xl p-4 hover:bg-black/60 transition shadow"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-[#e8d487]" />
+                        <div className="text-lg font-semibold text-[#f5f3da]">
+                          {c.name}
+                        </div>
                       </div>
+
+                      {c.contactName && (
+                        <div className="mt-1 text-sm text-gray-400">
+                          Contact: {c.contactName}
+                        </div>
+                      )}
+
+                      <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
+                        {c.phone && <div>{c.phone}</div>}
+                        {c.email && <div>{c.email}</div>}
+                      </div>
+
+                      {/* Status Summary */}
+                      {propCount > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                          {scheduledCount > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-blue-900/50 text-blue-300 border border-blue-700/50">
+                              {scheduledCount} scheduled
+                            </span>
+                          )}
+                          {completedCount > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-green-900/50 text-green-300 border border-green-700/50">
+                              {completedCount} completed
+                            </span>
+                          )}
+                          {invoicedCount > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300 border border-purple-700/50">
+                              {invoicedCount} invoiced
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {c.contactName && (
-                      <div className="mt-1 text-sm text-gray-400">
-                        Contact: {c.contactName}
-                      </div>
-                    )}
-
-                    <div className="mt-2 text-[13px] space-y-0.5 text-gray-300">
-                      {c.phone && <div>{c.phone}</div>}
-                      {c.email && <div>{c.email}</div>}
+                    <div className="flex flex-col items-end gap-2">
+                      <span className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {propCount} {propCount === 1 ? "unit" : "units"}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setExpandedCompanyId((prev) => (prev === c.id ? null : c.id));
+                        }}
+                        className="text-xs px-2 py-1 rounded border border-[#2a2a2a] text-gray-200 hover:bg-black/40"
+                      >
+                        {expandedCompanyId === c.id ? "Collapse" : "Expand"}
+                      </button>
                     </div>
+                  </div>
+                </Link>
 
-                    {/* Status Summary */}
-                    {propCount > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                        {scheduledCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-blue-900/50 text-blue-300 border border-blue-700/50">
-                            {scheduledCount} scheduled
-                          </span>
-                        )}
-                        {completedCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-green-900/50 text-green-300 border border-green-700/50">
-                            {completedCount} completed
-                          </span>
-                        )}
-                        {invoicedCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300 border border-purple-700/50">
-                            {invoicedCount} invoiced
-                          </span>
-                        )}
-                      </div>
+                {expandedCompanyId === c.id && (
+                  <div className="bg-black/30 border border-[#2a2a2a] rounded-lg p-3 text-sm space-y-2">
+                    {companyProps.length === 0 ? (
+                      <div className="text-gray-400">No properties yet.</div>
+                    ) : (
+                      companyProps.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between">
+                          <div className="text-gray-200 truncate">
+                            {p.address || p.name || "—"}
+                          </div>
+                          <Link
+                            to={`/properties/${p.id}`}
+                            className="text-[#e8d487] text-xs underline hover:text-[#f5f3da]"
+                          >
+                            Open
+                          </Link>
+                        </div>
+                      ))
                     )}
                   </div>
-
-                  <div className="flex flex-col items-end gap-2">
-                    <span className="text-[11px] px-2 py-1 rounded-full border border-[#e8d487]/70 text-[#e8d487] whitespace-nowrap flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {propCount} {propCount === 1 ? "unit" : "units"}
-                    </span>
-                  </div>
-                </div>
-              </Link>
+                )}
+              </div>
             );
           })}
         </div>
