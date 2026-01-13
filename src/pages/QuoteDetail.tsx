@@ -296,11 +296,7 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
       return
     }
 
-    // Check if jobsite readiness is acknowledged
-    if (!quote.jobsiteReadyAcknowledged) {
-      useToastStore.getState().show("Please acknowledge jobsite readiness before generating the PDF.")
-      return
-    }
+   
 
     try {
       // Convert SafeQuote client snapshot to full Client object for PDF
@@ -365,71 +361,6 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
       }
       console.error('Error sharing quote:', error)
       useToastStore.getState().show("Failed to share quote")
-    }
-  }
-
-  const handleToggleAcknowledgment = async () => {
-    if (!quote) return
-    
-    setAcknowledgeSaving(true)
-    try {
-      const newValue = !quote.jobsiteReadyAcknowledged
-      const timestamp = newValue ? Date.now() : undefined
-      
-      const { setDoc } = await import('firebase/firestore')
-      const quoteRef = doc(db, 'quotes', quote.id)
-      await setDoc(quoteRef, {
-  tenantId: useConfigStore.getState().activeTenantId,
-  jobsiteReadyAcknowledged: newValue,
-  jobsiteReadyAcknowledgedAt: timestamp,
-  updatedAt: Date.now()
-}, { merge: true })
-
-      
-      setQuote({
-        ...quote,
-        jobsiteReadyAcknowledged: newValue,
-        jobsiteReadyAcknowledgedAt: timestamp,
-        updatedAt: Date.now()
-      })
-    } catch (error) {
-      console.error('Error updating acknowledgment:', error)
-      useToastStore.getState().show("Failed to update acknowledgment")
-    } finally {
-      setAcknowledgeSaving(false)
-    }
-  }
-
-  const handleToggleWaterShutoff = async () => {
-    if (!quote) return
-    
-    // Check if locked (PDF has been generated)
-    if (quote.pdfUrl) {
-      useToastStore.getState().show("Water shutoff election is locked after PDF generation.")
-      return
-    }
-    
-    setAcknowledgeSaving(true)
-    try {
-      const newValue = !quote.waterShutoffElected
-      
-      const { setDoc } = await import('firebase/firestore')
-      const quoteRef = doc(db, 'quotes', quote.id)
-      await setDoc(quoteRef, {
-        waterShutoffElected: newValue,
-        updatedAt: Date.now()
-      }, { merge: true })
-      
-      setQuote({
-        ...quote,
-        waterShutoffElected: newValue,
-        updatedAt: Date.now()
-      })
-    } catch (error) {
-      console.error('Error updating water shutoff election:', error)
-      useToastStore.getState().show("Failed to update water shutoff election")
-    } finally {
-      setAcknowledgeSaving(false)
     }
   }
 
