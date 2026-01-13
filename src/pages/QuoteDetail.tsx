@@ -13,12 +13,23 @@ import type {
   QuoteClientSnapshot,
   Attachment,
   Invoice,
-  WorkflowStatus,
 } from "@db/index";
 import { useToastStore } from "@store/useToastStore";
 import { useInvoicesStore } from "@store/useInvoicesStore";
 import { setDoc } from "firebase/firestore";
 import { Clock, Calendar, CheckCircle2, X, ArrowLeft } from "lucide-react";
+
+type QuoteWorkflowStatus =
+  | "new"
+  | "docs_sent"
+  | "waiting_prejob"
+  | "downpayment_received"
+  | "ready_to_schedule"
+  | "scheduled"
+  | "in_progress"
+  | "completed"
+  | "invoiced"
+  | "paid";
 
 // Time options for dropdown
 const timeOptions = [
@@ -29,7 +40,7 @@ const timeOptions = [
 ];
 
 // Helper to sync invoice status when quote workflow changes
-async function syncInvoiceStatus(quoteId: string, workflowStatus: WorkflowStatus) {
+async function syncInvoiceStatus(quoteId: string, workflowStatus: QuoteWorkflowStatus) {
   try {
     // Find invoice linked to this quote
     const invoicesRef = collection(db, 'invoices');
@@ -65,10 +76,11 @@ async function syncInvoiceStatus(quoteId: string, workflowStatus: WorkflowStatus
 }
 
 // Workflow status configuration
-const workflowStatuses: { value: WorkflowStatus; label: string; color: string; bgColor: string }[] = [
+const workflowStatuses: { value: QuoteWorkflowStatus; label: string; color: string; bgColor: string }[] = [
   { value: "new", label: "New", color: "text-gray-400", bgColor: "bg-gray-600" },
-  { value: "docs_sent", label: "Docs Sent", color: "text-yellow-400", bgColor: "bg-yellow-600" },
-  { value: "waiting_prejob", label: "Waiting Pre-Job", color: "text-orange-400", bgColor: "bg-orange-600" },
+  { value: "docs_sent", label: "Quote Sent", color: "text-yellow-400", bgColor: "bg-yellow-600" },
+  { value: "waiting_prejob", label: "Quote Accepted", color: "text-orange-400", bgColor: "bg-orange-600" },
+  { value: "downpayment_received", label: "Downpayment Received", color: "text-amber-300", bgColor: "bg-amber-600" },
   { value: "ready_to_schedule", label: "Ready to Schedule", color: "text-cyan-400", bgColor: "bg-cyan-600" },
   { value: "scheduled", label: "Scheduled", color: "text-blue-400", bgColor: "bg-blue-600" },
   { value: "in_progress", label: "In Progress", color: "text-indigo-400", bgColor: "bg-indigo-600" },
@@ -89,7 +101,7 @@ type SafeQuote = Partial<Quote> & {
   attachments: Attachment[];
   client: QuoteClientSnapshot;
   // Workflow fields
-  workflowStatus?: WorkflowStatus;
+  workflowStatus?: QuoteWorkflowStatus;
   documentTracking?: {
     preJobSent?: number;
     preJobReceived?: number;
@@ -470,7 +482,7 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
             className="input text-xs md:text-sm"
             value={quote.workflowStatus ?? 'new'}
             onChange={async (e) => {
-              const next = e.target.value as WorkflowStatus
+              const next = e.target.value as QuoteWorkflowStatus;
               const quoteRef = doc(db, 'quotes', quote.id)
               await setDoc(quoteRef, {
                 workflowStatus: next,
