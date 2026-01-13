@@ -23,7 +23,6 @@ type QuoteWorkflowStatus =
   | "new"
   | "docs_sent"
   | "waiting_prejob"
-  | "downpayment_received"
   | "ready_to_schedule"
   | "scheduled"
   | "in_progress"
@@ -80,7 +79,6 @@ const workflowStatuses: { value: QuoteWorkflowStatus; label: string; color: stri
   { value: "new", label: "New", color: "text-gray-400", bgColor: "bg-gray-600" },
   { value: "docs_sent", label: "Quote Sent", color: "text-yellow-400", bgColor: "bg-yellow-600" },
   { value: "waiting_prejob", label: "Quote Accepted", color: "text-orange-400", bgColor: "bg-orange-600" },
-  { value: "downpayment_received", label: "Downpayment Received", color: "text-amber-300", bgColor: "bg-amber-600" },
   { value: "ready_to_schedule", label: "Ready to Schedule", color: "text-cyan-400", bgColor: "bg-cyan-600" },
   { value: "scheduled", label: "Scheduled", color: "text-blue-400", bgColor: "bg-blue-600" },
   { value: "in_progress", label: "In Progress", color: "text-indigo-400", bgColor: "bg-indigo-600" },
@@ -287,7 +285,7 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
           waterShutoffElected: data.waterShutoffElected ?? false,
 
           // Workflow fields
-          workflowStatus: data.workflowStatus ?? "new",
+          workflowStatus: (["new","docs_sent","waiting_prejob","ready_to_schedule","scheduled","in_progress","completed","invoiced","paid"].includes(data.workflowStatus) ? data.workflowStatus : "new") as QuoteWorkflowStatus,
           documentTracking: data.documentTracking ?? {},
           scheduledDate: data.scheduledDate ?? null,
           scheduledTime: data.scheduledTime ?? null,
