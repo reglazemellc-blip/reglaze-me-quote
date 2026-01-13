@@ -18,7 +18,7 @@ import type {
 import { useToastStore } from "@store/useToastStore";
 import { useInvoicesStore } from "@store/useInvoicesStore";
 import { setDoc } from "firebase/firestore";
-import { Clock, FileText, Calendar, Send, CheckCircle2, X, ArrowLeft } from "lucide-react";
+import { Clock, Calendar, CheckCircle2, X, ArrowLeft } from "lucide-react";
 
 // Time options for dropdown
 const timeOptions = [
@@ -555,88 +555,41 @@ const { getByQuote, upsertInvoice } = useInvoicesStore();
         </div>
 
         {/* Document Tracking & Scheduling Info */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-          {/* Document Status */}
-          <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
-            <div className="flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4 text-[#e8d487]" />
-              <span className="font-medium text-gray-300">Documents</span>
-            </div>
-            <div className="space-y-1 text-gray-400">
-              <div className="flex items-center justify-between">
-                <span>Pre-Job Sent:</span>
-                <span className={quote.documentTracking?.preJobSent ? 'text-green-400' : 'text-gray-500'}>
-                  {quote.documentTracking?.preJobSent
-                    ? new Date(quote.documentTracking.preJobSent).toLocaleDateString()
-                    : 'Not sent'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Schedule Info */}
-          <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
-            <div className="flex items-center gap-2 mb-2">
-              <Calendar className="w-4 h-4 text-[#e8d487]" />
-              <span className="font-medium text-gray-300">Schedule</span>
-            </div>
-            {quote.scheduledDate ? (
-              <div className="text-gray-300">
-                <div className="text-lg font-semibold text-[#e8d487]">
-                  {new Date(quote.scheduledDate + 'T12:00:00').toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </div>
-                {quote.scheduledTime && (
-                  <div className="text-gray-400">@ {quote.scheduledTime}</div>
-                )}
-              </div>
-            ) : (
-              <div className="text-gray-500">Not scheduled</div>
-            )}
-            <button
-              className="mt-2 text-[#e8d487] underline text-[11px]"
-              onClick={() => {
-                setScheduleDate(quote.scheduledDate || '');
-                setScheduleTime(quote.scheduledTime || '');
-                setShowScheduleModal(true);
-              }}
-            >
-              {quote.scheduledDate ? 'Change Schedule' : 'Set Schedule'}
-            </button>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
-            <div className="flex items-center gap-2 mb-2">
-              <Send className="w-4 h-4 text-[#e8d487]" />
-              <span className="font-medium text-gray-300">Quick Actions</span>
-            </div>
-            <div className="space-y-2">
-              <button
-                className="w-full text-left px-2 py-1.5 rounded bg-black/30 text-gray-300 hover:bg-black/50 transition text-[11px]"
-                onClick={async () => {
-                  const quoteRef = doc(db, 'quotes', quote.id)
-                  await setDoc(quoteRef, {
-                    'documentTracking.preJobSent': Date.now(),
-                    workflowStatus: 'docs_sent',
-                    updatedAt: Date.now(),
-                  }, { merge: true })
-                  setQuote({
-                    ...quote,
-                    documentTracking: { ...quote.documentTracking, preJobSent: Date.now() },
-                    workflowStatus: 'docs_sent'
-                  })
-                  useToastStore.getState().show('Marked Pre-Job as sent')
-                }}
-              >
-                ✓ Mark Pre-Job Sent
-              </button>
-            </div>
-          </div>
-        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 text-xs">
+           {/* Schedule Info */}
+           <div className="bg-black/30 rounded-lg p-3 border border-gray-700/50">
+             <div className="flex items-center gap-2 mb-2">
+               <Calendar className="w-4 h-4 text-[#e8d487]" />
+               <span className="font-medium text-gray-300">Schedule</span>
+             </div>
+             {quote.scheduledDate ? (
+               <div className="text-gray-300">
+                 <div className="text-lg font-semibold text-[#e8d487]">
+                   {new Date(quote.scheduledDate + 'T12:00:00').toLocaleDateString('en-US', {
+                     weekday: 'short',
+                     month: 'short',
+                     day: 'numeric'
+                   })}
+                 </div>
+                 {quote.scheduledTime && (
+                   <div className="text-gray-400">@ {quote.scheduledTime}</div>
+                 )}
+               </div>
+             ) : (
+               <div className="text-gray-500">Not scheduled</div>
+             )}
+             <button
+               className="mt-2 text-[#e8d487] underline text-[11px]"
+               onClick={() => {
+                 setScheduleDate(quote.scheduledDate || '');
+                 setScheduleTime(quote.scheduledTime || '');
+                 setShowScheduleModal(true);
+               }}
+             >
+               {quote.scheduledDate ? 'Change Schedule' : 'Set Schedule'}
+             </button>
+           </div>
+         </div>
       </div>
 
       {/* ITEMS */}
