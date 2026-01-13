@@ -290,7 +290,7 @@ export default function Companies() {
                     ) : (
                       companyProps.map((p) => {
                         const displayName =
-                          p.name || p.propertyName || p.address || "—";
+                          p.name || p.address || "—";
                         const secondaryAddress =
                           p.address && p.address !== displayName ? p.address : null;
 
